@@ -27,6 +27,28 @@ export default function TripLayout() {
         }}
       />
       <Stack.Screen
+        name="scheduled"
+        options={{
+          title: 'Trajet programme',
+          headerBackVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="paused"
+        options={{
+          title: 'Trajet en pause',
+          headerBackVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="alert-active"
+        options={{
+          title: 'Alerte active',
+          headerShown: false,
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
         name="notes"
         options={{
           title: 'Notes',
@@ -36,7 +58,7 @@ export default function TripLayout() {
       <Stack.Screen
         name="complete"
         options={{
-          title: 'Trajet terminé',
+          title: 'Trajet termine',
           presentation: 'modal',
           headerBackVisible: false,
         }}

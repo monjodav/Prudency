@@ -45,6 +45,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="places"
+        options={{
+          title: 'Lieux',
+          tabBarIcon: ({ color }) => <TabBarIcon name="map-marker" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="guardian"
+        options={{
+          title: 'Proteges',
+          tabBarIcon: ({ color }) => <TabBarIcon name="shield" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profil',

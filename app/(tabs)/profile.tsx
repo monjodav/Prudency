@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
@@ -36,6 +37,7 @@ function MenuItem({ icon, label, onPress, danger = false }: MenuItemProps) {
 }
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { user } = useAuthStore();
 
   const handleSignOut = async () => {
@@ -80,17 +82,38 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Parametres</Text>
-        <MenuItem icon="bell" label="Notifications" />
-        <MenuItem icon="lock" label="Confidentialite" />
-        <MenuItem icon="map-marker" label="Permissions de localisation" />
+        <Text style={styles.sectionTitle}>Mon compte</Text>
+        <MenuItem
+          icon="user"
+          label="Infos personnelles"
+          onPress={() => router.push('/(profile)/personal-info')}
+        />
+        <MenuItem
+          icon="sliders"
+          label="Preferences"
+          onPress={() => router.push('/(profile)/preferences')}
+        />
+        <MenuItem
+          icon="lock"
+          label="Securite et confidentialite"
+          onPress={() => router.push('/(profile)/security')}
+        />
+        <MenuItem
+          icon="credit-card"
+          label="Abonnement"
+          onPress={() => router.push('/(profile)/subscription')}
+        />
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Assistance</Text>
         <MenuItem icon="question-circle" label="Centre d'aide" />
         <MenuItem icon="envelope" label="Nous contacter" />
-        <MenuItem icon="info-circle" label="A propos" />
+        <MenuItem
+          icon="info-circle"
+          label="A propos"
+          onPress={() => router.push('/(profile)/about')}
+        />
       </View>
 
       <View style={styles.section}>
