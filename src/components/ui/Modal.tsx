@@ -11,6 +11,7 @@ import {
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
+import { ms } from '@/src/utils/scaling';
 
 interface ModalProps {
   visible: boolean;
@@ -60,8 +61,8 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
   },
   handle: {
-    width: 40,
-    height: 4,
+    width: ms(40, 0.5),
+    height: ms(4, 0.5),
     borderRadius: borderRadius.full,
     backgroundColor: colors.gray[300],
     alignSelf: 'center',

@@ -11,6 +11,7 @@ import * as Haptics from 'expo-haptics';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
+import { scaledFontSize, scaledSpacing, ms } from '@/src/utils/scaling';
 
 const LONG_PRESS_DURATION_MS = 2000;
 
@@ -23,7 +24,7 @@ interface AlertButtonProps {
 export function AlertButton({
   onTrigger,
   disabled = false,
-  size = 120,
+  size = ms(120, 0.5),
 }: AlertButtonProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
@@ -102,9 +103,9 @@ export function AlertButton({
         style={[
           styles.pulseRing,
           {
-            width: size + 30,
-            height: size + 30,
-            borderRadius: (size + 30) / 2,
+            width: size + scaledSpacing(30),
+            height: size + scaledSpacing(30),
+            borderRadius: (size + scaledSpacing(30)) / 2,
             transform: [{ scale: pulseScale }],
             opacity: pulseOpacity,
           },
@@ -148,16 +149,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: colors.alert.background,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: scaledSpacing(6) },
     shadowOpacity: 0.4,
-    shadowRadius: 12,
+    shadowRadius: scaledSpacing(12),
     elevation: 8,
   },
   disabled: {
     opacity: 0.4,
   },
   icon: {
-    fontSize: 32,
+    fontSize: scaledFontSize(32),
     fontWeight: '800',
     color: colors.alert.text,
   },
@@ -165,7 +166,7 @@ const styles = StyleSheet.create({
     ...typography.buttonSmall,
     color: colors.alert.text,
     marginTop: spacing[1],
-    letterSpacing: 2,
+    letterSpacing: scaledFontSize(2),
   },
   hint: {
     ...typography.caption,

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
@@ -13,30 +13,77 @@ import { TripTimer } from '@/src/components/trip/TripTimer';
 import { TripStatusIndicator } from '@/src/components/trip/TripStatus';
 import { TripMap } from '@/src/components/map/TripMap';
 import { useTripStore } from '@/src/stores/tripStore';
+import { useActiveTrip } from '@/src/hooks/useActiveTrip';
+import { useTrip } from '@/src/hooks/useTrip';
+import { useAlert } from '@/src/hooks/useAlert';
+import { useLocation } from '@/src/hooks/useLocation';
+import { useContacts } from '@/src/hooks/useContacts';
 import { TRIP_STATUS } from '@/src/utils/constants';
+import { scaledIcon } from '@/src/utils/scaling';
 
 export default function ActiveTripScreen() {
   const router = useRouter();
   const { lastKnownLat, lastKnownLng, batteryLevel } = useTripStore();
+  const { trip } = useActiveTrip();
+  const { completeTrip, isCompleting } = useTrip();
+  const { triggerAlert, isTriggering } = useAlert();
+  const { startTracking, stopTracking, isTracking } = useLocation();
+  const { contacts } = useContacts();
+
   const [showAlertConfirmation, setShowAlertConfirmation] = useState(false);
   const [showEndConfirmation, setShowEndConfirmation] = useState(false);
 
-  // Placeholder: estimated arrival 30min from now
-  const estimatedArrival = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  const estimatedArrival = trip?.estimated_arrival_at
+    ?? new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
-  const handleAlert = () => {
-    // Placeholder: will use useAlert hook
-    setShowAlertConfirmation(true);
+  useEffect(() => {
+    if (!isTracking) {
+      startTracking().catch(() => {
+        // Permission denied or error; tracking not started
+      });
+    }
+  }, [isTracking, startTracking]);
+
+  const handleAlert = async () => {
+    if (!trip) return;
+    try {
+      await triggerAlert({
+        tripId: trip.id,
+        type: 'manual',
+        lat: lastKnownLat ?? undefined,
+        lng: lastKnownLng ?? undefined,
+        batteryLevel: batteryLevel ?? undefined,
+      });
+      router.replace('/(trip)/alert-active');
+    } catch {
+      setShowAlertConfirmation(true);
+    }
+  };
+
+  const handlePause = async () => {
+    try {
+      await stopTracking();
+      router.replace('/(trip)/paused');
+    } catch {
+      // Stop tracking failed, still navigate to paused
+      router.replace('/(trip)/paused');
+    }
   };
 
   const handleEndTrip = () => {
     setShowEndConfirmation(true);
   };
 
-  const confirmEndTrip = () => {
-    // Placeholder: will use useTrip hook to complete trip
-    setShowEndConfirmation(false);
-    router.replace('/(trip)/complete');
+  const confirmEndTrip = async () => {
+    if (!trip) return;
+    try {
+      await stopTracking();
+      await completeTrip(trip.id);
+      setShowEndConfirmation(false);
+      router.replace('/(trip)/complete');
+    } catch {
+      setShowEndConfirmation(false);
+    }
   };
 
   return (
@@ -57,9 +104,9 @@ export default function ActiveTripScreen() {
 
         {batteryLevel != null && batteryLevel <= 15 && (
           <View style={styles.batteryWarning}>
-            <FontAwesome
-              name="battery-empty"
-              size={16}
+            <Ionicons
+              name="battery-dead-outline"
+              size={scaledIcon(18)}
               color={colors.warning[700]}
             />
             <Text style={styles.batteryText}>
@@ -69,7 +116,7 @@ export default function ActiveTripScreen() {
         )}
 
         <View style={styles.alertSection}>
-          <AlertButton onTrigger={handleAlert} />
+          <AlertButton onTrigger={handleAlert} disabled={isTriggering} />
         </View>
 
         <View style={styles.actionsRow}>
@@ -77,13 +124,18 @@ export default function ActiveTripScreen() {
             style={styles.actionItem}
             onPress={() => router.push('/(trip)/notes')}
           >
-            <FontAwesome name="pencil" size={20} color={colors.gray[600]} />
+            <Ionicons name="document-text-outline" size={scaledIcon(22)} color={colors.gray[600]} />
             <Text style={styles.actionLabel}>Notes</Text>
           </Pressable>
 
+          <Pressable style={styles.actionItem} onPress={handlePause}>
+            <Ionicons name="pause-circle-outline" size={scaledIcon(22)} color={colors.warning[600]} />
+            <Text style={styles.actionLabel}>Pause</Text>
+          </Pressable>
+
           <Pressable style={styles.actionItem} onPress={handleEndTrip}>
-            <FontAwesome name="check-circle" size={20} color={colors.success[600]} />
-            <Text style={styles.actionLabel}>Terminer</Text>
+            <Ionicons name="checkmark-circle-outline" size={scaledIcon(22)} color={colors.success[600]} />
+            <Text style={styles.actionLabel}>Arrivee</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -93,10 +145,9 @@ export default function ActiveTripScreen() {
         onClose={() => setShowAlertConfirmation(false)}
       >
         <AlertConfirmation
-          contactCount={3}
+          contactCount={contacts.length}
           onDismiss={() => setShowAlertConfirmation(false)}
           onCancel={() => {
-            // Placeholder: cancel alert
             setShowAlertConfirmation(false);
           }}
         />
@@ -105,7 +156,7 @@ export default function ActiveTripScreen() {
       <Modal
         visible={showEndConfirmation}
         onClose={() => setShowEndConfirmation(false)}
-        title="Terminer le trajet ?"
+        title="Je suis arrivee"
       >
         <Text style={styles.confirmText}>
           Confirmez que vous etes bien arrivee a destination.
@@ -120,6 +171,7 @@ export default function ActiveTripScreen() {
           <Button
             title="Confirmer"
             onPress={confirmEndTrip}
+            loading={isCompleting}
             style={styles.confirmButton}
           />
         </View>

@@ -1,56 +1,58 @@
+import { scaledSpacing, scaledRadius, scaledShadow } from '@/src/utils/scaling';
+
 export const spacing = {
   0: 0,
-  1: 4,
-  2: 8,
-  3: 12,
-  4: 16,
-  5: 20,
-  6: 24,
-  8: 32,
-  10: 40,
-  12: 48,
-  16: 64,
-  20: 80,
-  24: 96,
-} as const;
+  1: scaledSpacing(4),
+  2: scaledSpacing(8),
+  3: scaledSpacing(12),
+  4: scaledSpacing(16),
+  5: scaledSpacing(20),
+  6: scaledSpacing(24),
+  8: scaledSpacing(32),
+  10: scaledSpacing(40),
+  12: scaledSpacing(48),
+  16: scaledSpacing(64),
+  20: scaledSpacing(80),
+  24: scaledSpacing(96),
+};
 
 export const borderRadius = {
   none: 0,
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
-  '2xl': 24,
-  full: 9999,
-} as const;
+  sm: scaledRadius(4),
+  md: scaledRadius(8),
+  lg: scaledRadius(12),
+  xl: scaledRadius(16),
+  '2xl': scaledRadius(24),
+  full: 9999, // Pill shape — not scaled
+};
 
 export const shadows = {
-  sm: {
+  sm: scaledShadow({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
-  },
-  md: {
+  }),
+  md: scaledShadow({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  lg: {
+  }),
+  lg: scaledShadow({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
-  },
-  xl: {
+  }),
+  xl: scaledShadow({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 8,
-  },
-} as const;
+  }),
+};

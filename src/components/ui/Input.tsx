@@ -8,9 +8,10 @@ import {
   Pressable,
   ViewStyle,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius } from '@/src/theme/spacing';
+import { ms, scaledSpacing, scaledRadius, scaledIcon } from '@/src/utils/scaling';
 
 interface InputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -18,6 +19,7 @@ interface InputProps extends Omit<TextInputProps, 'style'> {
   hint?: string;
   secureToggle?: boolean;
   containerStyle?: ViewStyle;
+  variant?: 'light' | 'dark';
 }
 
 export function Input({
@@ -27,18 +29,34 @@ export function Input({
   secureToggle = false,
   secureTextEntry,
   containerStyle,
+  variant = 'dark',
   ...textInputProps
 }: InputProps) {
   const [isSecure, setIsSecure] = useState(secureTextEntry ?? true);
   const hasError = Boolean(error);
 
+  const isDark = variant === 'dark';
+
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputContainer, hasError && styles.inputError]}>
+      {label && (
+        <Text style={[styles.label, isDark ? styles.labelDark : styles.labelLight]}>
+          {label}
+        </Text>
+      )}
+      <View
+        style={[
+          styles.inputContainer,
+          isDark ? styles.inputContainerDark : styles.inputContainerLight,
+          hasError && styles.inputError,
+        ]}
+      >
         <TextInput
-          style={styles.input}
-          placeholderTextColor={colors.gray[400]}
+          style={[
+            styles.input,
+            isDark ? styles.inputTextDark : styles.inputTextLight,
+          ]}
+          placeholderTextColor={colors.gray[500]}
           secureTextEntry={secureToggle ? isSecure : secureTextEntry}
           {...textInputProps}
         />
@@ -48,9 +66,11 @@ export function Input({
             style={styles.toggleButton}
             hitSlop={8}
           >
-            <Text style={styles.toggleText}>
-              {isSecure ? 'Voir' : 'Masquer'}
-            </Text>
+            <Ionicons
+              name={isSecure ? 'eye-off-outline' : 'eye-outline'}
+              size={scaledIcon(24)}
+              color={colors.gray[500]}
+            />
           </Pressable>
         )}
       </View>
@@ -62,49 +82,61 @@ export function Input({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing[4],
+    marginBottom: scaledSpacing(16),
   },
   label: {
     ...typography.label,
+    marginBottom: scaledSpacing(8),
+  },
+  labelDark: {
+    color: colors.gray[50],
+  },
+  labelLight: {
     color: colors.gray[700],
-    marginBottom: spacing[1],
-    textTransform: 'uppercase',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.gray[300],
-    borderRadius: borderRadius.lg,
+    borderRadius: scaledRadius(8),
+    height: ms(48, 0.5),
+    paddingHorizontal: scaledSpacing(16),
+  },
+  inputContainerDark: {
+    backgroundColor: 'transparent',
+    borderColor: colors.primary[50],
+  },
+  inputContainerLight: {
     backgroundColor: colors.gray[50],
+    borderColor: colors.gray[300],
   },
   inputError: {
     borderColor: colors.error[500],
-    backgroundColor: colors.error[50],
   },
   input: {
     flex: 1,
-    ...typography.body,
+    ...typography.inputText,
+    height: '100%',
+    paddingVertical: scaledSpacing(12),
+  },
+  inputTextDark: {
+    color: colors.white,
+  },
+  inputTextLight: {
     color: colors.gray[900],
-    paddingVertical: spacing[3],
-    paddingHorizontal: spacing[4],
   },
   toggleButton: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
-  },
-  toggleText: {
-    ...typography.buttonSmall,
-    color: colors.primary[500],
+    padding: scaledSpacing(4),
+    marginLeft: scaledSpacing(8),
   },
   errorText: {
     ...typography.caption,
     color: colors.error[500],
-    marginTop: spacing[1],
+    marginTop: scaledSpacing(4),
   },
   hintText: {
     ...typography.caption,
     color: colors.gray[500],
-    marginTop: spacing[1],
+    marginTop: scaledSpacing(4),
   },
 });

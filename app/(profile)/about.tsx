@@ -12,6 +12,7 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { appVersion } from '@/src/config/env';
+import { ms, scaledRadius, scaledLineHeight, scaledIcon } from '@/src/utils/scaling';
 
 interface LinkItemProps {
   icon: React.ComponentProps<typeof FontAwesome>['name'];
@@ -25,9 +26,9 @@ function LinkItem({ icon, title, url }: LinkItemProps) {
       style={styles.linkItem}
       onPress={() => Linking.openURL(url)}
     >
-      <FontAwesome name={icon} size={18} color={colors.gray[600]} style={styles.linkIcon} />
+      <FontAwesome name={icon} size={scaledIcon(18)} color={colors.gray[600]} style={styles.linkIcon} />
       <Text style={styles.linkText}>{title}</Text>
-      <FontAwesome name="external-link" size={14} color={colors.gray[400]} />
+      <FontAwesome name="external-link" size={scaledIcon(14)} color={colors.gray[400]} />
     </Pressable>
   );
 }
@@ -108,7 +109,7 @@ export default function AboutScreen() {
           © {new Date().getFullYear()} Prudency. Tous droits reserves.
         </Text>
         <Text style={styles.madeWith}>
-          Fait avec <FontAwesome name="heart" size={12} color={colors.primary[500]} /> en France
+          Fait avec <FontAwesome name="heart" size={scaledIcon(12)} color={colors.primary[500]} /> en France
         </Text>
       </View>
     </ScrollView>
@@ -128,29 +129,29 @@ const styles = StyleSheet.create({
     marginBottom: spacing[8],
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: ms(80, 0.5),
+    height: ms(80, 0.5),
     backgroundColor: colors.primary[500],
-    borderRadius: 20,
+    borderRadius: scaledRadius(20),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing[4],
   },
   shield: {
-    width: 40,
-    height: 48,
+    width: ms(40, 0.5),
+    height: ms(48, 0.5),
     backgroundColor: colors.white,
-    borderRadius: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderRadius: scaledRadius(20),
+    borderBottomLeftRadius: scaledRadius(24),
+    borderBottomRightRadius: scaledRadius(24),
     justifyContent: 'center',
     alignItems: 'center',
   },
   shieldInner: {
-    width: 12,
-    height: 12,
+    width: ms(12, 0.5),
+    height: ms(12, 0.5),
     backgroundColor: colors.primary[500],
-    borderRadius: 6,
+    borderRadius: ms(12, 0.5) / 2,
   },
   appName: {
     ...typography.h1,
@@ -178,7 +179,7 @@ const styles = StyleSheet.create({
   description: {
     ...typography.body,
     color: colors.gray[700],
-    lineHeight: 24,
+    lineHeight: scaledLineHeight(24),
   },
   links: {
     backgroundColor: colors.gray[50],
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.gray[100],
   },
   linkIcon: {
-    width: 28,
+    width: ms(28, 0.5),
   },
   linkText: {
     ...typography.body,

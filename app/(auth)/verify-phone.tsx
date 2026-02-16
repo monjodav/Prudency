@@ -7,14 +7,22 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/src/theme/colors';
-import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
+import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
+import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, ms } from '@/src/utils/scaling';
 
 const CODE_LENGTH = 6;
+
+// TODO: SECURITY - Replace with server-side OTP verification via Edge Function
+// This is a development placeholder only. In production:
+// 1. Generate OTP server-side and store with expiry
+// 2. Send via Plivo SMS
+// 3. Verify server-side, not client-side
+const DEV_BYPASS_OTP = __DEV__ ? '123456' : null;
 
 export default function VerifyPhoneScreen() {
   const router = useRouter();
@@ -45,10 +53,6 @@ export default function VerifyPhoneScreen() {
     if (value && index < CODE_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
-
-    if (newCode.every((c) => c !== '') && newCode.join('').length === CODE_LENGTH) {
-      handleVerify(newCode.join(''));
-    }
   };
 
   const handleKeyPress = (index: number, key: string) => {
@@ -57,23 +61,30 @@ export default function VerifyPhoneScreen() {
     }
   };
 
-  const handleVerify = async (fullCode: string) => {
+  const handleVerify = async () => {
+    const fullCode = code.join('');
+    if (fullCode.length !== CODE_LENGTH) return;
+
     setIsLoading(true);
     setError(null);
 
     try {
-      // Placeholder: will verify OTP via Supabase
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // TODO: Replace with server-side verification call
+      // const { verified } = await verifyOTP(phone, fullCode);
 
-      if (fullCode === '123456') {
-        router.replace('/(auth)/onboarding');
-      } else {
-        setError('Code incorrect. Veuillez reessayer.');
+      // Development bypass - only works in __DEV__ mode
+      const isValidCode = DEV_BYPASS_OTP && fullCode === DEV_BYPASS_OTP;
+
+      if (!isValidCode) {
+        setError('Code incorrect. Veuillez réessayer.');
         setCode(Array(CODE_LENGTH).fill(''));
         inputRefs.current[0]?.focus();
+        return;
       }
+
+      router.replace('/(auth)/permissions-location');
     } catch {
-      setError('Une erreur est survenue. Veuillez reessayer.');
+      setError('Une erreur est survenue. Veuillez réessayer.');
     } finally {
       setIsLoading(false);
     }
@@ -81,51 +92,62 @@ export default function VerifyPhoneScreen() {
 
   const handleResend = async () => {
     if (resendTimer > 0) return;
-
     setResendTimer(60);
     // Placeholder: resend OTP
   };
 
-  const maskedPhone = phone
-    ? phone.replace(/(\+\d{2})(\d{1})(\d+)(\d{2})/, '$1 $2** *** **$4')
-    : '';
+  const displayPhone = phone || '+33 6 51 87 25 10';
+  const isCodeComplete = code.every((c) => c !== '');
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.content}>
-        <Text style={styles.title}>Verification</Text>
-        <Text style={styles.subtitle}>
-          Entrez le code envoye au {maskedPhone}
-        </Text>
+    <OnboardingBackground>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Vérifie ton numéro</Text>
+            <Text style={styles.subtitle}>
+              Je t'ai envoyé un code au : {displayPhone}{'\n'}
+              Tu as {resendTimer}s pour rentrer le code.
+            </Text>
+          </View>
 
-        <View style={styles.codeContainer}>
-          {code.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => (inputRefs.current[index] = ref)}
-              style={[
-                styles.codeInput,
-                digit && styles.codeInputFilled,
-                error && styles.codeInputError,
-              ]}
-              value={digit}
-              onChangeText={(value) => handleCodeChange(index, value)}
-              onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
-              keyboardType="number-pad"
-              maxLength={1}
-              selectTextOnFocus
-              autoFocus={index === 0}
-            />
-          ))}
-        </View>
+          {/* OTP Input */}
+          <View style={styles.codeContainer}>
+            {code.map((digit, index) => (
+              <TextInput
+                key={index}
+                ref={(ref) => {
+                  inputRefs.current[index] = ref;
+                }}
+                style={[
+                  styles.codeInput,
+                  digit && styles.codeInputFilled,
+                  error && styles.codeInputError,
+                ]}
+                value={digit}
+                onChangeText={(value) => handleCodeChange(index, value)}
+                onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
+                keyboardType="number-pad"
+                maxLength={1}
+                selectTextOnFocus
+                autoFocus={index === 0}
+                placeholder="_"
+                placeholderTextColor={colors.gray[500]}
+              />
+            ))}
+          </View>
 
-        {error && <Text style={styles.error}>{error}</Text>}
+          {error && <Text style={styles.error}>{error}</Text>}
 
-        <View style={styles.resendContainer}>
-          <Text style={styles.resendText}>Vous n'avez pas recu le code ?</Text>
+          {/* Resend link */}
           <Pressable onPress={handleResend} disabled={resendTimer > 0}>
             <Text
               style={[
@@ -133,96 +155,116 @@ export default function VerifyPhoneScreen() {
                 resendTimer > 0 && styles.resendLinkDisabled,
               ]}
             >
-              {resendTimer > 0 ? `Renvoyer (${resendTimer}s)` : 'Renvoyer'}
+              Recevoir un nouveau code
             </Text>
           </Pressable>
-        </View>
 
-        <Button
-          title="Verifier"
-          onPress={() => handleVerify(code.join(''))}
-          loading={isLoading}
-          disabled={code.some((c) => !c) || isLoading}
-          fullWidth
-          style={styles.button}
-        />
-      </View>
-    </KeyboardAvoidingView>
+          <View style={styles.spacer} />
+
+          {/* Submit button */}
+          <Button
+            title="Commencer"
+            onPress={handleVerify}
+            loading={isLoading}
+            disabled={!isCodeComplete || isLoading}
+            fullWidth
+          />
+
+          {/* Logo at bottom */}
+          <View style={styles.logoContainer}>
+            <Text style={styles.logo}>PRUDENCY</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </OnboardingBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardView: {
     flex: 1,
-    backgroundColor: colors.white,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing[6],
-    paddingTop: spacing[20],
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: scaledSpacing(64),
+    paddingTop: scaledSpacing(100),
+    paddingBottom: scaledSpacing(40),
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: scaledSpacing(24),
   },
   title: {
-    ...typography.h1,
-    color: colors.gray[900],
+    fontSize: scaledFontSize(24),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50],
     textAlign: 'center',
-    marginBottom: spacing[2],
+    marginBottom: scaledSpacing(8),
   },
   subtitle: {
-    ...typography.body,
-    color: colors.gray[600],
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50],
     textAlign: 'center',
-    marginBottom: spacing[10],
+    lineHeight: scaledLineHeight(22),
   },
   codeContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: spacing[3],
-    marginBottom: spacing[4],
+    gap: scaledSpacing(8),
+    marginTop: scaledSpacing(24),
+    marginBottom: scaledSpacing(16),
   },
   codeInput: {
-    width: 48,
-    height: 56,
-    borderWidth: 2,
-    borderColor: colors.gray[200],
-    borderRadius: borderRadius.lg,
+    width: ms(32, 0.5),
+    height: ms(48, 0.5),
+    borderWidth: 1,
+    borderColor: colors.primary[50],
+    borderRadius: scaledRadius(8),
     textAlign: 'center',
-    fontSize: 24,
-    fontWeight: '600',
-    color: colors.gray[900],
+    fontSize: scaledFontSize(18),
+    fontWeight: '400',
+    color: colors.white,
+    backgroundColor: 'transparent',
   },
   codeInputFilled: {
-    borderColor: colors.primary[500],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[400],
+    backgroundColor: 'rgba(232, 234, 248, 0.1)',
   },
   codeInputError: {
     borderColor: colors.error[500],
-    backgroundColor: colors.error[50],
   },
   error: {
-    ...typography.bodySmall,
-    color: colors.error[600],
+    fontSize: scaledFontSize(14),
+    color: colors.error[400],
     textAlign: 'center',
-    marginBottom: spacing[4],
-  },
-  resendContainer: {
-    alignItems: 'center',
-    marginBottom: spacing[8],
-  },
-  resendText: {
-    ...typography.bodySmall,
-    color: colors.gray[500],
-    marginBottom: spacing[1],
+    marginBottom: scaledSpacing(16),
   },
   resendLink: {
-    ...typography.bodySmall,
-    color: colors.primary[500],
+    fontSize: scaledFontSize(14),
     fontWeight: '600',
+    color: colors.primary[50],
+    textAlign: 'center',
   },
   resendLinkDisabled: {
-    color: colors.gray[400],
+    opacity: 0.5,
   },
-  button: {
-    marginTop: 'auto',
-    marginBottom: spacing[8],
+  spacer: {
+    flex: 1,
+    minHeight: scaledSpacing(40),
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginTop: scaledSpacing(32),
+  },
+  logo: {
+    fontSize: scaledFontSize(35),
+    fontWeight: '200',
+    fontFamily: 'Montserrat_200ExtraLight',
+    color: colors.white,
+    letterSpacing: ms(2, 0.3),
+    textAlign: 'center',
   },
 });

@@ -7,19 +7,31 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  Alert,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
-import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
+import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
+import { useAuth } from '@/src/hooks/useAuth';
+import { useSocialAuth } from '@/src/hooks/useSocialAuth';
+import { AuthError } from '@supabase/supabase-js';
+import { scaledSpacing, scaledFontSize, scaledIcon, ms } from '@/src/utils/scaling';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { signUp } = useAuth();
+  const {
+    signInWithGoogle,
+    isGoogleLoading,
+    signInWithApple,
+    isAppleLoading,
+    isLoading: isSocialLoading,
+  } = useSocialAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -32,17 +44,8 @@ export default function RegisterScreen() {
     }
     if (!password) {
       newErrors.password = 'Mot de passe requis';
-    } else {
-      if (password.length < 8) {
-        newErrors.password = 'Minimum 8 caracteres';
-      } else if (!/[A-Z]/.test(password)) {
-        newErrors.password = 'Doit contenir une majuscule';
-      } else if (!/[0-9]/.test(password)) {
-        newErrors.password = 'Doit contenir un chiffre';
-      }
-    }
-    if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+    } else if (password.length < 8) {
+      newErrors.password = 'Minimum 8 caractères';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -51,129 +54,259 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     if (!validate()) return;
     setLoading(true);
-    // Placeholder: will be connected to useAuth hook
-    setTimeout(() => {
+    try {
+      await signUp({ email: email.trim(), password });
+      router.push('/(auth)/personal-info');
+    } catch (err) {
+      if (err instanceof AuthError) {
+        if (err.message.includes('already registered')) {
+          setErrors({ email: 'Un compte existe déjà avec cet email' });
+        } else {
+          setErrors({ submit: err.message });
+        }
+      } else {
+        setErrors({ submit: 'Une erreur est survenue' });
+      }
+    } finally {
       setLoading(false);
-      router.replace('/(auth)/onboarding');
-    }, 1000);
+    }
   };
 
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch {
+      Alert.alert('Erreur', 'La connexion avec Google a échoué.');
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      await signInWithApple();
+    } catch {
+      Alert.alert('Erreur', 'La connexion avec Apple a échoué.');
+    }
+  };
+
+  const isFormValid = email.trim() !== '' && password !== '';
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <OnboardingBackground>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Creer un compte</Text>
-          <Text style={styles.subtitle}>
-            Rejoignez Prudency pour securiser vos trajets
-          </Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Inscription</Text>
+            <Text style={styles.subtitle}>Crée ton espace !</Text>
+          </View>
 
-        <Input
-          label="Email"
-          placeholder="votre@email.fr"
-          value={email}
-          onChangeText={(text) => {
-            setEmail(text);
-            if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
-          }}
-          error={errors.email}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-        />
+          {/* Form */}
+          <View style={styles.form}>
+            <View style={styles.inputsContainer}>
+              <Input
+                label="E-mail *"
+                placeholder="exemple@gmail.com"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+                }}
+                error={errors.email}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                variant="dark"
+              />
 
-        <Input
-          label="Mot de passe"
-          placeholder="Minimum 8 caracteres"
-          value={password}
-          onChangeText={(text) => {
-            setPassword(text);
-            if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
-          }}
-          error={errors.password}
-          secureTextEntry
-          secureToggle
-          hint="8 caracteres min., 1 majuscule, 1 chiffre"
-        />
+              <Input
+                label="Mot de passe *"
+                placeholder="************"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+                }}
+                error={errors.password}
+                secureTextEntry
+                secureToggle
+                variant="dark"
+              />
 
-        <Input
-          label="Confirmer le mot de passe"
-          placeholder="Retapez votre mot de passe"
-          value={confirmPassword}
-          onChangeText={(text) => {
-            setConfirmPassword(text);
-            if (errors.confirmPassword)
-              setErrors((prev) => ({ ...prev, confirmPassword: '' }));
-          }}
-          error={errors.confirmPassword}
-          secureTextEntry
-          secureToggle
-        />
+              {/* Forgot password link */}
+              <Pressable style={styles.forgotPasswordContainer}>
+                <Text style={styles.forgotPassword}>Mot de passe oublié ?</Text>
+              </Pressable>
+            </View>
 
-        <Button
-          title="Creer mon compte"
-          onPress={handleRegister}
-          loading={loading}
-          fullWidth
-          disabled={!email || !password || !confirmPassword}
-        />
+            {errors.submit && (
+              <Text style={styles.errorText}>{errors.submit}</Text>
+            )}
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Deja un compte ? </Text>
-          <Link href="/(auth)/login" asChild>
-            <Pressable>
-              <Text style={styles.linkText}>Se connecter</Text>
-            </Pressable>
-          </Link>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Register button */}
+            <Button
+              title="M'inscrire"
+              onPress={handleRegister}
+              loading={loading}
+              fullWidth
+              disabled={!isFormValid}
+            />
+
+            {/* Login link */}
+            <View style={styles.loginLinkContainer}>
+              <Text style={styles.loginLinkText}>
+                Tu as déjà un compte ?{'\n'}
+                <Link href="/(auth)/login" asChild>
+                  <Text style={styles.loginLinkAction}>Connecte-toi !</Text>
+                </Link>
+              </Text>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ou</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Sign In */}
+            <Button
+              title="Continuer avec Google"
+              variant="social"
+              onPress={handleGoogleSignIn}
+              loading={isGoogleLoading}
+              disabled={isSocialLoading}
+              fullWidth
+              icon={
+                <Ionicons name="logo-google" size={scaledIcon(20)} color={colors.gray[950]} />
+              }
+            />
+
+            {/* Apple Sign In (iOS only) */}
+            {Platform.OS === 'ios' && (
+              <Button
+                title="Continuer avec Apple"
+                variant="social"
+                onPress={handleAppleSignIn}
+                loading={isAppleLoading}
+                disabled={isSocialLoading}
+                fullWidth
+                icon={
+                  <Ionicons name="logo-apple" size={scaledIcon(20)} color={colors.gray[950]} />
+                }
+              />
+            )}
+          </View>
+
+          {/* Logo at bottom */}
+          <View style={styles.logoContainer}>
+            <Text style={styles.logo}>PRUDENCY</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </OnboardingBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardView: {
     flex: 1,
-    backgroundColor: colors.white,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: spacing[6],
-    paddingBottom: spacing[10],
+    paddingHorizontal: scaledSpacing(64),
+    paddingTop: scaledSpacing(100),
+    paddingBottom: scaledSpacing(40),
+    justifyContent: 'space-between',
   },
   header: {
-    paddingTop: spacing[20],
-    paddingBottom: spacing[8],
     alignItems: 'center',
+    marginBottom: scaledSpacing(24),
   },
   title: {
-    ...typography.h2,
-    color: colors.gray[900],
+    fontSize: scaledFontSize(24),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50],
+    textAlign: 'center',
+    marginBottom: scaledSpacing(8),
   },
   subtitle: {
-    ...typography.body,
-    color: colors.gray[500],
-    marginTop: spacing[2],
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50],
     textAlign: 'center',
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: spacing[6],
+  form: {
+    flex: 1,
+    gap: scaledSpacing(24),
   },
-  footerText: {
-    ...typography.body,
-    color: colors.gray[600],
+  inputsContainer: {
+    gap: scaledSpacing(16),
   },
-  linkText: {
-    ...typography.body,
-    color: colors.primary[500],
+  forgotPasswordContainer: {
+    alignItems: 'center',
+    marginTop: scaledSpacing(8),
+  },
+  forgotPassword: {
+    fontSize: scaledFontSize(14),
     fontWeight: '600',
+    color: colors.primary[50],
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: scaledFontSize(14),
+    color: colors.error[400],
+    textAlign: 'center',
+  },
+  loginLinkContainer: {
+    alignItems: 'center',
+    marginTop: scaledSpacing(8),
+  },
+  loginLinkText: {
+    fontSize: scaledFontSize(14),
+    fontWeight: '400',
+    color: colors.primary[50],
+    textAlign: 'center',
+    fontFamily: 'Kalam_400Regular',
+  },
+  loginLinkAction: {
+    textDecorationLine: 'underline',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: scaledSpacing(8),
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.primary[50],
+    opacity: 0.3,
+  },
+  dividerText: {
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    color: colors.primary[50],
+    marginHorizontal: scaledSpacing(16),
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginTop: scaledSpacing(32),
+  },
+  logo: {
+    fontSize: scaledFontSize(35),
+    fontWeight: '200',
+    fontFamily: 'Montserrat_200ExtraLight',
+    color: colors.white,
+    letterSpacing: ms(2, 0.3),
+    textAlign: 'center',
   },
 });

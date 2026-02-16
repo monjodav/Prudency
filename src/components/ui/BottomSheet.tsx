@@ -15,6 +15,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
+import { ms, scaledRadius, scaledIcon } from '@/src/utils/scaling';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -38,7 +39,7 @@ export function BottomSheet({
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
-  const currentHeight = SCREEN_HEIGHT * snapPoints[initialSnap];
+  const currentHeight = SCREEN_HEIGHT * (snapPoints[initialSnap] ?? 0.5);
 
   useEffect(() => {
     if (visible) {
@@ -131,7 +132,7 @@ export function BottomSheet({
               <View style={styles.header}>
                 <Text style={styles.title}>{title}</Text>
                 <Pressable style={styles.closeButton} onPress={onClose}>
-                  <FontAwesome name="times" size={20} color={colors.gray[500]} />
+                  <FontAwesome name="times" size={scaledIcon(20)} color={colors.gray[500]} />
                 </Pressable>
               </View>
             )}
@@ -168,10 +169,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3],
   },
   handle: {
-    width: 40,
-    height: 4,
+    width: ms(40, 0.5),
+    height: ms(4, 0.5),
     backgroundColor: colors.gray[300],
-    borderRadius: 2,
+    borderRadius: scaledRadius(2),
   },
   header: {
     flexDirection: 'row',

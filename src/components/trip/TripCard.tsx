@@ -7,6 +7,7 @@ import { spacing, borderRadius, shadows } from '@/src/theme/spacing';
 import { Badge } from '@/src/components/ui/Badge';
 import { formatDuration, formatDateTime } from '@/src/utils/formatters';
 import { TRIP_STATUS } from '@/src/utils/constants';
+import { scaledIcon, scaledSpacing, ms } from '@/src/utils/scaling';
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info';
 
@@ -65,7 +66,7 @@ export function TripCard({
             <View style={styles.addressRow}>
               <FontAwesome
                 name="circle-o"
-                size={10}
+                size={scaledIcon(10)}
                 color={colors.primary[500]}
                 style={styles.addressIcon}
               />
@@ -81,7 +82,7 @@ export function TripCard({
             <View style={styles.addressRow}>
               <FontAwesome
                 name="map-marker"
-                size={14}
+                size={scaledIcon(14)}
                 color={colors.primary[500]}
                 style={styles.addressIcon}
               />
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addressIcon: {
-    width: 20,
+    width: ms(20, 0.5),
     textAlign: 'center',
     marginRight: spacing[2],
   },
@@ -152,10 +153,10 @@ const styles = StyleSheet.create({
   },
   routeLine: {
     width: 1,
-    height: 12,
+    height: ms(12, 0.5),
     backgroundColor: colors.gray[300],
-    marginLeft: 9,
-    marginVertical: 2,
+    marginLeft: scaledSpacing(9),
+    marginVertical: scaledSpacing(2),
   },
   footer: {
     borderTopWidth: 1,

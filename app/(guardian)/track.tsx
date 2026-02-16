@@ -7,6 +7,7 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
 import { TripMap } from '@/src/components/map/TripMap';
+import { ms, scaledIcon, scaledShadow } from '@/src/utils/scaling';
 
 export default function TrackScreen() {
   const { personId } = useLocalSearchParams<{ personId: string }>();
@@ -42,8 +43,10 @@ export default function TrackScreen() {
     <View style={styles.container}>
       <View style={styles.mapContainer}>
         <TripMap
-          currentLocation={personData.currentPosition}
-          destination={personData.destination}
+          currentLat={personData.currentPosition.lat}
+          currentLng={personData.currentPosition.lng}
+          arrivalLat={personData.destination.lat}
+          arrivalLng={personData.destination.lng}
         />
       </View>
 
@@ -61,7 +64,7 @@ export default function TrackScreen() {
           <View style={styles.batteryContainer}>
             <FontAwesome
               name={personData.batteryLevel > 20 ? 'battery-three-quarters' : 'battery-quarter'}
-              size={16}
+              size={scaledIcon(16)}
               color={personData.batteryLevel > 20 ? colors.success[500] : colors.error[500]}
             />
             <Text style={styles.batteryText}>{personData.batteryLevel}%</Text>
@@ -70,30 +73,30 @@ export default function TrackScreen() {
 
         <View style={styles.tripDetails}>
           <View style={styles.detailRow}>
-            <FontAwesome name="clock-o" size={16} color={colors.gray[500]} />
+            <FontAwesome name="clock-o" size={scaledIcon(16)} color={colors.gray[500]} />
             <Text style={styles.detailText}>
               Depart : {personData.startedAt}
             </Text>
           </View>
           <View style={styles.detailRow}>
-            <FontAwesome name="flag-checkered" size={16} color={colors.gray[500]} />
+            <FontAwesome name="flag-checkered" size={scaledIcon(16)} color={colors.gray[500]} />
             <Text style={styles.detailText}>
               Arrivee prevue : {personData.estimatedArrival}
             </Text>
           </View>
           <View style={styles.detailRow}>
-            <FontAwesome name="map-marker" size={16} color={colors.primary[500]} />
+            <FontAwesome name="map-marker" size={scaledIcon(16)} color={colors.primary[500]} />
             <Text style={styles.detailText}>{personData.destination.name}</Text>
           </View>
         </View>
 
         <View style={styles.actions}>
           <Pressable style={styles.actionButton} onPress={handleCall}>
-            <FontAwesome name="phone" size={20} color={colors.primary[500]} />
+            <FontAwesome name="phone" size={scaledIcon(20)} color={colors.primary[500]} />
             <Text style={styles.actionText}>Appeler</Text>
           </Pressable>
           <Pressable style={styles.actionButton} onPress={handleMessage}>
-            <FontAwesome name="comment" size={20} color={colors.primary[500]} />
+            <FontAwesome name="comment" size={scaledIcon(20)} color={colors.primary[500]} />
             <Text style={styles.actionText}>Message</Text>
           </Pressable>
         </View>
@@ -122,11 +125,13 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     padding: spacing[6],
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    ...scaledShadow({
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 8,
+    }),
   },
   personHeader: {
     flexDirection: 'row',
@@ -134,9 +139,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   avatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: ms(48, 0.5),
+    height: ms(48, 0.5),
+    borderRadius: ms(48, 0.5) / 2,
     backgroundColor: colors.primary[100],
     justifyContent: 'center',
     alignItems: 'center',

@@ -4,6 +4,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
+import { scaledIcon, scaledShadow } from '@/src/utils/scaling';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -111,7 +112,7 @@ export function Toast({
     >
       <FontAwesome
         name={config.icon as React.ComponentProps<typeof FontAwesome>['name']}
-        size={20}
+        size={scaledIcon(20)}
         color={config.textColor}
         style={styles.icon}
       />
@@ -126,7 +127,7 @@ export function Toast({
         </Pressable>
       )}
       <Pressable onPress={hideToast} style={styles.closeButton}>
-        <FontAwesome name="times" size={16} color={config.textColor} />
+        <FontAwesome name="times" size={scaledIcon(16)} color={config.textColor} />
       </Pressable>
     </Animated.View>
   );
@@ -142,11 +143,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing[4],
     borderRadius: borderRadius.lg,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    ...scaledShadow({
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 6,
+    }),
     zIndex: 9999,
   },
   icon: {

@@ -1,33 +1,35 @@
 import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 import { colors } from '@/src/theme/colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { scaledIcon, scaledSpacing, scaledFontSize, ms } from '@/src/utils/scaling';
 
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={24} style={{ marginBottom: -3 }} {...props} />;
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+function TabBarIcon({ name, color }: { name: IoniconsName; color: string }) {
+  return <Ionicons size={scaledIcon(24)} style={{ marginBottom: scaledSpacing(-3) }} name={name} color={color} />;
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary[500],
-        tabBarInactiveTintColor: colors.gray[400],
+        tabBarActiveTintColor: colors.primary[300],
+        tabBarInactiveTintColor: colors.gray[500],
         tabBarStyle: {
-          backgroundColor: colorScheme === 'dark' ? colors.gray[900] : colors.white,
-          borderTopColor: colors.gray[200],
+          backgroundColor: colors.primary[950],
+          borderTopColor: colors.primary[900],
+          borderTopWidth: 1,
+          height: ms(88, 0.5),
+          paddingBottom: scaledSpacing(28),
+          paddingTop: scaledSpacing(8),
         },
-        headerStyle: {
-          backgroundColor: colorScheme === 'dark' ? colors.gray[900] : colors.white,
+        tabBarLabelStyle: {
+          fontSize: scaledFontSize(11),
+          fontFamily: 'Inter_500Medium',
         },
-        headerTintColor: colorScheme === 'dark' ? colors.white : colors.gray[900],
+        headerShown: false,
       }}
     >
       <Tabs.Screen
@@ -38,31 +40,31 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="contacts"
-        options={{
-          title: 'Contacts',
-          tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="places"
         options={{
           title: 'Lieux',
-          tabBarIcon: ({ color }) => <TabBarIcon name="map-marker" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="location" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="contacts"
+        options={{
+          title: 'Contacts',
+          tabBarIcon: ({ color }) => <TabBarIcon name="people" color={color} />,
         }}
       />
       <Tabs.Screen
         name="guardian"
         options={{
           title: 'Proteges',
-          tabBarIcon: ({ color }) => <TabBarIcon name="shield" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="shield-checkmark" color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="person" color={color} />,
         }}
       />
     </Tabs>

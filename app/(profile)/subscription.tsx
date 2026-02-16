@@ -12,6 +12,7 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
 import { Badge } from '@/src/components/ui/Badge';
+import { scaledSpacing, scaledIcon } from '@/src/utils/scaling';
 
 interface PlanFeature {
   text: string;
@@ -106,7 +107,7 @@ export default function SubscriptionScreen() {
                 <View key={index} style={styles.featureRow}>
                   <FontAwesome
                     name={feature.included ? 'check' : 'times'}
-                    size={14}
+                    size={scaledIcon(14)}
                     color={feature.included ? colors.success[500] : colors.gray[400]}
                   />
                   <Text
@@ -185,9 +186,9 @@ const styles = StyleSheet.create({
   },
   recommendedBadge: {
     position: 'absolute',
-    top: -12,
+    top: -scaledSpacing(12),
     left: '50%',
-    transform: [{ translateX: -50 }],
+    transform: [{ translateX: -scaledSpacing(50) }],
     backgroundColor: colors.primary[500],
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[1],

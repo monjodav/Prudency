@@ -13,6 +13,7 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
+import { ms, scaledSpacing, scaledIcon } from '@/src/utils/scaling';
 
 export default function AlertReceivedScreen() {
   const { alertId } = useLocalSearchParams<{ alertId: string }>();
@@ -72,7 +73,7 @@ export default function AlertReceivedScreen() {
     <View style={styles.container}>
       <View style={styles.alertHeader}>
         <View style={styles.alertIconContainer}>
-          <FontAwesome name="exclamation-triangle" size={48} color={colors.white} />
+          <FontAwesome name="exclamation-triangle" size={scaledIcon(48)} color={colors.white} />
         </View>
         <Text style={styles.alertTitle}>ALERTE</Text>
         <Text style={styles.alertSubtitle}>
@@ -83,7 +84,7 @@ export default function AlertReceivedScreen() {
       <View style={styles.content}>
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <FontAwesome name="clock-o" size={18} color={colors.gray[500]} />
+            <FontAwesome name="clock-o" size={scaledIcon(18)} color={colors.gray[500]} />
             <Text style={styles.infoText}>
               Declenchee a {formatTime(alertData.triggeredAt)}
             </Text>
@@ -91,21 +92,21 @@ export default function AlertReceivedScreen() {
 
           {alertData.reason && (
             <View style={styles.infoRow}>
-              <FontAwesome name="comment" size={18} color={colors.gray[500]} />
+              <FontAwesome name="comment" size={scaledIcon(18)} color={colors.gray[500]} />
               <Text style={styles.infoText}>{alertData.reason}</Text>
             </View>
           )}
 
           <Pressable style={styles.locationRow} onPress={handleOpenMaps}>
-            <FontAwesome name="map-marker" size={18} color={colors.primary[500]} />
+            <FontAwesome name="map-marker" size={scaledIcon(18)} color={colors.primary[500]} />
             <Text style={styles.locationText}>{alertData.location.address}</Text>
-            <FontAwesome name="external-link" size={14} color={colors.primary[500]} />
+            <FontAwesome name="external-link" size={scaledIcon(14)} color={colors.primary[500]} />
           </Pressable>
 
           <View style={styles.infoRow}>
             <FontAwesome
               name={alertData.batteryLevel > 20 ? 'battery-three-quarters' : 'battery-quarter'}
-              size={18}
+              size={scaledIcon(18)}
               color={alertData.batteryLevel > 20 ? colors.success[500] : colors.error[500]}
             />
             <Text style={styles.infoText}>
@@ -123,7 +124,7 @@ export default function AlertReceivedScreen() {
           />
         ) : (
           <View style={styles.acknowledgedBanner}>
-            <FontAwesome name="check-circle" size={20} color={colors.success[600]} />
+            <FontAwesome name="check-circle" size={scaledIcon(20)} color={colors.success[600]} />
             <Text style={styles.acknowledgedText}>
               Vous avez pris en charge cette alerte
             </Text>
@@ -133,7 +134,7 @@ export default function AlertReceivedScreen() {
         <View style={styles.actionsContainer}>
           <Pressable style={styles.actionCard} onPress={handleCall}>
             <View style={[styles.actionIcon, { backgroundColor: colors.primary[50] }]}>
-              <FontAwesome name="phone" size={24} color={colors.primary[500]} />
+              <FontAwesome name="phone" size={scaledIcon(24)} color={colors.primary[500]} />
             </View>
             <Text style={styles.actionTitle}>Appeler {alertData.personName.split(' ')[0]}</Text>
             <Text style={styles.actionSubtitle}>Verifier son etat</Text>
@@ -141,7 +142,7 @@ export default function AlertReceivedScreen() {
 
           <Pressable style={styles.actionCard} onPress={handleOpenMaps}>
             <View style={[styles.actionIcon, { backgroundColor: colors.info[50] }]}>
-              <FontAwesome name="map" size={24} color={colors.info[500]} />
+              <FontAwesome name="map" size={scaledIcon(24)} color={colors.info[500]} />
             </View>
             <Text style={styles.actionTitle}>Voir la position</Text>
             <Text style={styles.actionSubtitle}>Ouvrir dans Maps</Text>
@@ -149,7 +150,7 @@ export default function AlertReceivedScreen() {
 
           <Pressable style={styles.actionCard} onPress={handleCallEmergency}>
             <View style={[styles.actionIcon, { backgroundColor: colors.error[50] }]}>
-              <FontAwesome name="ambulance" size={24} color={colors.error[500]} />
+              <FontAwesome name="ambulance" size={scaledIcon(24)} color={colors.error[500]} />
             </View>
             <Text style={styles.actionTitle}>Appeler les secours</Text>
             <Text style={styles.actionSubtitle}>112</Text>
@@ -179,9 +180,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[6],
   },
   alertIconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: ms(96, 0.5),
+    height: ms(96, 0.5),
+    borderRadius: ms(96, 0.5) / 2,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
   alertTitle: {
     ...typography.h1,
     color: colors.white,
-    letterSpacing: 4,
+    letterSpacing: scaledSpacing(4),
   },
   alertSubtitle: {
     ...typography.body,
@@ -269,9 +270,9 @@ const styles = StyleSheet.create({
     gap: spacing[4],
   },
   actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: ms(48, 0.5),
+    height: ms(48, 0.5),
+    borderRadius: ms(48, 0.5) / 2,
     justifyContent: 'center',
     alignItems: 'center',
   },

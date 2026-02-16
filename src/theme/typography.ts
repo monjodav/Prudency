@@ -1,86 +1,154 @@
 import { TextStyle } from 'react-native';
+import { scaledFontSize, scaledLineHeight, ms } from '@/src/utils/scaling';
 
+// Font family names as loaded by expo-google-fonts
 export const fontFamilies = {
-  regular: 'System',
-  medium: 'System',
-  semibold: 'System',
-  bold: 'System',
+  // Primary font family - Inter
+  inter: {
+    regular: 'Inter_400Regular',
+    medium: 'Inter_500Medium',
+    semibold: 'Inter_600SemiBold',
+    bold: 'Inter_700Bold',
+  },
+  // Secondary font - Montserrat (for logo)
+  montserrat: {
+    extraLight: 'Montserrat_200ExtraLight',
+    regular: 'Montserrat_400Regular',
+    bold: 'Montserrat_700Bold',
+  },
+  // Accent font - Kalam (for handwritten text)
+  kalam: {
+    regular: 'Kalam_400Regular',
+  },
+  // System fallback
+  system: 'System',
 } as const;
 
+// Font sizes from Figma - scaled for device
 export const fontSizes = {
-  xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 18,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 30,
-  '4xl': 36,
-} as const;
+  xs: scaledFontSize(12),    // Caption
+  sm: scaledFontSize(14),    // Body small, labels, inputs
+  md: scaledFontSize(16),    // Body, buttons
+  lg: scaledFontSize(18),    // H4
+  xl: scaledFontSize(20),    // H3
+  '2xl': scaledFontSize(24), // H2, page titles
+  '3xl': scaledFontSize(32), // H1
+  '4xl': scaledFontSize(35), // Logo (34.77px rounded)
+};
 
+// Line heights from Figma - intrinsic percentages converted to multipliers
 export const lineHeights = {
-  tight: 1.25,
-  normal: 1.5,
-  relaxed: 1.75,
+  tight: 1.21,   // ~121% - for headings (multiplier, not scaled)
+  normal: 1.21,  // ~121% - body text
+  relaxed: 1.4,  // ~140% - for larger line spacing
 } as const;
 
 export const fontWeights = {
+  extraLight: '200' as TextStyle['fontWeight'],
   regular: '400' as TextStyle['fontWeight'],
   medium: '500' as TextStyle['fontWeight'],
   semibold: '600' as TextStyle['fontWeight'],
   bold: '700' as TextStyle['fontWeight'],
 };
 
+// Typography styles matching Figma Design System exactly
 export const typography = {
+  // Headings
   h1: {
-    fontSize: fontSizes['4xl'],
-    fontWeight: fontWeights.bold,
-    lineHeight: fontSizes['4xl'] * lineHeights.tight,
+    fontFamily: fontFamilies.inter.regular,
+    fontSize: fontSizes['3xl'], // 32px
+    fontWeight: fontWeights.regular,
+    lineHeight: scaledLineHeight(39), // ~121%
   },
   h2: {
-    fontSize: fontSizes['3xl'],
-    fontWeight: fontWeights.bold,
-    lineHeight: fontSizes['3xl'] * lineHeights.tight,
+    fontFamily: fontFamilies.inter.regular,
+    fontSize: fontSizes['2xl'], // 24px
+    fontWeight: fontWeights.regular,
+    lineHeight: scaledLineHeight(29), // ~121%
   },
   h3: {
-    fontSize: fontSizes['2xl'],
-    fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes['2xl'] * lineHeights.tight,
+    fontFamily: fontFamilies.inter.regular,
+    fontSize: fontSizes.xl, // 20px
+    fontWeight: fontWeights.regular,
+    lineHeight: scaledLineHeight(24), // ~121%
   },
   h4: {
-    fontSize: fontSizes.xl,
-    fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes.xl * lineHeights.normal,
-  },
-  body: {
-    fontSize: fontSizes.md,
+    fontFamily: fontFamilies.inter.regular,
+    fontSize: fontSizes.lg, // 18px
     fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.md * lineHeights.normal,
+    lineHeight: scaledLineHeight(22), // ~121%
+  },
+
+  // Body text
+  body: {
+    fontFamily: fontFamilies.inter.regular,
+    fontSize: fontSizes.md, // 16px
+    fontWeight: fontWeights.regular,
+    lineHeight: scaledLineHeight(19), // ~121%
   },
   bodySmall: {
-    fontSize: fontSizes.sm,
+    fontFamily: fontFamilies.inter.regular,
+    fontSize: fontSizes.sm, // 14px
     fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.sm * lineHeights.normal,
+    lineHeight: scaledLineHeight(17), // ~121%
   },
   caption: {
-    fontSize: fontSizes.xs,
+    fontFamily: fontFamilies.inter.regular,
+    fontSize: fontSizes.xs, // 12px
     fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.xs * lineHeights.normal,
+    lineHeight: scaledLineHeight(15), // ~121%
   },
+
+  // Buttons
   button: {
-    fontSize: fontSizes.md,
-    fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes.md * lineHeights.tight,
+    fontFamily: fontFamilies.inter.regular,
+    fontSize: fontSizes.md, // 16px
+    fontWeight: fontWeights.regular,
+    lineHeight: scaledLineHeight(19),
   },
   buttonSmall: {
-    fontSize: fontSizes.sm,
+    fontFamily: fontFamilies.inter.semibold,
+    fontSize: fontSizes.sm, // 14px
     fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes.sm * lineHeights.tight,
+    lineHeight: scaledLineHeight(17),
   },
+
+  // Labels and inputs
   label: {
-    fontSize: fontSizes.xs,
-    fontWeight: fontWeights.medium,
-    lineHeight: fontSizes.xs * lineHeights.normal,
-    letterSpacing: 0.5,
+    fontFamily: fontFamilies.inter.regular,
+    fontSize: fontSizes.sm, // 14px
+    fontWeight: fontWeights.regular,
+    lineHeight: scaledLineHeight(17), // ~121%
   },
-} as const;
+  inputText: {
+    fontFamily: fontFamilies.inter.regular,
+    fontSize: fontSizes.sm, // 14px
+    fontWeight: fontWeights.regular,
+    lineHeight: scaledLineHeight(14),
+  },
+
+  // Links
+  link: {
+    fontFamily: fontFamilies.inter.semibold,
+    fontSize: fontSizes.sm, // 14px
+    fontWeight: fontWeights.semibold,
+    lineHeight: scaledLineHeight(17),
+  },
+
+  // Special - Handwritten style (Kalam font)
+  handwritten: {
+    fontFamily: fontFamilies.kalam.regular,
+    fontSize: fontSizes.sm, // 14px
+    fontWeight: fontWeights.regular,
+    lineHeight: scaledLineHeight(17),
+  },
+
+  // Logo
+  logo: {
+    fontFamily: fontFamilies.montserrat.extraLight,
+    fontSize: fontSizes['4xl'], // 35px
+    fontWeight: fontWeights.extraLight,
+    lineHeight: scaledLineHeight(42),
+    letterSpacing: ms(2, 0.3),
+  },
+};

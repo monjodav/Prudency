@@ -5,6 +5,7 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
+import { scaledIcon } from '@/src/utils/scaling';
 
 interface AlertConfirmationProps {
   contactCount: number;
@@ -20,7 +21,7 @@ export function AlertConfirmation({
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <FontAwesome name="check-circle" size={64} color={colors.success[500]} />
+        <FontAwesome name="check-circle" size={scaledIcon(64)} color={colors.success[500]} />
       </View>
 
       <Text style={styles.title}>Alerte envoyee</Text>
@@ -33,7 +34,7 @@ export function AlertConfirmation({
       <View style={styles.infoBox}>
         <FontAwesome
           name="map-marker"
-          size={16}
+          size={scaledIcon(16)}
           color={colors.info[600]}
           style={styles.infoIcon}
         />

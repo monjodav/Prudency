@@ -6,8 +6,10 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Switch,
+  ActivityIndicator,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
@@ -15,40 +17,45 @@ import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
 import { formatTime } from '@/src/utils/formatters';
-
-interface NoteItem {
-  id: string;
-  content: string;
-  createdAt: string;
-  lat?: number;
-  lng?: number;
-}
+import { useTripStore } from '@/src/stores/tripStore';
+import { useActiveTrip } from '@/src/hooks/useActiveTrip';
+import { useTripNotes } from '@/src/hooks/useTripNotes';
+import { TripNote } from '@/src/types/database';
+import { scaledIcon } from '@/src/utils/scaling';
 
 export default function TripNotesScreen() {
-  const [notes, setNotes] = useState<NoteItem[]>([]);
+  const { lastKnownLat, lastKnownLng } = useTripStore();
+  const { trip } = useActiveTrip();
+  const { notes, isLoading, createNote, isCreating } = useTripNotes(trip?.id ?? null);
   const [newNote, setNewNote] = useState('');
+  const [isEncrypted, setIsEncrypted] = useState(false);
 
-  const handleAddNote = () => {
-    if (!newNote.trim()) return;
-    // Placeholder: will use useTrip hook
-    const note: NoteItem = {
-      id: Date.now().toString(),
-      content: newNote.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    setNotes((prev) => [note, ...prev]);
-    setNewNote('');
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !trip) return;
+
+    try {
+      await createNote({
+        content: newNote.trim(),
+        lat: lastKnownLat ?? undefined,
+        lng: lastKnownLng ?? undefined,
+      });
+      setNewNote('');
+    } catch {
+      // Error handled by mutation
+    }
   };
 
-  const renderNote = ({ item }: { item: NoteItem }) => (
+  const renderNote = ({ item }: { item: TripNote }) => (
     <Card style={styles.noteCard}>
-      <Text style={styles.noteContent}>{item.content}</Text>
+      <View style={styles.noteHeader}>
+        <Text style={styles.noteContent}>{item.content}</Text>
+      </View>
       <View style={styles.noteMeta}>
-        <FontAwesome name="clock-o" size={12} color={colors.gray[400]} />
-        <Text style={styles.noteTime}>{formatTime(item.createdAt)}</Text>
+        <Ionicons name="time-outline" size={scaledIcon(12)} color={colors.gray[400]} />
+        <Text style={styles.noteTime}>{formatTime(item.created_at ?? new Date().toISOString())}</Text>
         {item.lat != null && item.lng != null && (
           <>
-            <FontAwesome name="map-marker" size={12} color={colors.gray[400]} />
+            <Ionicons name="location-outline" size={scaledIcon(12)} color={colors.gray[400]} />
             <Text style={styles.noteLocation}>
               {item.lat.toFixed(4)}, {item.lng.toFixed(4)}
             </Text>
@@ -58,6 +65,14 @@ export default function TripNotesScreen() {
     </Card>
   );
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary[500]} />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -66,7 +81,7 @@ export default function TripNotesScreen() {
     >
       {notes.length === 0 ? (
         <View style={styles.emptyState}>
-          <FontAwesome name="pencil-square-o" size={48} color={colors.gray[300]} />
+          <Ionicons name="document-text-outline" size={scaledIcon(48)} color={colors.gray[300]} />
           <Text style={styles.emptyTitle}>Aucune note</Text>
           <Text style={styles.emptyDescription}>
             Ajoutez des notes pendant votre trajet pour garder une trace
@@ -83,6 +98,25 @@ export default function TripNotesScreen() {
       )}
 
       <View style={styles.inputContainer}>
+        <View style={styles.encryptRow}>
+          <View style={styles.encryptLabel}>
+            <Ionicons
+              name={isEncrypted ? 'lock-closed' : 'lock-open-outline'}
+              size={scaledIcon(16)}
+              color={isEncrypted ? colors.secondary[500] : colors.gray[400]}
+            />
+            <Text style={styles.encryptText}>Chiffrer la note</Text>
+          </View>
+          <Switch
+            value={isEncrypted}
+            onValueChange={setIsEncrypted}
+            trackColor={{
+              false: colors.gray[200],
+              true: colors.secondary[200],
+            }}
+            thumbColor={isEncrypted ? colors.secondary[500] : colors.gray[400]}
+          />
+        </View>
         <View style={styles.inputRow}>
           <Input
             placeholder="Ecrire une note..."
@@ -90,12 +124,14 @@ export default function TripNotesScreen() {
             onChangeText={setNewNote}
             containerStyle={styles.inputField}
             multiline
+            variant="light"
           />
           <Button
             title="Envoyer"
             size="sm"
             onPress={handleAddNote}
-            disabled={!newNote.trim()}
+            disabled={!newNote.trim() || isCreating}
+            loading={isCreating}
           />
         </View>
       </View>
@@ -104,6 +140,12 @@ export default function TripNotesScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.gray[50],
+  },
   container: {
     flex: 1,
     backgroundColor: colors.gray[50],
@@ -115,10 +157,17 @@ const styles = StyleSheet.create({
   noteCard: {
     marginBottom: spacing[3],
   },
+  noteHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing[2],
+  },
   noteContent: {
     ...typography.body,
     color: colors.gray[800],
-    marginBottom: spacing[2],
+    flex: 1,
+    marginRight: spacing[2],
   },
   noteMeta: {
     flexDirection: 'row',
@@ -159,6 +208,21 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],
     padding: spacing[4],
+  },
+  encryptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing[2],
+  },
+  encryptLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+  },
+  encryptText: {
+    ...typography.caption,
+    color: colors.gray[600],
   },
   inputRow: {
     flexDirection: 'row',

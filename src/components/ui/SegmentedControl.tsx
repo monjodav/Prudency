@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, LayoutAnimation } from 'react-native
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
+import { scaledSpacing, scaledShadow } from '@/src/utils/scaling';
 
 interface SegmentedControlProps {
   options: string[];
@@ -52,7 +53,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: colors.gray[100],
     borderRadius: borderRadius.lg,
-    padding: 4,
+    padding: scaledSpacing(4),
   },
   segment: {
     flex: 1,
@@ -63,11 +64,13 @@ const styles = StyleSheet.create({
   },
   segmentSelected: {
     backgroundColor: colors.white,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    ...scaledShadow({
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    }),
   },
   segmentText: {
     ...typography.body,

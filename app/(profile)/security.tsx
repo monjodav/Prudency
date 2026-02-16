@@ -13,6 +13,7 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
+import { ms, scaledIcon } from '@/src/utils/scaling';
 
 export default function SecurityScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -77,8 +78,8 @@ export default function SecurityScreen() {
         <View style={styles.sectionContent}>
           <View style={styles.settingItem}>
             <FontAwesome
-              name="fingerprint"
-              size={20}
+              name="lock"
+              size={scaledIcon(20)}
               color={colors.gray[600]}
               style={styles.settingIcon}
             />
@@ -97,11 +98,11 @@ export default function SecurityScreen() {
           </View>
 
           <Pressable style={styles.settingItem} onPress={handleChangePassword}>
-            <FontAwesome name="lock" size={20} color={colors.gray[600]} style={styles.settingIcon} />
+            <FontAwesome name="lock" size={scaledIcon(20)} color={colors.gray[600]} style={styles.settingIcon} />
             <View style={styles.settingContent}>
               <Text style={styles.settingTitle}>Changer le mot de passe</Text>
             </View>
-            <FontAwesome name="chevron-right" size={12} color={colors.gray[400]} />
+            <FontAwesome name="chevron-right" size={scaledIcon(12)} color={colors.gray[400]} />
           </Pressable>
         </View>
       </View>
@@ -112,7 +113,7 @@ export default function SecurityScreen() {
           <View style={styles.settingItem}>
             <FontAwesome
               name="map-marker"
-              size={20}
+              size={scaledIcon(20)}
               color={colors.gray[600]}
               style={styles.settingIcon}
             />
@@ -133,7 +134,7 @@ export default function SecurityScreen() {
           <View style={styles.settingItem}>
             <FontAwesome
               name="calendar"
-              size={20}
+              size={scaledIcon(20)}
               color={colors.gray[600]}
               style={styles.settingIcon}
             />
@@ -153,7 +154,7 @@ export default function SecurityScreen() {
           <Pressable style={styles.settingItem} onPress={handleExportData}>
             <FontAwesome
               name="download"
-              size={20}
+              size={scaledIcon(20)}
               color={colors.gray[600]}
               style={styles.settingIcon}
             />
@@ -163,7 +164,7 @@ export default function SecurityScreen() {
                 Telecharger une copie de vos donnees (RGPD)
               </Text>
             </View>
-            <FontAwesome name="chevron-right" size={12} color={colors.gray[400]} />
+            <FontAwesome name="chevron-right" size={scaledIcon(12)} color={colors.gray[400]} />
           </Pressable>
         </View>
       </View>
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.gray[100],
   },
   settingIcon: {
-    width: 28,
+    width: ms(28, 0.5),
   },
   settingContent: {
     flex: 1,

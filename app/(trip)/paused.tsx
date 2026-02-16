@@ -1,89 +1,71 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Alert,
-} from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
+import { Modal } from '@/src/components/ui/Modal';
+import { useActiveTrip } from '@/src/hooks/useActiveTrip';
+import { useTrip } from '@/src/hooks/useTrip';
+import { useLocation } from '@/src/hooks/useLocation';
+import { useTripStore } from '@/src/stores/tripStore';
+import { scaledIcon, scaledRadius, ms } from '@/src/utils/scaling';
 
 export default function PausedTripScreen() {
   const router = useRouter();
-  const [pausedDuration, setPausedDuration] = useState(0);
-  const [tripData] = useState({
-    destination: 'Maison',
-    remainingMinutes: 15,
-    pausedAt: new Date(),
-  });
+  const { trip } = useActiveTrip();
+  const { cancelTrip, isCancelling } = useTrip();
+  const { startTracking } = useLocation();
+  const { reset: resetTripStore } = useTripStore();
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPausedDuration((prev) => prev + 1);
-    }, 1000);
+  const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
 
-    return () => clearInterval(interval);
-  }, []);
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const handleResume = async () => {
+    setIsResuming(true);
+    try {
+      await startTracking();
+      router.replace('/(trip)/active');
+    } catch {
+      setIsResuming(false);
+    }
   };
 
-  const handleResume = () => {
-    router.replace('/(trip)/active');
-  };
-
-  const handleCancel = () => {
-    Alert.alert(
-      'Annuler le trajet',
-      'Etes-vous sur de vouloir annuler ce trajet ?',
-      [
-        { text: 'Non', style: 'cancel' },
-        {
-          text: 'Oui, annuler',
-          style: 'destructive',
-          onPress: () => router.replace('/(tabs)'),
-        },
-      ]
-    );
+  const handleCancelTrip = async () => {
+    if (!trip) return;
+    try {
+      await cancelTrip(trip.id);
+      resetTripStore();
+      setShowCancelConfirmation(false);
+      router.replace('/(tabs)');
+    } catch {
+      setShowCancelConfirmation(false);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <FontAwesome name="pause" size={48} color={colors.warning[500]} />
+      <View style={styles.content}>
+        <View style={styles.pauseIndicator}>
+          <View style={styles.pauseIconOuter}>
+            <Ionicons name="pause" size={scaledIcon(48)} color={colors.warning[600]} />
+          </View>
         </View>
+
         <Text style={styles.title}>Trajet en pause</Text>
-        <Text style={styles.pausedTime}>
-          Pause depuis {formatDuration(pausedDuration)}
+        <Text style={styles.subtitle}>
+          Le suivi de votre position est temporairement arrete. Vos contacts ne
+          recoivent plus de mises a jour.
         </Text>
-      </View>
 
-      <View style={styles.warningCard}>
-        <FontAwesome name="exclamation-triangle" size={20} color={colors.warning[600]} />
-        <Text style={styles.warningText}>
-          Vos contacts de confiance ne recoivent pas de mises a jour pendant la pause.
-          Le trajet reprendra automatiquement si vous vous deplacez.
-        </Text>
-      </View>
-
-      <View style={styles.tripInfo}>
-        <View style={styles.infoRow}>
-          <FontAwesome name="flag-checkered" size={16} color={colors.gray[500]} />
-          <Text style={styles.infoLabel}>Destination :</Text>
-          <Text style={styles.infoValue}>{tripData.destination}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <FontAwesome name="hourglass-half" size={16} color={colors.gray[500]} />
-          <Text style={styles.infoLabel}>Temps restant :</Text>
-          <Text style={styles.infoValue}>{tripData.remainingMinutes} min</Text>
+        <View style={styles.warningBanner}>
+          <Ionicons name="information-circle-outline" size={scaledIcon(20)} color={colors.warning[700]} />
+          <Text style={styles.warningText}>
+            Le compteur de temps continue meme en pause. Pensez a reprendre
+            votre trajet pour eviter une alerte automatique.
+          </Text>
         </View>
       </View>
 
@@ -91,16 +73,45 @@ export default function PausedTripScreen() {
         <Button
           title="Reprendre le trajet"
           onPress={handleResume}
+          loading={isResuming}
           fullWidth
-          style={styles.resumeButton}
+          size="lg"
+          icon={<Ionicons name="play" size={scaledIcon(20)} color={colors.white} />}
         />
         <Button
           title="Annuler le trajet"
-          variant="outline"
-          onPress={handleCancel}
+          variant="danger"
+          onPress={() => setShowCancelConfirmation(true)}
           fullWidth
+          icon={<Ionicons name="close-circle-outline" size={scaledIcon(20)} color={colors.white} />}
         />
       </View>
+
+      <Modal
+        visible={showCancelConfirmation}
+        onClose={() => setShowCancelConfirmation(false)}
+        title="Annuler le trajet ?"
+      >
+        <Text style={styles.confirmText}>
+          Cette action est irreversible. Vos contacts seront prevenus que le
+          trajet a ete annule.
+        </Text>
+        <View style={styles.confirmActions}>
+          <Button
+            title="Non, reprendre"
+            variant="outline"
+            onPress={() => setShowCancelConfirmation(false)}
+            style={styles.confirmButton}
+          />
+          <Button
+            title="Oui, annuler"
+            variant="danger"
+            onPress={handleCancelTrip}
+            loading={isCancelling}
+            style={styles.confirmButton}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -109,71 +120,67 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.white,
-    padding: spacing[6],
   },
-  header: {
+  content: {
+    flex: 1,
     alignItems: 'center',
-    marginBottom: spacing[8],
+    justifyContent: 'center',
+    paddingHorizontal: spacing[6],
   },
-  iconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+  pauseIndicator: {
+    marginBottom: spacing[6],
+  },
+  pauseIconOuter: {
+    width: ms(100, 0.5),
+    height: ms(100, 0.5),
+    borderRadius: ms(100, 0.5) / 2,
     backgroundColor: colors.warning[50],
+    borderWidth: 3,
+    borderColor: colors.warning[200],
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing[4],
   },
   title: {
-    ...typography.h2,
+    ...typography.h1,
     color: colors.gray[900],
+    marginBottom: spacing[2],
+    textAlign: 'center',
   },
-  pausedTime: {
+  subtitle: {
     ...typography.body,
-    color: colors.warning[600],
-    fontWeight: '600',
-    marginTop: spacing[2],
+    color: colors.gray[600],
+    textAlign: 'center',
+    marginBottom: spacing[6],
   },
-  warningCard: {
+  warningBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing[3],
     backgroundColor: colors.warning[50],
     padding: spacing[4],
     borderRadius: borderRadius.lg,
-    marginBottom: spacing[6],
+    gap: spacing[2],
+    width: '100%',
   },
   warningText: {
     ...typography.bodySmall,
-    color: colors.warning[800],
+    color: colors.warning[700],
     flex: 1,
   },
-  tripInfo: {
-    backgroundColor: colors.gray[50],
-    borderRadius: borderRadius.lg,
-    padding: spacing[4],
-    marginBottom: spacing[6],
+  actions: {
+    padding: spacing[6],
+    paddingBottom: spacing[10],
     gap: spacing[3],
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-  },
-  infoLabel: {
+  confirmText: {
     ...typography.body,
     color: colors.gray[600],
+    marginBottom: spacing[6],
   },
-  infoValue: {
-    ...typography.body,
-    color: colors.gray[900],
-    fontWeight: '600',
-  },
-  actions: {
+  confirmActions: {
+    flexDirection: 'row',
     gap: spacing[3],
-    marginTop: 'auto',
   },
-  resumeButton: {
-    backgroundColor: colors.warning[500],
+  confirmButton: {
+    flex: 1,
   },
 });

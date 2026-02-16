@@ -7,227 +7,310 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  Alert,
 } from 'react-native';
-import { Link } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
-import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius, shadows } from '@/src/theme/spacing';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
+import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
+import { useAuth } from '@/src/hooks/useAuth';
+import { useSocialAuth } from '@/src/hooks/useSocialAuth';
+import { AuthError } from '@supabase/supabase-js';
+import { scaledSpacing, scaledFontSize, scaledIcon, ms } from '@/src/utils/scaling';
 
 export default function LoginScreen() {
+  const router = useRouter();
+  const { signIn } = useAuth();
+  const {
+    signInWithGoogle,
+    isGoogleLoading,
+    signInWithApple,
+    isAppleLoading,
+    isLoading: isSocialLoading,
+  } = useSocialAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleEmailLogin = async () => {
-    setLoading(true);
-    setError(null);
-    // Placeholder: will be connected to useAuth hook
-    setTimeout(() => setLoading(false), 1000);
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!email.trim()) {
+      newErrors.email = 'Email requis';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = 'Email invalide';
+    }
+    if (!password) {
+      newErrors.password = 'Mot de passe requis';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleAppleLogin = async () => {
-    // Placeholder: Apple Sign In
+  const handleLogin = async () => {
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      await signIn({ email: email.trim(), password });
+      // Navigation handled automatically by AuthGate in _layout.tsx
+      // when session state changes
+    } catch (err) {
+      if (err instanceof AuthError) {
+        if (err.message.includes('Invalid login credentials')) {
+          setErrors({ submit: 'Email ou mot de passe incorrect' });
+        } else if (err.message.includes('Email not confirmed')) {
+          setErrors({ submit: 'Vérifie ton email avant de te connecter' });
+        } else {
+          setErrors({ submit: err.message });
+        }
+      } else {
+        setErrors({ submit: 'Une erreur est survenue' });
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
-    // Placeholder: Google Sign In
+    try {
+      await signInWithGoogle();
+    } catch {
+      Alert.alert('Erreur', 'La connexion avec Google a échoué.');
+    }
   };
 
+  const handleAppleLogin = async () => {
+    try {
+      await signInWithApple();
+    } catch {
+      Alert.alert('Erreur', 'La connexion avec Apple a échoué.');
+    }
+  };
+
+  const isFormValid = email.trim() !== '' && password !== '';
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <OnboardingBackground>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.header}>
-          <Text style={styles.appName}>Prudency</Text>
-          <Text style={styles.tagline}>Securite des trajets</Text>
-        </View>
-
-        <View style={styles.socialButtons}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.socialButton,
-              styles.appleButton,
-              pressed && styles.socialPressed,
-            ]}
-            onPress={handleAppleLogin}
-          >
-            <FontAwesome name="apple" size={20} color={colors.white} />
-            <Text style={[styles.socialButtonText, styles.appleButtonText]}>
-              Continuer avec Apple
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.socialButton,
-              styles.googleButton,
-              pressed && styles.socialPressed,
-            ]}
-            onPress={handleGoogleLogin}
-          >
-            <FontAwesome name="google" size={20} color={colors.gray[700]} />
-            <Text style={[styles.socialButtonText, styles.googleButtonText]}>
-              Continuer avec Google
-            </Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>ou</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Connexion</Text>
+            <Text style={styles.subtitle}>Bon retour parmi nous !</Text>
           </View>
-        )}
 
-        <Input
-          label="Email"
-          placeholder="votre@email.fr"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-        />
+          {/* Form */}
+          <View style={styles.form}>
+            <View style={styles.inputsContainer}>
+              <Input
+                label="E-mail *"
+                placeholder="exemple@gmail.com"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+                }}
+                error={errors.email}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                variant="dark"
+              />
 
-        <Input
-          label="Mot de passe"
-          placeholder="Votre mot de passe"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          secureToggle
-          autoComplete="password"
-        />
+              <Input
+                label="Mot de passe *"
+                placeholder="************"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+                }}
+                error={errors.password}
+                secureTextEntry
+                secureToggle
+                variant="dark"
+              />
 
-        <Button
-          title="Se connecter"
-          onPress={handleEmailLogin}
-          loading={loading}
-          fullWidth
-          disabled={!email || !password}
-        />
+              {/* Forgot password link */}
+              <Pressable
+                style={styles.forgotPasswordContainer}
+                onPress={() => router.push('/(auth)/forgot-password')}
+              >
+                <Text style={styles.forgotPassword}>Mot de passe oublié ?</Text>
+              </Pressable>
+            </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Pas encore de compte ? </Text>
-          <Link href="/(auth)/register" asChild>
-            <Pressable>
-              <Text style={styles.linkText}>Creer un compte</Text>
-            </Pressable>
-          </Link>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {errors.submit && (
+              <Text style={styles.errorText}>{errors.submit}</Text>
+            )}
+
+            {/* Login button */}
+            <Button
+              title="Me connecter"
+              onPress={handleLogin}
+              loading={loading}
+              fullWidth
+              disabled={!isFormValid}
+            />
+
+            {/* Register link */}
+            <View style={styles.registerLinkContainer}>
+              <Text style={styles.registerLinkText}>
+                Tu n'as pas encore de compte ?{'\n'}
+                <Link href="/(auth)/register" asChild>
+                  <Text style={styles.registerLinkAction}>Inscris-toi !</Text>
+                </Link>
+              </Text>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ou</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Sign In */}
+            <Button
+              title="Continuer avec Google"
+              variant="social"
+              onPress={handleGoogleLogin}
+              loading={isGoogleLoading}
+              disabled={isSocialLoading}
+              fullWidth
+              icon={
+                <Ionicons name="logo-google" size={scaledIcon(20)} color={colors.gray[950]} />
+              }
+            />
+
+            {/* Apple Sign In (iOS only) */}
+            {Platform.OS === 'ios' && (
+              <Button
+                title="Continuer avec Apple"
+                variant="social"
+                onPress={handleAppleLogin}
+                loading={isAppleLoading}
+                disabled={isSocialLoading}
+                fullWidth
+                icon={
+                  <Ionicons name="logo-apple" size={scaledIcon(20)} color={colors.gray[950]} />
+                }
+              />
+            )}
+          </View>
+
+          {/* Logo at bottom */}
+          <View style={styles.logoContainer}>
+            <Text style={styles.logo}>PRUDENCY</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </OnboardingBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardView: {
     flex: 1,
-    backgroundColor: colors.white,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: spacing[6],
-    paddingBottom: spacing[10],
+    paddingHorizontal: scaledSpacing(64),
+    paddingTop: scaledSpacing(100),
+    paddingBottom: scaledSpacing(40),
+    justifyContent: 'space-between',
   },
   header: {
     alignItems: 'center',
-    paddingTop: spacing[20],
-    paddingBottom: spacing[10],
+    marginBottom: scaledSpacing(24),
   },
-  appName: {
-    ...typography.h1,
-    color: colors.primary[500],
+  title: {
+    fontSize: scaledFontSize(24),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50], // #e8eaf8
+    textAlign: 'center',
+    marginBottom: scaledSpacing(8),
   },
-  tagline: {
-    ...typography.body,
-    color: colors.gray[500],
-    marginTop: spacing[2],
+  subtitle: {
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50], // #e8eaf8
+    textAlign: 'center',
   },
-  socialButtons: {
-    gap: spacing[3],
-    marginBottom: spacing[6],
+  form: {
+    flex: 1,
+    gap: scaledSpacing(24),
   },
-  socialButton: {
-    flexDirection: 'row',
+  inputsContainer: {
+    gap: scaledSpacing(16),
+  },
+  forgotPasswordContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing[3],
-    borderRadius: borderRadius.lg,
-    gap: spacing[3],
+    marginTop: scaledSpacing(8),
   },
-  socialPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
+  forgotPassword: {
+    fontSize: scaledFontSize(14),
+    fontWeight: '600',
+    color: colors.primary[50], // #e8eaf8
+    textAlign: 'center',
   },
-  appleButton: {
-    backgroundColor: colors.black,
+  errorText: {
+    fontSize: scaledFontSize(14),
+    color: colors.error[400],
+    textAlign: 'center',
   },
-  googleButton: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.gray[300],
+  registerLinkContainer: {
+    alignItems: 'center',
+    marginTop: scaledSpacing(8),
   },
-  socialButtonText: {
-    ...typography.button,
+  registerLinkText: {
+    fontSize: scaledFontSize(14),
+    fontWeight: '400',
+    color: colors.primary[50], // #e8eaf8
+    textAlign: 'center',
+    fontFamily: 'Kalam_400Regular',
   },
-  appleButtonText: {
-    color: colors.white,
-  },
-  googleButtonText: {
-    color: colors.gray[700],
+  registerLinkAction: {
+    textDecorationLine: 'underline',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing[6],
+    marginVertical: scaledSpacing(8),
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.gray[200],
+    backgroundColor: colors.primary[50],
+    opacity: 0.3,
   },
   dividerText: {
-    ...typography.bodySmall,
-    color: colors.gray[400],
-    paddingHorizontal: spacing[4],
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    color: colors.primary[50],
+    marginHorizontal: scaledSpacing(16),
   },
-  errorBox: {
-    backgroundColor: colors.error[50],
-    padding: spacing[3],
-    borderRadius: borderRadius.md,
-    marginBottom: spacing[4],
+  logoContainer: {
+    alignItems: 'center',
+    marginTop: scaledSpacing(32),
   },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error[600],
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: spacing[6],
-  },
-  footerText: {
-    ...typography.body,
-    color: colors.gray[600],
-  },
-  linkText: {
-    ...typography.body,
-    color: colors.primary[500],
-    fontWeight: '600',
+  logo: {
+    fontSize: scaledFontSize(35),
+    fontWeight: '200',
+    fontFamily: 'Montserrat_200ExtraLight',
+    color: colors.white,
+    letterSpacing: ms(2, 0.3),
+    textAlign: 'center',
   },
 });

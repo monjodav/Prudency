@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
+import { scaledFontSize } from '@/src/utils/scaling';
 
 interface TripTimerProps {
   estimatedArrivalAt: string;
@@ -75,10 +76,10 @@ const styles = StyleSheet.create({
     color: colors.gray[600],
     marginBottom: spacing[1],
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: scaledFontSize(1),
   },
   timer: {
-    fontSize: 48,
+    fontSize: scaledFontSize(48),
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },

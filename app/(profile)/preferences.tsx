@@ -11,6 +11,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
+import { ms, scaledIcon } from '@/src/utils/scaling';
 
 interface PreferenceItemProps {
   icon: React.ComponentProps<typeof FontAwesome>['name'];
@@ -29,7 +30,7 @@ function PreferenceItem({
 }: PreferenceItemProps) {
   return (
     <View style={styles.preferenceItem}>
-      <FontAwesome name={icon} size={20} color={colors.gray[600]} style={styles.preferenceIcon} />
+      <FontAwesome name={icon} size={scaledIcon(20)} color={colors.gray[600]} style={styles.preferenceIcon} />
       <View style={styles.preferenceContent}>
         <Text style={styles.preferenceTitle}>{title}</Text>
         {description && (
@@ -57,12 +58,12 @@ interface SelectItemProps {
 function SelectItem({ icon, title, value, onPress }: SelectItemProps) {
   return (
     <Pressable style={styles.preferenceItem} onPress={onPress}>
-      <FontAwesome name={icon} size={20} color={colors.gray[600]} style={styles.preferenceIcon} />
+      <FontAwesome name={icon} size={scaledIcon(20)} color={colors.gray[600]} style={styles.preferenceIcon} />
       <View style={styles.preferenceContent}>
         <Text style={styles.preferenceTitle}>{title}</Text>
       </View>
       <Text style={styles.selectValue}>{value}</Text>
-      <FontAwesome name="chevron-right" size={12} color={colors.gray[400]} />
+      <FontAwesome name="chevron-right" size={scaledIcon(12)} color={colors.gray[400]} />
     </Pressable>
   );
 }
@@ -185,7 +186,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.gray[100],
   },
   preferenceIcon: {
-    width: 28,
+    width: ms(28, 0.5),
   },
   preferenceContent: {
     flex: 1,

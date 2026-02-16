@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius } from '@/src/theme/spacing';
+import { spacing } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
 import { Modal } from '@/src/components/ui/Modal';
 import { ContactCard } from '@/src/components/contact/ContactCard';
 import { ContactForm } from '@/src/components/contact/ContactForm';
 import { APP_CONFIG } from '@/src/utils/constants';
+import { figmaScale, scaledIcon, ms } from '@/src/utils/scaling';
 
 interface MockContact {
   id: string;
@@ -19,6 +21,7 @@ interface MockContact {
 }
 
 export default function ContactsScreen() {
+  const insets = useSafeAreaInsets();
   const [contacts, setContacts] = useState<MockContact[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState<MockContact | null>(null);
@@ -31,7 +34,6 @@ export default function ContactsScreen() {
     notifyBySms: boolean;
     notifyByPush: boolean;
   }) => {
-    // Placeholder: will use useContacts hook
     const newContact: MockContact = {
       id: Date.now().toString(),
       name: data.name,
@@ -69,7 +71,12 @@ export default function ContactsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {/* Background ellipse */}
+      <View style={styles.ellipseContainer}>
+        <View style={styles.ellipse} />
+      </View>
+
+      <View style={[styles.header, { paddingTop: insets.top + spacing[4] }]}>
         <Text style={styles.title}>Contacts de confiance</Text>
         <Text style={styles.subtitle}>
           {contacts.length}/{APP_CONFIG.MAX_TRUSTED_CONTACTS} contacts configures
@@ -78,7 +85,9 @@ export default function ContactsScreen() {
 
       {contacts.length === 0 ? (
         <View style={styles.emptyState}>
-          <FontAwesome name="users" size={48} color={colors.gray[300]} />
+          <View style={styles.emptyIconContainer}>
+            <Ionicons name="people-outline" size={scaledIcon(48)} color={colors.primary[400]} />
+          </View>
           <Text style={styles.emptyTitle}>Aucun contact</Text>
           <Text style={styles.emptyDescription}>
             Ajoutez des personnes de confiance qui seront prevenues en cas d'alerte
@@ -155,25 +164,40 @@ export default function ContactsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.primary[950],
+  },
+  ellipseContainer: {
+    position: 'absolute',
+    top: figmaScale(-400),
+    left: figmaScale(-500),
+    width: figmaScale(1386),
+    height: figmaScale(1278),
+    overflow: 'hidden',
+  },
+  ellipse: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.secondary[400],
+    borderRadius: figmaScale(700),
+    opacity: 0.5,
+    transform: [{ rotate: '3deg' }],
   },
   header: {
     paddingHorizontal: spacing[6],
-    paddingTop: spacing[4],
     paddingBottom: spacing[4],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[200],
   },
   title: {
-    ...typography.h3,
-    color: colors.gray[900],
+    ...typography.h2,
+    color: colors.white,
   },
   subtitle: {
     ...typography.bodySmall,
-    color: colors.gray[500],
+    color: colors.primary[200],
     marginTop: spacing[1],
   },
   listContent: {
+    paddingHorizontal: spacing[6],
+    paddingTop: spacing[4],
     paddingBottom: spacing[20],
   },
   emptyState: {
@@ -182,20 +206,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing[10],
   },
+  emptyIconContainer: {
+    width: ms(80, 0.5),
+    height: ms(80, 0.5),
+    borderRadius: ms(80, 0.5) / 2,
+    backgroundColor: 'rgba(44, 65, 188, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing[4],
+  },
   emptyTitle: {
     ...typography.h3,
-    color: colors.gray[700],
-    marginTop: spacing[4],
+    color: colors.white,
   },
   emptyDescription: {
     ...typography.body,
-    color: colors.gray[500],
+    color: colors.primary[200],
     textAlign: 'center',
     marginTop: spacing[2],
     marginBottom: spacing[6],
   },
   emptyButton: {
-    minWidth: 200,
+    minWidth: ms(200, 0.5),
   },
   addButtonContainer: {
     position: 'absolute',
@@ -203,8 +235,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: spacing[6],
-    backgroundColor: colors.white,
+    backgroundColor: colors.primary[950],
     borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
 });

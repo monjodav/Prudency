@@ -5,6 +5,7 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { formatPhoneNumber } from '@/src/utils/formatters';
+import { scaledIcon, scaledSpacing, scaledRadius, ms } from '@/src/utils/scaling';
 
 interface ContactCardProps {
   name: string;
@@ -47,7 +48,7 @@ export function ContactCard({
           {isPrimary && (
             <FontAwesome
               name="star"
-              size={12}
+              size={scaledIcon(12)}
               color={colors.warning[500]}
               style={styles.starIcon}
             />
@@ -63,7 +64,7 @@ export function ContactCard({
 
       {onDelete && (
         <Pressable onPress={onDelete} style={styles.deleteButton} hitSlop={8}>
-          <FontAwesome name="trash-o" size={18} color={colors.error[400]} />
+          <FontAwesome name="trash-o" size={scaledIcon(18)} color={colors.error[400]} />
         </Pressable>
       )}
     </Pressable>
@@ -84,9 +85,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[50],
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ms(44, 0.5),
+    height: ms(44, 0.5),
+    borderRadius: ms(44, 0.5) / 2,
     backgroundColor: colors.secondary[100],
     justifyContent: 'center',
     alignItems: 'center',
@@ -117,12 +118,12 @@ const styles = StyleSheet.create({
   phone: {
     ...typography.bodySmall,
     color: colors.gray[600],
-    marginTop: 2,
+    marginTop: scaledSpacing(2),
   },
   email: {
     ...typography.caption,
     color: colors.gray[500],
-    marginTop: 1,
+    marginTop: scaledSpacing(1),
   },
   deleteButton: {
     padding: spacing[2],

@@ -7,12 +7,13 @@ import {
   ViewStyle,
   TextStyle,
   PressableProps,
+  View,
 } from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius } from '@/src/theme/spacing';
+import { ms, scaledSpacing, scaledFontSize } from '@/src/utils/scaling';
 
-type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'outline' | 'ghost';
+type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'outline' | 'ghost' | 'social';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends Omit<PressableProps, 'style'> {
@@ -22,16 +23,22 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   loading?: boolean;
   fullWidth?: boolean;
   style?: ViewStyle;
+  icon?: React.ReactNode;
+  iconPosition?: 'left' | 'right';
 }
 
-const variantStyles: Record<ButtonVariant, { container: ViewStyle; text: TextStyle }> = {
+const variantStyles: Record<ButtonVariant, { container: ViewStyle; text: TextStyle; disabledContainer?: ViewStyle; disabledText?: TextStyle }> = {
   primary: {
     container: { backgroundColor: colors.primary[500] },
     text: { color: colors.white },
+    disabledContainer: { backgroundColor: colors.gray[600] },
+    disabledText: { color: colors.gray[500] },
   },
   secondary: {
     container: { backgroundColor: colors.secondary[500] },
     text: { color: colors.white },
+    disabledContainer: { backgroundColor: colors.gray[600] },
+    disabledText: { color: colors.gray[500] },
   },
   danger: {
     container: { backgroundColor: colors.error[500] },
@@ -41,28 +48,32 @@ const variantStyles: Record<ButtonVariant, { container: ViewStyle; text: TextSty
     container: {
       backgroundColor: colors.transparent,
       borderWidth: 1.5,
-      borderColor: colors.primary[500],
+      borderColor: colors.primary[50],
     },
-    text: { color: colors.primary[500] },
+    text: { color: colors.primary[50] },
   },
   ghost: {
     container: { backgroundColor: colors.transparent },
-    text: { color: colors.primary[500] },
+    text: { color: colors.primary[50] },
+  },
+  social: {
+    container: { backgroundColor: colors.gray[50] },
+    text: { color: colors.gray[950] },
   },
 };
 
 const sizeStyles: Record<ButtonSize, { container: ViewStyle; text: TextStyle }> = {
   sm: {
-    container: { paddingVertical: spacing[2], paddingHorizontal: spacing[4] },
+    container: { height: ms(40, 0.5), paddingHorizontal: scaledSpacing(16) },
     text: { ...typography.buttonSmall },
   },
   md: {
-    container: { paddingVertical: spacing[3], paddingHorizontal: spacing[6] },
+    container: { height: ms(48, 0.5), paddingHorizontal: scaledSpacing(16) },
     text: { ...typography.button },
   },
   lg: {
-    container: { paddingVertical: spacing[4], paddingHorizontal: spacing[8] },
-    text: { ...typography.button, fontSize: 18 },
+    container: { height: ms(56, 0.5), paddingHorizontal: scaledSpacing(24) },
+    text: { ...typography.button, fontSize: scaledFontSize(18) },
   },
 };
 
@@ -74,10 +85,13 @@ export function Button({
   fullWidth = false,
   disabled,
   style,
+  icon,
+  iconPosition = 'left',
   ...pressableProps
 }: ButtonProps) {
   const variantStyle = variantStyles[variant];
   const sizeStyle = sizeStyles[size];
+  const isDisabled = disabled || loading;
 
   return (
     <Pressable
@@ -86,11 +100,11 @@ export function Button({
         variantStyle.container,
         sizeStyle.container,
         fullWidth && styles.fullWidth,
-        pressed && styles.pressed,
-        (disabled || loading) && styles.disabled,
+        pressed && !isDisabled && styles.pressed,
+        isDisabled && (variantStyle.disabledContainer || styles.disabled),
         style,
       ]}
-      disabled={disabled || loading}
+      disabled={isDisabled}
       {...pressableProps}
     >
       {loading ? (
@@ -99,9 +113,24 @@ export function Button({
           color={variantStyle.text.color as string}
         />
       ) : (
-        <Text style={[styles.text, variantStyle.text, sizeStyle.text]}>
-          {title}
-        </Text>
+        <View style={styles.content}>
+          {icon && iconPosition === 'left' && (
+            <View style={styles.iconLeft}>{icon}</View>
+          )}
+          <Text
+            style={[
+              styles.text,
+              variantStyle.text,
+              sizeStyle.text,
+              isDisabled && (variantStyle.disabledText || styles.disabledText),
+            ]}
+          >
+            {title}
+          </Text>
+          {icon && iconPosition === 'right' && (
+            <View style={styles.iconRight}>{icon}</View>
+          )}
+        </View>
       )}
     </Pressable>
   );
@@ -109,7 +138,7 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: borderRadius.lg,
+    borderRadius: 9999, // Pill shape from Figma
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -122,9 +151,23 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   disabled: {
-    opacity: 0.5,
+    backgroundColor: colors.gray[600],
+  },
+  disabledText: {
+    color: colors.gray[500],
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   text: {
     textAlign: 'center',
+  },
+  iconLeft: {
+    marginRight: scaledSpacing(8),
+  },
+  iconRight: {
+    marginLeft: scaledSpacing(8),
   },
 });

@@ -6,62 +6,83 @@ import {
   FlatList,
   Dimensions,
   ViewToken,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
-import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
-import {
-  requestLocationPermission,
-  requestNotificationPermission,
-} from '@/src/utils/permissions';
+import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
+import { useAuthStore } from '@/src/stores/authStore';
+import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, scaledIcon, ms } from '@/src/utils/scaling';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface OnboardingStep {
   id: string;
-  icon: React.ComponentProps<typeof FontAwesome>['name'];
+  icon: keyof typeof Ionicons.glyphMap;
   title: string;
   description: string;
+  isWelcome?: boolean;
+  isFinal?: boolean;
 }
 
+// Onboarding steps from Figma design
 const STEPS: OnboardingStep[] = [
   {
-    id: '1',
-    icon: 'shield',
-    title: 'Protegez vos trajets',
+    id: 'welcome',
+    icon: 'heart',
+    title: 'Bienvenue sur Prudency, {name}',
     description:
-      'Prudency veille sur vous pendant vos deplacements et previent vos proches en cas de probleme.',
+      'Tu n\'es plus seule pendant tes déplacements. Prudency veille sur toi, à chaque trajet.',
+    isWelcome: true,
   },
   {
-    id: '2',
-    icon: 'users',
-    title: 'Contacts de confiance',
+    id: 'contacts',
+    icon: 'people',
+    title: 'Un cercle de confiance',
     description:
-      'Ajoutez jusqu\'a 5 personnes de confiance qui seront prevenues automatiquement en cas d\'alerte.',
+      'Choisis une personne de confiance. Elle sera prévenue uniquement si un problème survient durant ton trajet.',
   },
   {
-    id: '3',
-    icon: 'map-marker',
-    title: 'Localisation',
+    id: 'privacy',
+    icon: 'eye-off',
+    title: 'Garde tes trajets privés',
     description:
-      'Autorisez l\'acces a votre position pour que vos contacts puissent vous localiser en cas de besoin.',
+      'Tu es la seule personne à voir ton trajet, si tu le souhaites. Une alerte est envoyée uniquement si quelque chose ne se passe pas comme prévu.',
   },
   {
-    id: '4',
-    icon: 'bell',
-    title: 'Notifications',
+    id: 'notes',
+    icon: 'document-text',
+    title: 'Des trajets plus sereins',
     description:
-      'Activez les notifications pour etre alertee quand vous approchez de l\'heure d\'arrivee prevue.',
+      'Ce carnet de bord te permet de noter tout ce qui te semble important pendant tes trajets.',
+  },
+  {
+    id: 'security',
+    icon: 'shield-checkmark',
+    title: 'Une sécurité discrète',
+    description:
+      'Une validation te sera demandée à la fin ou à l\'annulation d\'un trajet, uniquement pour ta sécurité.',
+  },
+  {
+    id: 'ready',
+    icon: 'checkmark-circle',
+    title: 'C\'est parti !',
+    description:
+      'Tu peux maintenant utiliser Prudency en toute sérénité.',
+    isFinal: true,
   },
 ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Get user's first name for welcome screen
+  const userName = user?.user_metadata?.first_name || 'toi';
 
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -74,14 +95,7 @@ export default function OnboardingScreen() {
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
-  const handleNext = async () => {
-    if (currentIndex === 2) {
-      await requestLocationPermission();
-    }
-    if (currentIndex === 3) {
-      await requestNotificationPermission();
-    }
-
+  const handleNext = () => {
     if (currentIndex < STEPS.length - 1) {
       flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
     } else {
@@ -90,33 +104,64 @@ export default function OnboardingScreen() {
   };
 
   const handleComplete = () => {
-    // Placeholder: will mark onboarding as completed via useAuth hook
-    router.replace('/(tabs)');
+    // Navigate to add trusted contact as per Figma flow
+    router.replace('/(auth)/add-contact');
   };
 
   const handleSkip = () => {
-    handleComplete();
+    // Skip to final slide
+    flatListRef.current?.scrollToIndex({ index: STEPS.length - 1 });
   };
 
-  const renderStep = ({ item }: { item: OnboardingStep }) => (
-    <View style={styles.step}>
-      <View style={styles.iconContainer}>
-        <FontAwesome name={item.icon} size={48} color={colors.primary[500]} />
-      </View>
-      <Text style={styles.stepTitle}>{item.title}</Text>
-      <Text style={styles.stepDescription}>{item.description}</Text>
-    </View>
-  );
+  const handleStartDemo = () => {
+    // Start from first content slide (after welcome)
+    flatListRef.current?.scrollToIndex({ index: 1 });
+  };
 
-  const isLastStep = currentIndex === STEPS.length - 1;
+  const renderStep = ({ item }: { item: OnboardingStep }) => {
+    const title = item.title.replace('{name}', userName);
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.skipContainer}>
-        {!isLastStep && (
-          <Button title="Passer" variant="ghost" size="sm" onPress={handleSkip} />
+    return (
+      <View style={styles.step}>
+        <View style={styles.stepContent}>
+          <View style={styles.iconContainer}>
+            <Ionicons name={item.icon} size={scaledIcon(64)} color={colors.primary[50]} />
+          </View>
+          <Text style={styles.stepTitle}>{title}</Text>
+          <Text style={styles.stepDescription}>{item.description}</Text>
+        </View>
+
+        {/* Step-specific buttons */}
+        {item.isWelcome && (
+          <View style={styles.welcomeButtons}>
+            <Button
+              title="Commencer la démo"
+              onPress={handleStartDemo}
+              fullWidth
+            />
+            <Pressable onPress={handleComplete} style={styles.skipLink}>
+              <Text style={styles.skipLinkText}>Passer la démo</Text>
+            </Pressable>
+          </View>
         )}
       </View>
+    );
+  };
+
+  const currentStep = STEPS[currentIndex];
+  const isWelcome = currentStep?.isWelcome;
+  const isFinal = currentStep?.isFinal;
+
+  return (
+    <OnboardingBackground>
+      {/* Skip button (not on welcome or final) */}
+      {!isWelcome && !isFinal && (
+        <View style={styles.skipContainer}>
+          <Pressable onPress={handleSkip}>
+            <Text style={styles.skipText}>Passer la démo</Text>
+          </Pressable>
+        </View>
+      )}
 
       <FlatList
         ref={flatListRef}
@@ -129,93 +174,146 @@ export default function OnboardingScreen() {
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         style={styles.flatList}
+        scrollEnabled={!isWelcome}
       />
 
-      <View style={styles.pagination}>
-        {STEPS.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.dot,
-              index === currentIndex ? styles.dotActive : styles.dotInactive,
-            ]}
-          />
-        ))}
-      </View>
+      {/* Pagination dots (not on welcome) */}
+      {!isWelcome && (
+        <View style={styles.pagination}>
+          {STEPS.slice(1).map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.dot,
+                index === currentIndex - 1 ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
+          ))}
+        </View>
+      )}
 
-      <View style={styles.buttonContainer}>
-        <Button
-          title={isLastStep ? 'Commencer' : 'Suivant'}
-          onPress={handleNext}
-          fullWidth
-          size="lg"
-        />
+      {/* Bottom button (not on welcome) */}
+      {!isWelcome && (
+        <View style={styles.buttonContainer}>
+          <Button
+            title={isFinal ? 'Commencer' : 'Suivant'}
+            onPress={handleNext}
+            fullWidth
+          />
+        </View>
+      )}
+
+      {/* Logo */}
+      <View style={styles.logoContainer}>
+        <Text style={styles.logo}>PRUDENCY</Text>
       </View>
-    </View>
+    </OnboardingBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
   skipContainer: {
-    alignItems: 'flex-end',
-    paddingTop: spacing[16],
-    paddingHorizontal: spacing[6],
-    minHeight: spacing[20],
+    position: 'absolute',
+    top: scaledSpacing(60),
+    right: scaledSpacing(24),
+    zIndex: 10,
+  },
+  skipText: {
+    fontSize: scaledFontSize(14),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50],
+    opacity: 0.8,
   },
   flatList: {
     flex: 1,
   },
   step: {
     width: SCREEN_WIDTH,
-    paddingHorizontal: spacing[10],
-    justifyContent: 'center',
+    paddingHorizontal: scaledSpacing(40),
+    paddingTop: scaledSpacing(100),
+    flex: 1,
+  },
+  stepContent: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.primary[50],
+    width: ms(120, 0.5),
+    height: ms(120, 0.5),
+    borderRadius: scaledRadius(60),
+    backgroundColor: 'rgba(232, 234, 248, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing[8],
+    marginBottom: scaledSpacing(32),
   },
   stepTitle: {
-    ...typography.h2,
-    color: colors.gray[900],
+    fontSize: scaledFontSize(24),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50],
     textAlign: 'center',
-    marginBottom: spacing[4],
+    marginBottom: scaledSpacing(16),
   },
   stepDescription: {
-    ...typography.body,
-    color: colors.gray[600],
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50],
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: scaledLineHeight(24),
+    opacity: 0.9,
+  },
+  welcomeButtons: {
+    width: '100%',
+    gap: scaledSpacing(16),
+    marginBottom: scaledSpacing(40),
+  },
+  skipLink: {
+    alignItems: 'center',
+    padding: scaledSpacing(8),
+  },
+  skipLinkText: {
+    fontSize: scaledFontSize(14),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50],
+    opacity: 0.8,
   },
   pagination: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: spacing[2],
-    paddingBottom: spacing[6],
+    gap: scaledSpacing(8),
+    paddingBottom: scaledSpacing(24),
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: ms(8, 0.5),
+    height: ms(8, 0.5),
+    borderRadius: scaledRadius(4),
   },
   dotActive: {
-    backgroundColor: colors.primary[500],
-    width: 24,
+    backgroundColor: colors.primary[50],
+    width: ms(24, 0.5),
   },
   dotInactive: {
-    backgroundColor: colors.gray[300],
+    backgroundColor: colors.primary[50],
+    opacity: 0.3,
   },
   buttonContainer: {
-    paddingHorizontal: spacing[6],
-    paddingBottom: spacing[10],
+    paddingHorizontal: scaledSpacing(64),
+    paddingBottom: scaledSpacing(16),
+  },
+  logoContainer: {
+    alignItems: 'center',
+    paddingBottom: scaledSpacing(40),
+  },
+  logo: {
+    fontSize: scaledFontSize(35),
+    fontWeight: '200',
+    fontFamily: 'Montserrat_200ExtraLight',
+    color: colors.white,
+    letterSpacing: ms(2, 0.3),
+    textAlign: 'center',
   },
 });

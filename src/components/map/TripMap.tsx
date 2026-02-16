@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
+import { scaledFontSize, ms } from '@/src/utils/scaling';
 
 interface TripMapProps {
   currentLat?: number | null;
@@ -43,13 +44,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[100],
   },
   mapPlaceholder: {
-    height: 200,
+    height: ms(200, 0.5),
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.gray[100],
   },
   placeholderIcon: {
-    fontSize: 40,
+    fontSize: scaledFontSize(40),
     marginBottom: spacing[2],
   },
   placeholderText: {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { colors } from '@/src/theme/colors';
+import { scaledIcon } from '@/src/utils/scaling';
 
 type MarkerVariant = 'current' | 'departure' | 'arrival';
 
@@ -18,7 +19,7 @@ const variantColors: Record<MarkerVariant, string> = {
 
 export function LocationMarker({
   variant = 'current',
-  size = 16,
+  size = scaledIcon(16),
   style,
 }: LocationMarkerProps) {
   const color = variantColors[variant];

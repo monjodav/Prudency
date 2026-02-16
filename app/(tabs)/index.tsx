@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing, shadows } from '@/src/theme/spacing';
+import { spacing } from '@/src/theme/spacing';
+import { figmaScale, scaledIcon, scaledRadius, scaledShadow, ms } from '@/src/utils/scaling';
 import { useTripStore } from '@/src/stores/tripStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { AlertButton } from '@/src/components/alert/AlertButton';
@@ -13,6 +15,7 @@ import { TRIP_STATUS } from '@/src/utils/constants';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { activeTripId } = useTripStore();
   const { user } = useAuthStore();
 
@@ -25,7 +28,7 @@ export default function HomeScreen() {
   };
 
   const handleAlert = () => {
-    // Placeholder: will trigger alert via useAlert hook
+    // Will trigger alert via useAlert hook
   };
 
   const firstName = user?.user_metadata?.first_name;
@@ -33,55 +36,63 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {/* Background ellipse */}
+      <View style={styles.ellipseContainer}>
+        <View style={styles.ellipse} />
+      </View>
+
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + spacing[4] }]}>
         <Text style={styles.greeting}>{greeting}</Text>
         <Text style={styles.subtitle}>Ou allez-vous aujourd'hui ?</Text>
       </View>
 
+      {/* Content */}
       <View style={styles.content}>
         {activeTripId && (
-          <View style={styles.activeTrip}>
+          <Pressable
+            style={styles.activeTrip}
+            onPress={() => router.push('/(trip)/active')}
+          >
             <TripStatusIndicator status={TRIP_STATUS.ACTIVE} />
-            <Pressable
-              style={styles.viewTripButton}
-              onPress={() => router.push('/(trip)/active')}
-            >
-              <FontAwesome name="chevron-right" size={14} color={colors.primary[500]} />
-            </Pressable>
-          </View>
+            <Ionicons name="chevron-forward" size={scaledIcon(16)} color={colors.primary[300]} />
+          </Pressable>
         )}
 
         <Pressable
           style={({ pressed }) => [
             styles.startButton,
             pressed && styles.startButtonPressed,
-            activeTripId && styles.activeButton,
+            activeTripId ? styles.activeButton : undefined,
           ]}
           onPress={handleStartTrip}
         >
-          <FontAwesome
-            name={activeTripId ? 'road' : 'plus'}
-            size={32}
-            color={colors.white}
-          />
-          <Text style={styles.startButtonText}>
-            {activeTripId ? 'Voir mon trajet' : 'Demarrer un trajet'}
-          </Text>
+          <View style={styles.startButtonInner}>
+            <Ionicons
+              name={activeTripId ? 'navigate' : 'add'}
+              size={scaledIcon(40)}
+              color={colors.white}
+            />
+            <Text style={styles.startButtonText}>
+              {activeTripId ? 'Voir mon trajet' : 'Commencer un trajet'}
+            </Text>
+          </View>
         </Pressable>
 
         {!activeTripId && (
           <View style={styles.quickAlert}>
-            <AlertButton onTrigger={handleAlert} size={80} />
+            <AlertButton onTrigger={handleAlert} size={ms(80, 0.5)} />
           </View>
         )}
       </View>
 
+      {/* Footer info card */}
       <View style={styles.footer}>
         <View style={styles.footerCard}>
-          <FontAwesome
-            name="shield"
-            size={16}
-            color={colors.primary[500]}
+          <Ionicons
+            name="shield-checkmark"
+            size={scaledIcon(18)}
+            color={colors.primary[300]}
             style={styles.footerIcon}
           />
           <Text style={styles.footerText}>
@@ -96,20 +107,35 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.primary[950],
+  },
+  ellipseContainer: {
+    position: 'absolute',
+    top: figmaScale(-400),
+    left: figmaScale(-500),
+    width: figmaScale(1386),
+    height: figmaScale(1278),
+    overflow: 'hidden',
+  },
+  ellipse: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.secondary[400],
+    borderRadius: figmaScale(700),
+    opacity: 0.5,
+    transform: [{ rotate: '3deg' }],
   },
   header: {
     paddingHorizontal: spacing[6],
-    paddingTop: spacing[8],
     paddingBottom: spacing[6],
   },
   greeting: {
     ...typography.h1,
-    color: colors.gray[900],
+    color: colors.white,
   },
   subtitle: {
     ...typography.body,
-    color: colors.gray[600],
+    color: colors.primary[200],
     marginTop: spacing[2],
   },
   content: {
@@ -125,33 +151,38 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
-    backgroundColor: colors.info[50],
-    borderRadius: 12,
+    backgroundColor: 'rgba(44, 65, 188, 0.15)',
+    borderRadius: scaledRadius(12),
+    borderWidth: 1,
+    borderColor: 'rgba(44, 65, 188, 0.3)',
     marginBottom: spacing[8],
   },
-  viewTripButton: {
-    padding: spacing[2],
-  },
   startButton: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: ms(200, 0.5),
+    height: ms(200, 0.5),
+    borderRadius: ms(100, 0.5),
     backgroundColor: colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.primary[500],
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    ...scaledShadow({
+      shadowColor: colors.primary[500],
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.4,
+      shadowRadius: 20,
+      elevation: 10,
+    }),
   },
   startButtonPressed: {
     transform: [{ scale: 0.95 }],
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
   },
   activeButton: {
     backgroundColor: colors.success[500],
     shadowColor: colors.success[500],
+  },
+  startButtonInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   startButtonText: {
     ...typography.button,
@@ -159,27 +190,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: spacing[4],
     marginTop: spacing[2],
+    fontWeight: '600',
   },
   quickAlert: {
     marginTop: spacing[10],
   },
   footer: {
     paddingHorizontal: spacing[6],
-    paddingBottom: spacing[8],
+    paddingBottom: spacing[4],
   },
   footerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary[50],
+    backgroundColor: 'rgba(44, 65, 188, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(44, 65, 188, 0.2)',
     padding: spacing[4],
-    borderRadius: 12,
+    borderRadius: scaledRadius(12),
   },
   footerIcon: {
     marginRight: spacing[3],
   },
   footerText: {
     ...typography.caption,
-    color: colors.primary[800],
+    color: colors.primary[200],
     flex: 1,
   },
 });

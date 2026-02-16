@@ -4,6 +4,7 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { TRIP_STATUS } from '@/src/utils/constants';
+import { ms } from '@/src/utils/scaling';
 
 interface TripStatusProps {
   status: string;
@@ -87,9 +88,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: ms(8, 0.5),
+    height: ms(8, 0.5),
+    borderRadius: ms(8, 0.5) / 2,
     marginRight: spacing[2],
   },
   label: {

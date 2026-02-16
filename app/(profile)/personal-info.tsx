@@ -14,6 +14,7 @@ import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { useAuthStore } from '@/src/stores/authStore';
+import { ms, scaledFontSize, scaledIcon } from '@/src/utils/scaling';
 
 export default function PersonalInfoScreen() {
   const { user } = useAuthStore();
@@ -59,7 +60,7 @@ export default function PersonalInfoScreen() {
           </Text>
         </View>
         <Pressable style={styles.changeAvatarButton}>
-          <FontAwesome name="camera" size={14} color={colors.primary[500]} />
+          <FontAwesome name="camera" size={scaledIcon(14)} color={colors.primary[500]} />
           <Text style={styles.changeAvatarText}>Changer la photo</Text>
         </Pressable>
       </View>
@@ -151,16 +152,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing[8],
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: ms(100, 0.5),
+    height: ms(100, 0.5),
+    borderRadius: ms(100, 0.5) / 2,
     backgroundColor: colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing[3],
   },
   avatarText: {
-    fontSize: 40,
+    fontSize: scaledFontSize(40),
     fontWeight: '700',
     color: colors.white,
   },

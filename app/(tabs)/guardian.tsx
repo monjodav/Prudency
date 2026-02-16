@@ -8,11 +8,13 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Badge } from '@/src/components/ui/Badge';
+import { figmaScale, scaledIcon, ms } from '@/src/utils/scaling';
 
 interface ProtectedPerson {
   id: string;
@@ -27,8 +29,16 @@ interface ProtectedPerson {
   };
 }
 
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+interface StatusIconConfig {
+  name: IoniconsName;
+  color: string;
+}
+
 export default function GuardianScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [protectedPeople] = useState<ProtectedPerson[]>([
     {
       id: '1',
@@ -60,14 +70,14 @@ export default function GuardianScreen() {
     }
   };
 
-  const getStatusIcon = (status: ProtectedPerson['status']) => {
+  const getStatusIcon = (status: ProtectedPerson['status']): StatusIconConfig => {
     switch (status) {
       case 'safe':
-        return { name: 'check-circle' as const, color: colors.success[500] };
+        return { name: 'checkmark-circle', color: colors.success[500] };
       case 'trip_active':
-        return { name: 'road' as const, color: colors.info[500] };
+        return { name: 'navigate', color: colors.info[500] };
       case 'alert':
-        return { name: 'exclamation-circle' as const, color: colors.error[500] };
+        return { name: 'alert-circle', color: colors.error[500] };
     }
   };
 
@@ -128,10 +138,10 @@ export default function GuardianScreen() {
         <View style={styles.rightSection}>
           {getStatusBadge(item.status)}
           {(item.status === 'trip_active' || item.status === 'alert') && (
-            <FontAwesome
-              name="chevron-right"
-              size={12}
-              color={colors.gray[400]}
+            <Ionicons
+              name="chevron-forward"
+              size={scaledIcon(14)}
+              color={colors.gray[500]}
               style={styles.chevron}
             />
           )}
@@ -142,7 +152,12 @@ export default function GuardianScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {/* Background ellipse */}
+      <View style={styles.ellipseContainer}>
+        <View style={styles.ellipse} />
+      </View>
+
+      <View style={[styles.header, { paddingTop: insets.top + spacing[4] }]}>
         <Text style={styles.title}>Mes proteges</Text>
         <Text style={styles.subtitle}>
           {protectedPeople.length} personne{protectedPeople.length !== 1 ? 's' : ''} sous votre protection
@@ -151,7 +166,9 @@ export default function GuardianScreen() {
 
       {protectedPeople.length === 0 ? (
         <View style={styles.emptyState}>
-          <FontAwesome name="shield" size={48} color={colors.gray[300]} />
+          <View style={styles.emptyIconContainer}>
+            <Ionicons name="shield-outline" size={scaledIcon(48)} color={colors.primary[400]} />
+          </View>
           <Text style={styles.emptyTitle}>Aucun protege</Text>
           <Text style={styles.emptyDescription}>
             Les personnes qui vous ajoutent comme contact de confiance apparaitront ici
@@ -172,22 +189,35 @@ export default function GuardianScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.primary[950],
+  },
+  ellipseContainer: {
+    position: 'absolute',
+    top: figmaScale(-400),
+    left: figmaScale(-500),
+    width: figmaScale(1386),
+    height: figmaScale(1278),
+    overflow: 'hidden',
+  },
+  ellipse: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.secondary[400],
+    borderRadius: figmaScale(700),
+    opacity: 0.5,
+    transform: [{ rotate: '3deg' }],
   },
   header: {
     paddingHorizontal: spacing[6],
-    paddingTop: spacing[4],
     paddingBottom: spacing[4],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[200],
   },
   title: {
-    ...typography.h3,
-    color: colors.gray[900],
+    ...typography.h2,
+    color: colors.white,
   },
   subtitle: {
     ...typography.bodySmall,
-    color: colors.gray[500],
+    color: colors.primary[200],
     marginTop: spacing[1],
   },
   listContent: {
@@ -199,48 +229,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing[4],
-    backgroundColor: colors.gray[50],
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     marginBottom: spacing[3],
   },
   personCardPressed: {
-    backgroundColor: colors.gray[100],
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   personCardAlert: {
-    backgroundColor: colors.error[50],
-    borderWidth: 1,
-    borderColor: colors.error[200],
+    backgroundColor: 'rgba(202, 31, 31, 0.1)',
+    borderColor: 'rgba(202, 31, 31, 0.25)',
   },
   avatarContainer: {
     position: 'relative',
     marginRight: spacing[3],
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: ms(48, 0.5),
+    height: ms(48, 0.5),
+    borderRadius: ms(48, 0.5) / 2,
   },
   avatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary[100],
+    width: ms(48, 0.5),
+    height: ms(48, 0.5),
+    borderRadius: ms(48, 0.5) / 2,
+    backgroundColor: 'rgba(44, 65, 188, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     ...typography.h3,
-    color: colors.primary[600],
+    color: colors.primary[300],
   },
   statusDot: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: ms(14, 0.5),
+    height: ms(14, 0.5),
+    borderRadius: ms(14, 0.5) / 2,
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: colors.primary[950],
   },
   personInfo: {
     flex: 1,
@@ -248,11 +279,11 @@ const styles = StyleSheet.create({
   personName: {
     ...typography.body,
     fontWeight: '600',
-    color: colors.gray[900],
+    color: colors.white,
   },
   tripInfo: {
     ...typography.bodySmall,
-    color: colors.info[600],
+    color: colors.primary[200],
     marginTop: spacing[1],
   },
   lastSeen: {
@@ -262,7 +293,7 @@ const styles = StyleSheet.create({
   },
   alertText: {
     ...typography.bodySmall,
-    color: colors.error[600],
+    color: colors.error[400],
     fontWeight: '600',
     marginTop: spacing[1],
   },
@@ -278,14 +309,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing[10],
   },
+  emptyIconContainer: {
+    width: ms(80, 0.5),
+    height: ms(80, 0.5),
+    borderRadius: ms(80, 0.5) / 2,
+    backgroundColor: 'rgba(44, 65, 188, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing[4],
+  },
   emptyTitle: {
     ...typography.h3,
-    color: colors.gray[700],
-    marginTop: spacing[4],
+    color: colors.white,
   },
   emptyDescription: {
     ...typography.body,
-    color: colors.gray[500],
+    color: colors.primary[200],
     textAlign: 'center',
     marginTop: spacing[2],
   },
