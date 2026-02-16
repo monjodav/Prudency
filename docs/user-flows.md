@@ -1,12 +1,22 @@
-# User Flows — Prudency
+# User Flows -- Prudency
 
-Ce document décrit les parcours utilisateur principaux de l'application.
+## Table des matieres
+
+- [1. Trajet OK (Happy Path)](#1-trajet-ok-happy-path)
+- [2. Modification / Annulation de trajet](#2-modification--annulation-de-trajet)
+- [3. Probleme detecte (Timeout)](#3-probleme-detecte-timeout)
+- [4. Alerte manuelle](#4-alerte-manuelle)
+- [5. Reception d'alerte (Contact de confiance)](#5-reception-dalerte-contact-de-confiance)
+- [6. Inscription et Onboarding](#6-inscription-et-onboarding)
+- [7. Gestion des contacts de confiance](#7-gestion-des-contacts-de-confiance)
+- [Notes techniques](#notes-techniques)
+- [Cas limites et erreurs](#cas-limites-et-erreurs)
 
 ---
 
 ## 1. Trajet OK (Happy Path)
 
-L'utilisateur crée un trajet, le démarre, et arrive à destination dans les temps.
+L'utilisateur cree un trajet, le demarre, et arrive a destination dans les temps.
 
 ```mermaid
 sequenceDiagram
@@ -16,31 +26,31 @@ sequenceDiagram
     participant C as Contacts
 
     U->>A: Ouvre l'app (Home)
-    U->>A: Appuie "Démarrer un trajet"
+    U->>A: Appuie "Demarrer un trajet"
     A->>A: Navigue vers Create Trip
-    U->>A: Configure durée (ex: 30 min)
+    U->>A: Configure duree (ex: 30 min)
     U->>A: Confirme le trajet
     A->>S: INSERT trips (status: 'active')
-    S-->>A: Trip créé
+    S-->>A: Trip cree
     A->>A: Navigue vers Active Trip
-    A->>A: Démarre tracking GPS
+    A->>A: Demarre tracking GPS
 
     loop Toutes les 30 secondes
         A->>S: update-location (lat, lng, battery)
     end
 
-    U->>A: Appuie "Je suis arrivé(e)"
+    U->>A: Appuie "Je suis arrivee"
     A->>S: UPDATE trips (status: 'completed')
-    A->>A: Arrête tracking GPS
+    A->>A: Arrete tracking GPS
     A->>A: Navigue vers Home
-    A-->>U: "Trajet terminé avec succès"
+    A-->>U: "Trajet termine avec succes"
 ```
 
 ---
 
 ## 2. Modification / Annulation de trajet
 
-L'utilisateur modifie la durée ou annule un trajet en cours.
+L'utilisateur modifie la duree ou annule un trajet en cours.
 
 ```mermaid
 sequenceDiagram
@@ -50,29 +60,29 @@ sequenceDiagram
 
     Note over U,A: Trajet en cours
 
-    alt Modification durée
+    alt Modification duree
         U->>A: Appuie "Modifier"
-        A->>A: Affiche modal durée
-        U->>A: Nouvelle durée (+15 min)
+        A->>A: Affiche modal duree
+        U->>A: Nouvelle duree (+15 min)
         A->>S: UPDATE trips (estimated_arrival_at)
         S-->>A: OK
-        A-->>U: "Durée mise à jour"
+        A-->>U: "Duree mise a jour"
     else Annulation
         U->>A: Appuie "Annuler le trajet"
         A->>A: Affiche confirmation
         U->>A: Confirme annulation
         A->>S: UPDATE trips (status: 'cancelled')
-        A->>A: Arrête tracking GPS
+        A->>A: Arrete tracking GPS
         A->>A: Navigue vers Home
-        A-->>U: "Trajet annulé"
+        A-->>U: "Trajet annule"
     end
 ```
 
 ---
 
-## 3. Problème détecté (Timeout)
+## 3. Probleme detecte (Timeout)
 
-L'utilisateur ne valide pas son arrivée dans les temps. Le système déclenche une alerte automatique.
+L'utilisateur ne valide pas son arrivee dans les temps. Le systeme declenche une alerte automatique apres 5 minutes de depassement.
 
 ```mermaid
 sequenceDiagram
@@ -82,11 +92,11 @@ sequenceDiagram
     participant SMS as Plivo SMS
     participant C as Contacts
 
-    Note over A,S: Trajet actif, heure d'arrivée dépassée
+    Note over A,S: Trajet actif, heure d'arrivee depassee
 
     S->>EF: Cron: check-trip-timeout
     EF->>S: SELECT trips WHERE status='active' AND estimated_arrival_at < NOW() - 5min
-    S-->>EF: Trip trouvé (timeout)
+    S-->>EF: Trip trouve (timeout)
     EF->>S: UPDATE trips (status: 'timeout')
     EF->>S: INSERT alerts (type: 'timeout')
     EF->>EF: notify-contacts
@@ -95,7 +105,7 @@ sequenceDiagram
         EF->>C: Push notification
     and SMS
         EF->>SMS: send-sms (chaque contact)
-        SMS-->>C: SMS "⚠️ [Nom] n'a pas confirmé son arrivée"
+        SMS-->>C: SMS "[Nom] n'a pas confirme son arrivee"
     end
 
     EF-->>S: Alert created, contacts notified
@@ -105,7 +115,7 @@ sequenceDiagram
 
 ## 4. Alerte manuelle
 
-L'utilisateur déclenche une alerte volontairement (avec ou sans trajet actif).
+L'utilisateur declenche une alerte volontairement (avec ou sans trajet actif).
 
 ```mermaid
 sequenceDiagram
@@ -116,9 +126,9 @@ sequenceDiagram
     participant SMS as Plivo SMS
     participant C as Contacts
 
-    U->>A: Maintient appuyé le bouton d'alerte (3s)
+    U->>A: Maintient appuye le bouton d'alerte (3s)
     A->>A: Vibration haptique de confirmation
-    A->>S: Récupère position GPS actuelle
+    A->>A: Recupere position GPS actuelle
     A->>EF: POST send-alert (type: 'manual', lat, lng, battery)
 
     EF->>S: INSERT alerts
@@ -127,41 +137,41 @@ sequenceDiagram
 
     par Pour chaque contact
         EF->>SMS: send-sms
-        SMS-->>C: SMS "🆘 ALERTE: [Nom] a besoin d'aide. Position: [lien maps]"
+        SMS-->>C: SMS "ALERTE: [Nom] a besoin d'aide. Position: [lien maps]"
         EF->>C: Push notification
     end
 
     EF-->>A: { alertId, notifiedContacts }
-    A-->>U: "Alerte envoyée à X contacts"
-    A->>A: Affiche écran "Alerte active"
+    A-->>U: "Alerte envoyee a X contacts"
+    A->>A: Affiche ecran "Alerte active"
 ```
 
 ---
 
-## 5. Réception d'alerte (Contact de confiance)
+## 5. Reception d'alerte (Contact de confiance)
 
-Un contact de confiance reçoit une alerte et peut agir.
+Un contact de confiance recoit une alerte et peut agir.
 
 ```mermaid
 sequenceDiagram
-    participant S as Système
+    participant S as Systeme
     participant SMS as SMS
     participant C as Contact
     participant A as App Contact
     participant P as Prudency Backend
 
     S->>SMS: Envoi SMS alerte
-    SMS->>C: "🆘 ALERTE: Marie a besoin d'aide"
+    SMS->>C: "ALERTE: Marie a besoin d'aide"
 
-    Note over C: Le contact reçoit SMS + push
+    Note over C: Le contact recoit SMS + push
 
-    alt Contact avec l'app installée
+    alt Contact avec l'app installee
         C->>A: Ouvre la notification
-        A->>A: Affiche détails alerte (position, heure, batterie)
+        A->>A: Affiche details alerte (position, heure, batterie)
         C->>A: Appuie "Je prends en charge"
         A->>P: UPDATE alerts (status: 'acknowledged')
         P-->>A: OK
-        A-->>C: "Merci, [Nom] est prévenu(e)"
+        A-->>C: "Merci, [Nom] est prevenu(e)"
     else Contact sans l'app
         C->>C: Clique sur le lien Maps dans le SMS
         C->>C: Voit la position sur Google Maps
@@ -181,8 +191,8 @@ sequenceDiagram
     participant A as App
     participant S as Supabase
 
-    U->>A: Ouvre l'app (première fois)
-    A->>A: Affiche écran Login
+    U->>A: Ouvre l'app (premiere fois)
+    A->>A: Affiche ecran Login
 
     alt Apple Sign In
         U->>A: Appuie "Continuer avec Apple"
@@ -190,7 +200,7 @@ sequenceDiagram
         A-->>S: auth.signInWithOAuth('apple')
     else Google Sign In
         U->>A: Appuie "Continuer avec Google"
-        A->>A: expo-auth-session
+        A->>A: expo-auth-session + expo-web-browser
         A-->>S: auth.signInWithOAuth('google')
     else Email/Password
         U->>A: Appuie "S'inscrire avec email"
@@ -199,13 +209,13 @@ sequenceDiagram
         A->>S: auth.signUp({ email, password })
     end
 
-    S-->>A: Session créée
-    S->>S: Trigger: crée profile automatiquement
+    S-->>A: Session creee
+    S->>S: Trigger: cree profile automatiquement
 
     A->>A: Navigue vers Onboarding
     A-->>U: "Bienvenue sur Prudency"
 
-    Note over A,U: Étape 1: Permissions
+    Note over A,U: Etape 1: Permissions
     A-->>U: "Autoriser les notifications?"
     U->>A: Accepte
     A->>A: expo-notifications.requestPermissions()
@@ -214,7 +224,7 @@ sequenceDiagram
     U->>A: Accepte (Always ou When in use)
     A->>A: expo-location.requestPermissions()
 
-    Note over A,U: Étape 2: Contacts
+    Note over A,U: Etape 2: Contacts
     A-->>U: "Ajoutez vos contacts de confiance"
     U->>A: Ajoute 1-5 contacts
     A->>S: INSERT trusted_contacts
@@ -243,15 +253,15 @@ sequenceDiagram
     alt Ajouter un contact
         U->>A: Appuie "+"
         A->>A: Affiche formulaire
-        U->>A: Remplit nom + téléphone
+        U->>A: Remplit nom + telephone
         U->>A: Configure notifications (SMS, Push)
         U->>A: Valide
         A->>S: INSERT trusted_contacts
-        S-->>A: Contact créé
-        A-->>U: "Contact ajouté"
+        S-->>A: Contact cree
+        A-->>U: "Contact ajoute"
     else Modifier un contact
         U->>A: Appuie sur un contact
-        A->>A: Affiche détails
+        A->>A: Affiche details
         U->>A: Modifie les infos
         A->>S: UPDATE trusted_contacts
         S-->>A: OK
@@ -262,7 +272,7 @@ sequenceDiagram
         U->>A: Confirme
         A->>S: DELETE trusted_contacts
         S-->>A: OK
-        A-->>U: "Contact supprimé"
+        A-->>U: "Contact supprime"
     end
 ```
 
@@ -270,16 +280,66 @@ sequenceDiagram
 
 ## Notes techniques
 
-### GPS Tracking Strategy
+### Strategie de tracking GPS
 
-1. **Au démarrage du trajet** : Haute fréquence (30s) pendant 2 minutes
-2. **En cours de trajet** : Basse fréquence (60s)
-3. **À l'approche de l'heure d'arrivée** : Haute fréquence (10s)
-4. **Lors d'une alerte** : Temps réel (5s)
+| Phase | Frequence | Precision | Condition |
+|-------|-----------|-----------|-----------|
+| Demarrage du trajet | 30s | `Accuracy.Balanced` | 2 premieres minutes |
+| En cours de trajet | 60s | `Accuracy.Balanced` | Mode normal |
+| Approche heure d'arrivee | 10s | `Accuracy.Balanced` | 15 min avant l'heure estimee |
+| Alerte active | 5s | `Accuracy.High` | Alerte declenchee |
+| Trajet termine | Stop | -- | Tracking arrete |
 
 ### Optimisation batterie
 
-- Utiliser `expo-location` avec `accuracy: Accuracy.Balanced`
-- Passer en `Accuracy.High` uniquement lors d'alertes
-- Arrêter le tracking dès que le trajet est terminé
-- Monitorer le niveau de batterie et avertir si < 15%
+- Utiliser `expo-location` avec `accuracy: Accuracy.Balanced` par defaut
+- Passer en `Accuracy.High` uniquement lors d'alertes actives
+- Arreter le tracking des que le trajet est termine ou annule
+- Monitorer le niveau de batterie et avertir l'utilisateur si < 15%
+- Le niveau de batterie est inclus dans chaque mise a jour de position
+
+---
+
+## Cas limites et erreurs
+
+### Perte de connexion reseau
+
+- Les mises a jour de position sont mises en file d'attente localement
+- L'alerte manuelle est tentee des que la connexion revient
+- L'utilisateur voit un indicateur "hors ligne" dans l'app
+
+### Batterie faible (< 15%)
+
+- L'app affiche un avertissement a l'utilisateur
+- Le niveau de batterie est envoye aux contacts lors d'une alerte
+- La frequence de tracking est reduite pour economiser la batterie
+
+### Permissions refusees
+
+- Si la localisation est refusee : l'utilisateur peut creer un trajet mais sans tracking GPS
+- Si les notifications sont refusees : l'alerte fonctionne mais les contacts ne recoivent pas de push
+- L'app guide l'utilisateur vers les reglages systeme pour reactiver les permissions
+
+### Maximum de contacts atteint
+
+- L'insertion est bloquee par le trigger `enforce_max_contacts` (max 5)
+- L'app affiche un message expliquant la limite
+- L'utilisateur doit supprimer un contact existant avant d'en ajouter un nouveau
+
+### Maximum de notes atteint
+
+- L'insertion est bloquee par le trigger `enforce_max_trip_notes` (max 20)
+- L'app affiche un message expliquant la limite
+
+### Echec d'envoi SMS
+
+- L'echec est consigne dans le tableau `failures` de la reponse `notify-contacts`
+- Les autres contacts sont quand meme notifies
+- L'utilisateur est informe du nombre de contacts effectivement notifies
+
+---
+
+**Voir aussi :**
+- [Reference API](./api-reference.md) -- documentation des Edge Functions utilisees dans ces flows
+- [Schema BDD](./database-schema.md) -- structure des donnees
+- [Architecture](./architecture.md) -- vue d'ensemble technique

@@ -1,13 +1,20 @@
+import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing } from '@/src/theme/spacing';
+import { spacing, shadows } from '@/src/theme/spacing';
 import { useTripStore } from '@/src/stores/tripStore';
+import { useAuthStore } from '@/src/stores/authStore';
+import { AlertButton } from '@/src/components/alert/AlertButton';
+import { TripStatusIndicator } from '@/src/components/trip/TripStatus';
+import { TRIP_STATUS } from '@/src/utils/constants';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { activeTripId } = useTripStore();
+  const { user } = useAuthStore();
 
   const handleStartTrip = () => {
     if (activeTripId) {
@@ -17,14 +24,33 @@ export default function HomeScreen() {
     }
   };
 
+  const handleAlert = () => {
+    // Placeholder: will trigger alert via useAlert hook
+  };
+
+  const firstName = user?.user_metadata?.first_name;
+  const greeting = firstName ? `Bonjour ${firstName}` : 'Bonjour';
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.greeting}>Bonjour</Text>
-        <Text style={styles.subtitle}>Où allez-vous aujourd'hui ?</Text>
+        <Text style={styles.greeting}>{greeting}</Text>
+        <Text style={styles.subtitle}>Ou allez-vous aujourd'hui ?</Text>
       </View>
 
       <View style={styles.content}>
+        {activeTripId && (
+          <View style={styles.activeTrip}>
+            <TripStatusIndicator status={TRIP_STATUS.ACTIVE} />
+            <Pressable
+              style={styles.viewTripButton}
+              onPress={() => router.push('/(trip)/active')}
+            >
+              <FontAwesome name="chevron-right" size={14} color={colors.primary[500]} />
+            </Pressable>
+          </View>
+        )}
+
         <Pressable
           style={({ pressed }) => [
             styles.startButton,
@@ -33,23 +59,35 @@ export default function HomeScreen() {
           ]}
           onPress={handleStartTrip}
         >
+          <FontAwesome
+            name={activeTripId ? 'road' : 'plus'}
+            size={32}
+            color={colors.white}
+          />
           <Text style={styles.startButtonText}>
-            {activeTripId ? 'Voir mon trajet' : 'Démarrer un trajet'}
+            {activeTripId ? 'Voir mon trajet' : 'Demarrer un trajet'}
           </Text>
         </Pressable>
 
-        {activeTripId && (
-          <View style={styles.activeIndicator}>
-            <View style={styles.activeDot} />
-            <Text style={styles.activeText}>Trajet en cours</Text>
+        {!activeTripId && (
+          <View style={styles.quickAlert}>
+            <AlertButton onTrigger={handleAlert} size={80} />
           </View>
         )}
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Vos contacts de confiance seront prévenus en cas de problème
-        </Text>
+        <View style={styles.footerCard}>
+          <FontAwesome
+            name="shield"
+            size={16}
+            color={colors.primary[500]}
+            style={styles.footerIcon}
+          />
+          <Text style={styles.footerText}>
+            Vos contacts de confiance seront prevenus en cas de probleme
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -80,6 +118,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing[6],
   },
+  activeTrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    backgroundColor: colors.info[50],
+    borderRadius: 12,
+    marginBottom: spacing[8],
+  },
+  viewTripButton: {
+    padding: spacing[2],
+  },
   startButton: {
     width: 200,
     height: 200,
@@ -106,31 +158,28 @@ const styles = StyleSheet.create({
     color: colors.white,
     textAlign: 'center',
     paddingHorizontal: spacing[4],
+    marginTop: spacing[2],
   },
-  activeIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing[6],
-  },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.success[500],
-    marginRight: spacing[2],
-  },
-  activeText: {
-    ...typography.caption,
-    color: colors.success[600],
+  quickAlert: {
+    marginTop: spacing[10],
   },
   footer: {
     paddingHorizontal: spacing[6],
     paddingBottom: spacing[8],
+  },
+  footerCard: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.primary[50],
+    padding: spacing[4],
+    borderRadius: 12,
+  },
+  footerIcon: {
+    marginRight: spacing[3],
   },
   footerText: {
     ...typography.caption,
-    color: colors.gray[500],
-    textAlign: 'center',
+    color: colors.primary[800],
+    flex: 1,
   },
 });
