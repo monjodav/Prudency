@@ -20,6 +20,7 @@ import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { usePlaces } from '@/src/hooks/usePlaces';
+import { TripMap } from '@/src/components/map/TripMap';
 import { figmaScale, scaledIcon, scaledRadius, ms } from '@/src/utils/scaling';
 
 type PlaceType = 'home' | 'work' | 'favorite' | 'other';
@@ -270,15 +271,20 @@ export default function EditPlaceScreen() {
             </View>
           )}
 
-          {/* Map placeholder */}
-          <View style={styles.mapPreview}>
-            <Ionicons name="map-outline" size={scaledIcon(48)} color={colors.primary[400]} />
-            <Text style={styles.mapPreviewText}>
-              {latitude !== null
-                ? 'Apercu de la carte'
-                : 'Recherchez une adresse pour voir la carte'}
-            </Text>
-          </View>
+          {/* Map preview */}
+          {latitude !== null && longitude !== null ? (
+            <TripMap
+              arrival={{ lat: latitude, lng: longitude }}
+              style={styles.mapPreview}
+            />
+          ) : (
+            <View style={styles.mapPlaceholder}>
+              <Ionicons name="map-outline" size={scaledIcon(48)} color={colors.primary[400]} />
+              <Text style={styles.mapPreviewText}>
+                Recherchez une adresse pour voir la carte
+              </Text>
+            </View>
+          )}
 
           {/* Delete button */}
           <Pressable
@@ -437,6 +443,11 @@ const styles = StyleSheet.create({
     color: colors.success[400],
   },
   mapPreview: {
+    height: ms(180, 0.5),
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+  },
+  mapPlaceholder: {
     height: ms(180, 0.5),
     borderRadius: borderRadius.lg,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',

@@ -37,13 +37,13 @@ export default function PersonalInfoScreen() {
     const newErrors: Record<string, string> = {};
 
     if (!firstName.trim()) {
-      newErrors.firstName = 'Prénom requis';
+      newErrors.firstName = 'Ajoute ton prénom';
     }
 
     if (!phone.trim()) {
-      newErrors.phone = 'Numéro de téléphone requis';
+      newErrors.phone = 'Ajoute ton numéro pour sécuriser ton compte.';
     } else if (!/^(\+33|0)[1-9](\d{8})$/.test(phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Numéro de téléphone invalide';
+      newErrors.phone = 'Ce numéro ne semble pas valide.';
     }
 
     if (!acceptedTerms) {
@@ -70,8 +70,13 @@ export default function PersonalInfoScreen() {
         pathname: '/(auth)/verify-phone',
         params: { phone: cleanPhone },
       });
-    } catch {
-      setErrors({ submit: 'Une erreur est survenue lors de la sauvegarde' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('phone_already_exists') || message.includes('duplicate')) {
+        setErrors({ phone: 'Ce numéro est déjà associé à un compte.' });
+      } else {
+        setErrors({ submit: 'Une erreur est survenue lors de la sauvegarde' });
+      }
     } finally {
       setLoading(false);
     }

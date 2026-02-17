@@ -17,10 +17,15 @@ export async function signInWithEmail(email: string, password: string) {
   return data;
 }
 
-export async function signUpWithEmail(email: string, password: string) {
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+  metadata?: { first_name?: string }
+) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: metadata ? { data: metadata } : undefined,
   });
 
   if (error) {
@@ -32,6 +37,33 @@ export async function signUpWithEmail(email: string, password: string) {
 
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function verifyPassword(password: string): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user?.email) {
+    throw new Error('Utilisateur non connecte');
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+
+  if (error) {
+    return false;
+  }
+
+  return true;
+}
+
+export async function resetPassword(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
 
   if (error) {
     throw error;
@@ -77,10 +109,10 @@ export async function updateProfile(
     throw authError ?? new Error('Utilisateur non connecté');
   }
 
-  const updateData = {
+  const updateData: ProfileUpdate = {
     ...updates,
     updated_at: new Date().toISOString(),
-  } as never;
+  };
 
   const { data, error } = await supabase
     .from('profiles')

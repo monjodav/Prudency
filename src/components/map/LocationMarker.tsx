@@ -13,10 +13,19 @@ interface LocationMarkerProps {
 
 const variantColors: Record<MarkerVariant, string> = {
   current: colors.primary[500],
-  departure: colors.info[500],
-  arrival: colors.success[500],
+  departure: colors.success[500],
+  arrival: colors.error[500],
 };
 
+/**
+ * Custom marker visual for use inside react-native-maps <Marker>
+ * or as a standalone location indicator.
+ *
+ * Usage with MapView:
+ *   <Marker coordinate={...}>
+ *     <LocationMarker variant="departure" />
+ *   </Marker>
+ */
 export function LocationMarker({
   variant = 'current',
   size = scaledIcon(16),

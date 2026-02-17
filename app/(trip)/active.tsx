@@ -18,8 +18,10 @@ import { useTrip } from '@/src/hooks/useTrip';
 import { useAlert } from '@/src/hooks/useAlert';
 import { useLocation } from '@/src/hooks/useLocation';
 import { useContacts } from '@/src/hooks/useContacts';
+import { fetchDirections } from '@/src/services/directionsService';
 import { TRIP_STATUS } from '@/src/utils/constants';
 import { scaledIcon } from '@/src/utils/scaling';
+import type { DecodedRoute } from '@/src/services/directionsService';
 
 export default function ActiveTripScreen() {
   const router = useRouter();
@@ -32,6 +34,23 @@ export default function ActiveTripScreen() {
 
   const [showAlertConfirmation, setShowAlertConfirmation] = useState(false);
   const [showEndConfirmation, setShowEndConfirmation] = useState(false);
+  const [route, setRoute] = useState<DecodedRoute | null>(null);
+
+  const departure = trip?.departure_lat != null && trip?.departure_lng != null
+    ? { lat: trip.departure_lat, lng: trip.departure_lng }
+    : null;
+
+  const arrival = trip?.arrival_lat != null && trip?.arrival_lng != null
+    ? { lat: trip.arrival_lat, lng: trip.arrival_lng }
+    : null;
+
+  useEffect(() => {
+    if (departure && arrival && !route) {
+      fetchDirections(departure, arrival).then((r) => {
+        if (r) setRoute(r);
+      });
+    }
+  }, [departure?.lat, departure?.lng, arrival?.lat, arrival?.lng]);
 
   const estimatedArrival = trip?.estimated_arrival_at
     ?? new Date(Date.now() + 30 * 60 * 1000).toISOString();
@@ -92,8 +111,13 @@ export default function ActiveTripScreen() {
         <TripStatusIndicator status={TRIP_STATUS.ACTIVE} style={styles.statusBadge} />
 
         <TripMap
-          currentLat={lastKnownLat}
-          currentLng={lastKnownLng}
+          departure={departure}
+          arrival={arrival}
+          routeCoordinates={route?.polyline}
+          showUserLocation
+          userLocation={lastKnownLat != null && lastKnownLng != null
+            ? { lat: lastKnownLat, lng: lastKnownLng }
+            : undefined}
           style={styles.map}
         />
 

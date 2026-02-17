@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -16,6 +17,7 @@ import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
+import { TripMap } from '@/src/components/map/TripMap';
 import { formatDuration } from '@/src/utils/formatters';
 import { APP_CONFIG } from '@/src/utils/constants';
 import { scaledSpacing, scaledIcon, ms } from '@/src/utils/scaling';
@@ -23,6 +25,10 @@ import { useTrip } from '@/src/hooks/useTrip';
 import { useContacts } from '@/src/hooks/useContacts';
 import { useLocation } from '@/src/hooks/useLocation';
 import { useTripStore } from '@/src/stores/tripStore';
+import { searchPlaces, getPlaceDetails } from '@/src/services/placesService';
+import { fetchDirections } from '@/src/services/directionsService';
+import type { PlaceAutocompleteResult } from '@/src/services/placesService';
+import type { DecodedRoute } from '@/src/services/directionsService';
 type TransportMode = 'walk' | 'car' | 'transit' | 'bike';
 
 const DURATION_PRESETS = [15, 30, 60, 120];
@@ -53,6 +59,65 @@ export default function CreateTripScreen() {
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [searchResults, setSearchResults] = useState<PlaceAutocompleteResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState<{ lat: number; lng: number } | null>(null);
+  const [departureLoc, setDepartureLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [route, setRoute] = useState<DecodedRoute | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    getCurrentLocation()
+      .then((loc) => setDepartureLoc({ lat: loc.lat, lng: loc.lng }))
+      .catch(() => {});
+  }, [getCurrentLocation]);
+
+  const handleDestinationSearch = useCallback((text: string) => {
+    setDestinationAddress(text);
+    setSelectedPlace(null);
+    setRoute(null);
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (text.trim().length < 3) {
+      setSearchResults([]);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      const results = await searchPlaces(text, departureLoc ?? undefined);
+      setSearchResults(results);
+      setIsSearching(false);
+    }, 400);
+  }, [departureLoc]);
+
+  const handleSelectPlace = useCallback(async (result: PlaceAutocompleteResult) => {
+    setSearchResults([]);
+    setDestinationAddress(result.description);
+    setIsSearching(false);
+
+    const details = await getPlaceDetails(result.placeId);
+    if (!details) return;
+
+    const arrival = { lat: details.lat, lng: details.lng };
+    setSelectedPlace(arrival);
+
+    if (departureLoc) {
+      const transportMap: Record<TransportMode, 'driving' | 'walking' | 'bicycling' | 'transit'> = {
+        car: 'driving',
+        walk: 'walking',
+        bike: 'bicycling',
+        transit: 'transit',
+      };
+      const directions = await fetchDirections(departureLoc, arrival, transportMap[transportMode]);
+      setRoute(directions);
+      if (directions) {
+        setDuration(Math.ceil(directions.duration.value / 60));
+      }
+    }
+  }, [departureLoc, transportMode]);
+
   const handleCreateTrip = useCallback(async () => {
     setError(null);
 
@@ -71,6 +136,8 @@ export default function CreateTripScreen() {
       const trip = await createTrip({
         estimatedDurationMinutes: duration,
         arrivalAddress: destinationAddress || undefined,
+        arrivalLat: selectedPlace?.lat,
+        arrivalLng: selectedPlace?.lng,
         departureLat,
         departureLng,
       });
@@ -91,6 +158,7 @@ export default function CreateTripScreen() {
   }, [
     duration,
     destinationAddress,
+    selectedPlace,
     createTrip,
     getCurrentLocation,
     startTracking,
@@ -118,9 +186,53 @@ export default function CreateTripScreen() {
           label="Destination"
           placeholder="Ou allez-vous ?"
           value={destinationAddress}
-          onChangeText={setDestinationAddress}
+          onChangeText={handleDestinationSearch}
           variant="light"
         />
+
+        {isSearching && (
+          <ActivityIndicator size="small" color={colors.primary[500]} style={styles.searchSpinner} />
+        )}
+
+        {searchResults.length > 0 && (
+          <View style={styles.autocompleteList}>
+            {searchResults.map((result) => (
+              <Pressable
+                key={result.placeId}
+                style={styles.autocompleteItem}
+                onPress={() => handleSelectPlace(result)}
+              >
+                <Ionicons name="location-outline" size={scaledIcon(18)} color={colors.gray[500]} />
+                <View style={styles.autocompleteText}>
+                  <Text style={styles.autocompleteMain} numberOfLines={1}>{result.mainText}</Text>
+                  <Text style={styles.autocompleteSecondary} numberOfLines={1}>{result.secondaryText}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {(selectedPlace || departureLoc) && (
+          <TripMap
+            departure={departureLoc}
+            arrival={selectedPlace}
+            routeCoordinates={route?.polyline}
+            style={styles.mapPreview}
+          />
+        )}
+
+        {route && (
+          <View style={styles.routeInfo}>
+            <View style={styles.routeInfoItem}>
+              <Ionicons name="navigate-outline" size={scaledIcon(16)} color={colors.primary[500]} />
+              <Text style={styles.routeInfoText}>{route.distance.text}</Text>
+            </View>
+            <View style={styles.routeInfoItem}>
+              <Ionicons name="time-outline" size={scaledIcon(16)} color={colors.primary[500]} />
+              <Text style={styles.routeInfoText}>{route.duration.text}</Text>
+            </View>
+          </View>
+        )}
 
         <Text style={styles.sectionTitle}>Mode de transport</Text>
         <View style={styles.transportRow}>
@@ -436,5 +548,55 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: spacing[3],
+  },
+  searchSpinner: {
+    marginVertical: spacing[2],
+  },
+  autocompleteList: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    marginBottom: spacing[4],
+    overflow: 'hidden',
+  },
+  autocompleteItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing[3],
+    gap: spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[100],
+  },
+  autocompleteText: {
+    flex: 1,
+  },
+  autocompleteMain: {
+    ...typography.body,
+    color: colors.gray[900],
+    fontWeight: '500',
+  },
+  autocompleteSecondary: {
+    ...typography.caption,
+    color: colors.gray[500],
+  },
+  mapPreview: {
+    marginBottom: spacing[4],
+  },
+  routeInfo: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing[6],
+    marginBottom: spacing[6],
+  },
+  routeInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  routeInfoText: {
+    ...typography.body,
+    color: colors.gray[700],
+    fontWeight: '600',
   },
 });

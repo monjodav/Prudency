@@ -1,18 +1,18 @@
 import { z } from 'zod';
 import { APP_CONFIG } from './constants';
 
-export const emailSchema = z.string().email('Email invalide');
+export const emailSchema = z.string().email('Cette adresse email ne semble pas valide.');
 
 export const passwordSchema = z
   .string()
-  .min(8, 'Le mot de passe doit contenir au moins 8 caractères')
-  .regex(/[A-Z]/, 'Le mot de passe doit contenir une majuscule')
-  .regex(/[a-z]/, 'Le mot de passe doit contenir une minuscule')
-  .regex(/[0-9]/, 'Le mot de passe doit contenir un chiffre');
+  .min(8, 'Ton mot de passe doit contenir au moins 8 caractères.')
+  .regex(/[A-Z]/, "Ton mot de passe n'est pas assez robuste. Ajoute des chiffres ou des caractères spéciaux.")
+  .regex(/[a-z]/, "Ton mot de passe n'est pas assez robuste. Ajoute des chiffres ou des caractères spéciaux.")
+  .regex(/[0-9]/, "Ton mot de passe n'est pas assez robuste. Ajoute des chiffres ou des caractères spéciaux.");
 
 export const phoneSchema = z
   .string()
-  .regex(/^\+?[1-9]\d{1,14}$/, 'Numéro de téléphone invalide (format E.164)');
+  .regex(/^\+?[1-9]\d{1,14}$/, 'Ce numéro ne semble pas valide.');
 
 export const tripDurationSchema = z
   .number()
@@ -36,10 +36,7 @@ export const createTripSchema = z.object({
 export const createContactSchema = z.object({
   name: z.string().min(1, 'Le nom est requis').max(100),
   phone: phoneSchema,
-  email: z.string().email('Email invalide').optional().or(z.literal('')),
   isPrimary: z.boolean().default(false),
-  notifyByPush: z.boolean().default(true),
-  notifyBySms: z.boolean().default(true),
 });
 
 export const sendAlertSchema = z.object({

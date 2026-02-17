@@ -63,7 +63,10 @@ export default function VerifyPhoneScreen() {
 
   const handleVerify = async () => {
     const fullCode = code.join('');
-    if (fullCode.length !== CODE_LENGTH) return;
+    if (fullCode.length !== CODE_LENGTH) {
+      setError('Renseigne le code complet reçu par SMS.');
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -76,15 +79,22 @@ export default function VerifyPhoneScreen() {
       const isValidCode = DEV_BYPASS_OTP && fullCode === DEV_BYPASS_OTP;
 
       if (!isValidCode) {
-        setError('Code incorrect. Veuillez réessayer.');
+        setError('Le code saisi est incorrect. Vérifie-le et réessaie.');
         setCode(Array(CODE_LENGTH).fill(''));
         inputRefs.current[0]?.focus();
         return;
       }
 
       router.replace('/(auth)/permissions-location');
-    } catch {
-      setError('Une erreur est survenue. Veuillez réessayer.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('expired') || message.includes('code_expired')) {
+        setError('Ce code a expiré. Demande-en un nouveau.');
+      } else if (message.includes('too_many_attempts') || message.includes('rate_limit')) {
+        setError('Trop de tentatives. Réessaie dans quelques minutes.');
+      } else {
+        setError("Un souci est survenu lors de l'envoi du code. Réessaie dans un instant.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +103,12 @@ export default function VerifyPhoneScreen() {
   const handleResend = async () => {
     if (resendTimer > 0) return;
     setResendTimer(60);
-    // Placeholder: resend OTP
+    setError(null);
+    try {
+      // Placeholder: resend OTP via Edge Function + Plivo
+    } catch {
+      setError("Un souci est survenu lors de l'envoi du code. Réessaie dans un instant.");
+    }
   };
 
   const displayPhone = phone || '+33 6 51 87 25 10';

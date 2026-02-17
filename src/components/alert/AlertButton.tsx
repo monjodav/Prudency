@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,21 +14,58 @@ import { spacing } from '@/src/theme/spacing';
 import { scaledFontSize, scaledSpacing, ms } from '@/src/utils/scaling';
 
 const LONG_PRESS_DURATION_MS = 2000;
+const CANCEL_WINDOW_MS = 3000;
+
+type ButtonState = 'idle' | 'cancel_window' | 'confirmed';
 
 interface AlertButtonProps {
   onTrigger: () => void;
+  onCancel?: () => void;
   disabled?: boolean;
   size?: number;
 }
 
 export function AlertButton({
   onTrigger,
+  onCancel,
   disabled = false,
   size = ms(120, 0.5),
 }: AlertButtonProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [buttonState, setButtonState] = useState<ButtonState>('idle');
+  const [countdown, setCountdown] = useState(3);
+
+  useEffect(() => {
+    if (buttonState !== 'cancel_window') return;
+
+    setCountdown(3);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    cancelTimer.current = setTimeout(() => {
+      setButtonState('confirmed');
+      onTrigger();
+    }, CANCEL_WINDOW_MS);
+
+    return () => {
+      clearInterval(interval);
+      if (cancelTimer.current) {
+        clearTimeout(cancelTimer.current);
+        cancelTimer.current = null;
+      }
+    };
+  }, [buttonState, onTrigger]);
 
   const startPulse = useCallback(() => {
     Animated.loop(
@@ -54,7 +91,7 @@ export function AlertButton({
 
   const handlePressIn = useCallback(
     (_e: GestureResponderEvent) => {
-      if (disabled) return;
+      if (disabled || buttonState !== 'idle') return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       startPulse();
       Animated.spring(scaleAnim, {
@@ -64,7 +101,7 @@ export function AlertButton({
 
       longPressTimer.current = setTimeout(() => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        onTrigger();
+        setButtonState('cancel_window');
         stopPulse();
         Animated.spring(scaleAnim, {
           toValue: 1,
@@ -72,10 +109,11 @@ export function AlertButton({
         }).start();
       }, LONG_PRESS_DURATION_MS);
     },
-    [disabled, onTrigger, scaleAnim, startPulse, stopPulse]
+    [disabled, buttonState, scaleAnim, startPulse, stopPulse]
   );
 
   const handlePressOut = useCallback(() => {
+    if (buttonState !== 'idle') return;
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -85,7 +123,18 @@ export function AlertButton({
       toValue: 1,
       useNativeDriver: true,
     }).start();
-  }, [scaleAnim, stopPulse]);
+  }, [buttonState, scaleAnim, stopPulse]);
+
+  const handleCancelPress = useCallback(() => {
+    if (buttonState !== 'cancel_window') return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (cancelTimer.current) {
+      clearTimeout(cancelTimer.current);
+      cancelTimer.current = null;
+    }
+    setButtonState('idle');
+    onCancel?.();
+  }, [buttonState, onCancel]);
 
   const pulseScale = pulseAnim.interpolate({
     inputRange: [0, 1],
@@ -96,6 +145,8 @@ export function AlertButton({
     inputRange: [0, 1],
     outputRange: [0.3, 0],
   });
+
+  const isCancelWindow = buttonState === 'cancel_window';
 
   return (
     <View style={styles.wrapper}>
@@ -113,9 +164,10 @@ export function AlertButton({
       />
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <Pressable
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          disabled={disabled}
+          onPressIn={isCancelWindow ? undefined : handlePressIn}
+          onPressOut={isCancelWindow ? undefined : handlePressOut}
+          onPress={isCancelWindow ? handleCancelPress : undefined}
+          disabled={disabled || buttonState === 'confirmed'}
           style={[
             styles.button,
             {
@@ -123,14 +175,28 @@ export function AlertButton({
               height: size,
               borderRadius: size / 2,
             },
+            isCancelWindow && styles.cancelWindowButton,
             disabled && styles.disabled,
           ]}
         >
-          <Text style={styles.icon}>!</Text>
-          <Text style={styles.label}>ALERTE</Text>
+          {isCancelWindow ? (
+            <>
+              <Text style={styles.cancelCountdown}>{countdown}</Text>
+              <Text style={styles.cancelLabel}>Annuler</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.icon}>!</Text>
+              <Text style={styles.label}>ALERTE</Text>
+            </>
+          )}
         </Pressable>
       </Animated.View>
-      <Text style={styles.hint}>Maintenez pour alerter</Text>
+      <Text style={styles.hint}>
+        {isCancelWindow
+          ? 'Appuyez pour annuler'
+          : 'Maintenez pour alerter'}
+      </Text>
     </View>
   );
 }
@@ -154,6 +220,10 @@ const styles = StyleSheet.create({
     shadowRadius: scaledSpacing(12),
     elevation: 8,
   },
+  cancelWindowButton: {
+    backgroundColor: colors.warning[600],
+    shadowColor: colors.warning[600],
+  },
   disabled: {
     opacity: 0.4,
   },
@@ -167,6 +237,16 @@ const styles = StyleSheet.create({
     color: colors.alert.text,
     marginTop: spacing[1],
     letterSpacing: scaledFontSize(2),
+  },
+  cancelCountdown: {
+    fontSize: scaledFontSize(36),
+    fontWeight: '800',
+    color: colors.white,
+  },
+  cancelLabel: {
+    ...typography.buttonSmall,
+    color: colors.white,
+    marginTop: spacing[1],
   },
   hint: {
     ...typography.caption,

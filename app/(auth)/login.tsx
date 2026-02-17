@@ -38,12 +38,12 @@ export default function LoginScreen() {
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!email.trim()) {
-      newErrors.email = 'Email requis';
+      newErrors.email = 'Ajoute ton adresse email pour continuer.';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Email invalide';
+      newErrors.email = 'Cette adresse email ne semble pas valide.';
     }
     if (!password) {
-      newErrors.password = 'Mot de passe requis';
+      newErrors.password = 'Saisi ton mot de passe';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -59,14 +59,14 @@ export default function LoginScreen() {
     } catch (err) {
       if (err instanceof AuthError) {
         if (err.message.includes('Invalid login credentials')) {
-          setErrors({ submit: 'Email ou mot de passe incorrect' });
-        } else if (err.message.includes('Email not confirmed')) {
-          setErrors({ submit: 'Vérifie ton email avant de te connecter' });
+          setErrors({ password: 'Ton mot de passe est invalide' });
+        } else if (err.message.includes('user_not_found') || err.message.includes('User not found')) {
+          setErrors({ submit: "Ce compte n'existe plus. Tu peux en créer un nouveau." });
         } else {
           setErrors({ submit: err.message });
         }
       } else {
-        setErrors({ submit: 'Une erreur est survenue' });
+        setErrors({ submit: 'Impossible de se connecter pour le moment. Vérifie ta connexion.' });
       }
     } finally {
       setLoading(false);

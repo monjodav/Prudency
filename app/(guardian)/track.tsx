@@ -43,10 +43,8 @@ export default function TrackScreen() {
     <View style={styles.container}>
       <View style={styles.mapContainer}>
         <TripMap
-          currentLat={personData.currentPosition.lat}
-          currentLng={personData.currentPosition.lng}
-          arrivalLat={personData.destination.lat}
-          arrivalLng={personData.destination.lng}
+          userLocation={personData.currentPosition}
+          arrival={personData.destination}
         />
       </View>
 

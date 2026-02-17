@@ -7,12 +7,15 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
 import { Modal } from '@/src/components/ui/Modal';
+import { TripMap } from '@/src/components/map/TripMap';
 import { useActiveTrip } from '@/src/hooks/useActiveTrip';
 import { useTrip } from '@/src/hooks/useTrip';
 import { useLocation } from '@/src/hooks/useLocation';
 import { useTripStore } from '@/src/stores/tripStore';
+import { fetchDirections } from '@/src/services/directionsService';
 import { formatTime, formatDuration } from '@/src/utils/formatters';
 import { scaledIcon, scaledRadius, ms } from '@/src/utils/scaling';
+import type { DecodedRoute } from '@/src/services/directionsService';
 
 export default function ScheduledTripScreen() {
   const router = useRouter();
@@ -24,6 +27,23 @@ export default function ScheduledTripScreen() {
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [minutesUntilStart, setMinutesUntilStart] = useState(0);
+  const [route, setRoute] = useState<DecodedRoute | null>(null);
+
+  const departure = trip?.departure_lat != null && trip?.departure_lng != null
+    ? { lat: trip.departure_lat, lng: trip.departure_lng }
+    : null;
+
+  const arrivalLoc = trip?.arrival_lat != null && trip?.arrival_lng != null
+    ? { lat: trip.arrival_lat, lng: trip.arrival_lng }
+    : null;
+
+  useEffect(() => {
+    if (departure && arrivalLoc && !route) {
+      fetchDirections(departure, arrivalLoc).then((r) => {
+        if (r) setRoute(r);
+      });
+    }
+  }, [departure?.lat, departure?.lng, arrivalLoc?.lat, arrivalLoc?.lng]);
 
   const scheduledAt = trip?.started_at
     ? new Date(trip.started_at)
@@ -86,6 +106,15 @@ export default function ScheduledTripScreen() {
         <Text style={styles.title}>Trajet programme</Text>
         <Text style={styles.timeUntil}>{getTimeUntilLabel()}</Text>
       </View>
+
+      {(departure || arrivalLoc) && (
+        <TripMap
+          departure={departure}
+          arrival={arrivalLoc}
+          routeCoordinates={route?.polyline}
+          style={styles.tripMap}
+        />
+      )}
 
       <View style={styles.tripCard}>
         <View style={styles.tripRow}>
@@ -213,6 +242,9 @@ const styles = StyleSheet.create({
     color: colors.primary[500],
     fontWeight: '600',
     marginTop: spacing[2],
+  },
+  tripMap: {
+    marginBottom: spacing[4],
   },
   tripCard: {
     backgroundColor: colors.gray[50],

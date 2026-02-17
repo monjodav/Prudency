@@ -38,14 +38,16 @@ export default function RegisterScreen() {
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!email.trim()) {
-      newErrors.email = 'Email requis';
+      newErrors.email = 'Ajoute ton adresse email pour continuer.';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Email invalide';
+      newErrors.email = 'Ton mail est invalide';
     }
     if (!password) {
-      newErrors.password = 'Mot de passe requis';
+      newErrors.password = 'Choisis un mot de passe pour sécuriser ton compte.';
     } else if (password.length < 8) {
-      newErrors.password = 'Minimum 8 caractères';
+      newErrors.password = 'Ton mot de passe doit contenir au moins 8 caractères.';
+    } else if (!/(?=.*[0-9])|(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])/.test(password)) {
+      newErrors.password = "Ton mot de passe n'est pas assez robuste. Ajoute des chiffres ou des caractères spéciaux.";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

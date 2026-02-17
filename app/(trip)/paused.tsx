@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -7,11 +7,14 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
 import { Modal } from '@/src/components/ui/Modal';
+import { TripMap } from '@/src/components/map/TripMap';
 import { useActiveTrip } from '@/src/hooks/useActiveTrip';
 import { useTrip } from '@/src/hooks/useTrip';
 import { useLocation } from '@/src/hooks/useLocation';
 import { useTripStore } from '@/src/stores/tripStore';
+import { fetchDirections } from '@/src/services/directionsService';
 import { scaledIcon, scaledRadius, ms } from '@/src/utils/scaling';
+import type { DecodedRoute } from '@/src/services/directionsService';
 
 export default function PausedTripScreen() {
   const router = useRouter();
@@ -22,6 +25,23 @@ export default function PausedTripScreen() {
 
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
+  const [route, setRoute] = useState<DecodedRoute | null>(null);
+
+  const departure = trip?.departure_lat != null && trip?.departure_lng != null
+    ? { lat: trip.departure_lat, lng: trip.departure_lng }
+    : null;
+
+  const arrival = trip?.arrival_lat != null && trip?.arrival_lng != null
+    ? { lat: trip.arrival_lat, lng: trip.arrival_lng }
+    : null;
+
+  useEffect(() => {
+    if (departure && arrival && !route) {
+      fetchDirections(departure, arrival).then((r) => {
+        if (r) setRoute(r);
+      });
+    }
+  }, [departure?.lat, departure?.lng, arrival?.lat, arrival?.lng]);
 
   const handleResume = async () => {
     setIsResuming(true);
@@ -67,6 +87,15 @@ export default function PausedTripScreen() {
             votre trajet pour eviter une alerte automatique.
           </Text>
         </View>
+
+        {(departure || arrival) && (
+          <TripMap
+            departure={departure}
+            arrival={arrival}
+            routeCoordinates={route?.polyline}
+            style={styles.tripMap}
+          />
+        )}
       </View>
 
       <View style={styles.actions}>
@@ -165,6 +194,10 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.warning[700],
     flex: 1,
+  },
+  tripMap: {
+    marginTop: spacing[6],
+    width: '100%',
   },
   actions: {
     padding: spacing[6],

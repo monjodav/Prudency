@@ -12,6 +12,7 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
 import { Badge } from '@/src/components/ui/Badge';
+import { Toast } from '@/src/components/ui/Toast';
 import { scaledSpacing, scaledIcon } from '@/src/utils/scaling';
 
 interface PlanFeature {
@@ -60,12 +61,32 @@ const PLANS: Plan[] = [
   },
 ];
 
+const SNACKBAR_MESSAGE = "Fonctionnalité à venir. L'abonnement sera disponible prochainement.";
+const SNACKBAR_DURATION_DEFAULT = 3500;
+const SNACKBAR_DURATION_PLUS = 2500;
+
 export default function SubscriptionScreen() {
   const [currentPlan] = useState('free');
   const [selectedPlan, setSelectedPlan] = useState(currentPlan);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastDuration, setToastDuration] = useState(SNACKBAR_DURATION_DEFAULT);
+
+  const showSnackbar = (duration: number = SNACKBAR_DURATION_DEFAULT) => {
+    setToastDuration(duration);
+    setToastVisible(true);
+  };
 
   const handleSubscribe = () => {
-    // Placeholder: open subscription flow
+    showSnackbar();
+  };
+
+  const handlePlanPress = (planId: string) => {
+    setSelectedPlan(planId);
+    if (planId === 'premium') {
+      showSnackbar(SNACKBAR_DURATION_PLUS);
+    } else {
+      showSnackbar();
+    }
   };
 
   return (
@@ -86,7 +107,7 @@ export default function SubscriptionScreen() {
               selectedPlan === plan.id && styles.planCardSelected,
               plan.recommended && styles.planCardRecommended,
             ]}
-            onPress={() => setSelectedPlan(plan.id)}
+            onPress={() => handlePlanPress(plan.id)}
           >
             {plan.recommended && (
               <View style={styles.recommendedBadge}>
@@ -141,6 +162,14 @@ export default function SubscriptionScreen() {
           </Text>
         </View>
       )}
+
+      <Toast
+        visible={toastVisible}
+        message={SNACKBAR_MESSAGE}
+        type="info"
+        duration={toastDuration}
+        onHide={() => setToastVisible(false)}
+      />
     </ScrollView>
   );
 }

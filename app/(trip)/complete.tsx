@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,14 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
+import { TripMap } from '@/src/components/map/TripMap';
 import { useActiveTrip } from '@/src/hooks/useActiveTrip';
 import { useTrip } from '@/src/hooks/useTrip';
 import { useLocation } from '@/src/hooks/useLocation';
 import { useTripStore } from '@/src/stores/tripStore';
+import { fetchDirections } from '@/src/services/directionsService';
 import { scaledIcon, ms } from '@/src/utils/scaling';
+import type { DecodedRoute } from '@/src/services/directionsService';
 
 export default function CompleteTripScreen() {
   const router = useRouter();
@@ -27,6 +30,23 @@ export default function CompleteTripScreen() {
 
   const [isCompleted, setIsCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [route, setRoute] = useState<DecodedRoute | null>(null);
+
+  const departure = trip?.departure_lat != null && trip?.departure_lng != null
+    ? { lat: trip.departure_lat, lng: trip.departure_lng }
+    : null;
+
+  const arrival = trip?.arrival_lat != null && trip?.arrival_lng != null
+    ? { lat: trip.arrival_lat, lng: trip.arrival_lng }
+    : null;
+
+  useEffect(() => {
+    if (departure && arrival && !route) {
+      fetchDirections(departure, arrival).then((r) => {
+        if (r) setRoute(r);
+      });
+    }
+  }, [departure?.lat, departure?.lng, arrival?.lat, arrival?.lng]);
 
   const handleConfirmArrival = async () => {
     if (!trip) return;
@@ -63,6 +83,15 @@ export default function CompleteTripScreen() {
             Votre trajet a ete enregistre avec succes. Vos contacts ont ete
             prevenus de votre arrivee.
           </Text>
+
+          {(departure || arrival) && (
+            <TripMap
+              departure={departure}
+              arrival={arrival}
+              routeCoordinates={route?.polyline}
+              style={styles.tripMap}
+            />
+          )}
 
           <Card variant="elevated" style={styles.summaryCard}>
             <Text style={styles.summaryTitle}>Resume du trajet</Text>
@@ -176,6 +205,10 @@ const styles = StyleSheet.create({
   errorText: {
     ...typography.bodySmall,
     color: colors.error[600],
+  },
+  tripMap: {
+    width: '100%',
+    marginBottom: spacing[4],
   },
   summaryCard: {
     width: '100%',

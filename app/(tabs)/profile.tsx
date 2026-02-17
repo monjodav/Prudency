@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,9 +7,10 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { useAuthStore } from '@/src/stores/authStore';
-import { supabase } from '@/src/services/supabaseClient';
+import { useAuth } from '@/src/hooks/useAuth';
 import { appVersion } from '@/src/config/env';
 import { figmaScale, scaledIcon, ms, scaledSpacing } from '@/src/utils/scaling';
+import { LogoutDialog } from '@/src/components/profile/LogoutDialog';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -38,18 +39,16 @@ export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
+  const { signOut } = useAuth();
+  const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
 
-  const handleSignOut = async () => {
-    Alert.alert('Deconnexion', 'Etes-vous sur de vouloir vous deconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Se deconnecter',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.auth.signOut();
-        },
-      },
-    ]);
+  const handleSignOut = () => {
+    setLogoutDialogVisible(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setLogoutDialogVisible(false);
+    await signOut();
   };
 
   const handleDeleteAccount = () => {
@@ -172,6 +171,12 @@ export default function ProfileScreen() {
 
         <Text style={styles.version}>Prudency v{appVersion}</Text>
       </ScrollView>
+
+      <LogoutDialog
+        visible={logoutDialogVisible}
+        onConfirm={handleLogoutConfirm}
+        onCancel={() => setLogoutDialogVisible(false)}
+      />
     </View>
   );
 }
