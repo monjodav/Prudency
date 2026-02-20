@@ -6,6 +6,12 @@ import { env } from '@/src/config/env';
 
 WebBrowser.maybeCompleteAuthSession();
 
+const GOOGLE_DISCOVERY: AuthSession.DiscoveryDocument = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenEndpoint: 'https://oauth2.googleapis.com/token',
+  revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+};
+
 interface GoogleAuthState {
   isLoading: boolean;
   error: Error | null;
@@ -21,7 +27,7 @@ export function useGoogleAuth() {
 
   const signInWithGoogle = useCallback(async () => {
     if (!env.googleWebClientId) {
-      const error = new Error('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID non configuré');
+      const error = new Error('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID non configure');
       setState({ isLoading: false, error });
       throw error;
     }
@@ -29,28 +35,16 @@ export function useGoogleAuth() {
     setState({ isLoading: true, error: null });
 
     try {
-      const { data: oauthData, error: oauthError } =
-        await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: redirectUri,
-            skipBrowserRedirect: true,
-            queryParams: {
-              client_id: env.googleWebClientId,
-            },
-          },
-        });
-
-      if (oauthError) {
-        throw oauthError;
-      }
-
-      if (!oauthData.url) {
-        throw new Error('Aucune URL de redirection');
-      }
+      const authUrl =
+        `${GOOGLE_DISCOVERY.authorizationEndpoint}?` +
+        `client_id=${encodeURIComponent(env.googleWebClientId)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=id_token` +
+        `&scope=${encodeURIComponent('openid email profile')}` +
+        `&nonce=${Math.random().toString(36).substring(2)}`;
 
       const result = await WebBrowser.openAuthSessionAsync(
-        oauthData.url,
+        authUrl,
         redirectUri
       );
 
@@ -64,16 +58,15 @@ export function useGoogleAuth() {
         url.hash ? url.hash.substring(1) : url.search.substring(1)
       );
 
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
+      const idToken = params.get('id_token');
 
-      if (!accessToken) {
-        throw new Error("Aucun token d'accès recu");
+      if (!idToken) {
+        throw new Error("Aucun token d'identite recu de Google");
       }
 
-      const { data, error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken ?? '',
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: idToken,
       });
 
       if (error) {

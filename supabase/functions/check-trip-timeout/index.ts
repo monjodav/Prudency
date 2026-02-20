@@ -24,9 +24,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // No JWT verification - this function is called by cron
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    // Verify caller is authorized (cron job or internal service call)
+    const authHeader = req.headers.get("Authorization");
+    const cronSecret = Deno.env.get("CRON_SECRET");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Allow if: 1) Authorization header matches service role key, or 2) X-Cron-Secret header matches
+    const cronSecretHeader = req.headers.get("X-Cron-Secret");
+    const isServiceCall = authHeader === `Bearer ${supabaseServiceKey}`;
+    const isCronCall = cronSecret && cronSecretHeader === cronSecret;
+
+    if (!isServiceCall && !isCronCall) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse and validate input

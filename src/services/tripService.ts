@@ -1,24 +1,22 @@
 import { supabase } from './supabaseClient';
-import { TripRow, TripInsert, TripUpdate, TripCreateInput } from '@/src/types/trip';
-import { createTripSchema } from '@/src/utils/validators';
+import { TripRow, TripInsert, TripUpdate } from '@/src/types/trip';
 import { TRIP_STATUS } from '@/src/utils/constants';
 
-export async function createTrip(input: TripCreateInput): Promise<TripRow> {
-  const validated = createTripSchema.parse({
-    estimatedDurationMinutes: input.estimatedDurationMinutes,
-    departureAddress: input.departureAddress,
-    departureCoords:
-      input.departureLat != null && input.departureLng != null
-        ? { lat: input.departureLat, lng: input.departureLng }
-        : undefined,
-    arrivalAddress: input.arrivalAddress,
-    arrivalCoords:
-      input.arrivalLat != null && input.arrivalLng != null
-        ? { lat: input.arrivalLat, lng: input.arrivalLng }
-        : undefined,
-  });
+export interface CreateTripInput {
+  arrivalAddress?: string;
+  arrivalLat?: number;
+  arrivalLng?: number;
+  departureAddress?: string;
+  departureLat?: number;
+  departureLng?: number;
+  estimatedDurationMinutes: number;
+}
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+export async function createTrip(input: CreateTripInput): Promise<TripRow> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
   if (authError || !user) {
     throw authError ?? new Error('Utilisateur non connecté');
@@ -26,26 +24,26 @@ export async function createTrip(input: TripCreateInput): Promise<TripRow> {
 
   const now = new Date();
   const estimatedArrival = new Date(
-    now.getTime() + validated.estimatedDurationMinutes * 60 * 1000
+    now.getTime() + input.estimatedDurationMinutes * 60 * 1000,
   );
 
   const insertData: TripInsert = {
     user_id: user.id,
     status: TRIP_STATUS.ACTIVE,
-    departure_address: validated.departureAddress ?? null,
-    departure_lat: validated.departureCoords?.lat ?? null,
-    departure_lng: validated.departureCoords?.lng ?? null,
-    arrival_address: validated.arrivalAddress ?? null,
-    arrival_lat: validated.arrivalCoords?.lat ?? null,
-    arrival_lng: validated.arrivalCoords?.lng ?? null,
-    estimated_duration_minutes: validated.estimatedDurationMinutes,
+    arrival_address: input.arrivalAddress ?? null,
+    arrival_lat: input.arrivalLat ?? null,
+    arrival_lng: input.arrivalLng ?? null,
+    departure_address: input.departureAddress ?? null,
+    departure_lat: input.departureLat ?? null,
+    departure_lng: input.departureLng ?? null,
+    estimated_duration_minutes: input.estimatedDurationMinutes,
     started_at: now.toISOString(),
     estimated_arrival_at: estimatedArrival.toISOString(),
   };
 
   const { data, error } = await supabase
     .from('trips')
-    .insert(insertData as never)
+    .insert(insertData)
     .select()
     .single();
 
@@ -57,7 +55,10 @@ export async function createTrip(input: TripCreateInput): Promise<TripRow> {
 }
 
 export async function getTrips(): Promise<TripRow[]> {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
   if (authError || !user) {
     throw authError ?? new Error('Utilisateur non connecté');
@@ -77,10 +78,20 @@ export async function getTrips(): Promise<TripRow[]> {
 }
 
 export async function getTripById(id: string): Promise<TripRow> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
   const { data, error } = await supabase
     .from('trips')
     .select('*')
     .eq('id', id)
+    .eq('user_id', user.id)
     .single();
 
   if (error) {
@@ -91,7 +102,10 @@ export async function getTripById(id: string): Promise<TripRow> {
 }
 
 export async function getActiveTrip(): Promise<TripRow | null> {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
   if (authError || !user) {
     throw authError ?? new Error('Utilisateur non connecté');
@@ -115,16 +129,28 @@ export async function getActiveTrip(): Promise<TripRow | null> {
 
 export async function updateTrip(
   id: string,
-  updates: Partial<Pick<TripRow, 'departure_address' | 'departure_lat' | 'departure_lng' | 'arrival_address' | 'arrival_lat' | 'arrival_lng' | 'estimated_duration_minutes'>>
+  updates: Partial<
+    Pick<
+      TripRow,
+      | 'arrival_address'
+      | 'arrival_lat'
+      | 'arrival_lng'
+      | 'departure_address'
+      | 'departure_lat'
+      | 'departure_lng'
+      | 'estimated_arrival_at'
+      | 'estimated_duration_minutes'
+      | 'status'
+    >
+  >,
 ): Promise<TripRow> {
   const updateData: TripUpdate = {
     ...updates,
-    updated_at: new Date().toISOString(),
   };
 
   const { data, error } = await supabase
     .from('trips')
-    .update(updateData as never)
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();
@@ -136,16 +162,33 @@ export async function updateTrip(
   return data as TripRow;
 }
 
+export async function extendTrip(
+  id: string,
+  additionalMinutes: number,
+): Promise<TripRow> {
+  const trip = await getTripById(id);
+  const currentArrival = new Date(trip.estimated_arrival_at ?? Date.now());
+  const base = currentArrival.getTime() < Date.now()
+    ? Date.now()
+    : currentArrival.getTime();
+  const newArrival = new Date(base + additionalMinutes * 60 * 1000);
+  const newDuration = (trip.estimated_duration_minutes ?? 0) + additionalMinutes;
+
+  return updateTrip(id, {
+    estimated_arrival_at: newArrival.toISOString(),
+    estimated_duration_minutes: newDuration,
+  });
+}
+
 export async function cancelTrip(id: string): Promise<TripRow> {
   const updateData: TripUpdate = {
     status: TRIP_STATUS.CANCELLED,
     cancelled_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
   };
 
   const { data, error } = await supabase
     .from('trips')
-    .update(updateData as never)
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();
@@ -161,12 +204,11 @@ export async function completeTrip(id: string): Promise<TripRow> {
   const updateData: TripUpdate = {
     status: TRIP_STATUS.COMPLETED,
     completed_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
   };
 
   const { data, error } = await supabase
     .from('trips')
-    .update(updateData as never)
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();

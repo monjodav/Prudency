@@ -6,11 +6,10 @@ export default function ProfileLayout() {
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: colors.white,
+          backgroundColor: colors.primary[950],
         },
-        headerTintColor: colors.gray[900],
+        headerTintColor: colors.white,
         headerShadowVisible: false,
-        headerBackTitleVisible: false,
       }}
     >
       <Stack.Screen
@@ -34,7 +33,7 @@ export default function ProfileLayout() {
       <Stack.Screen
         name="subscription"
         options={{
-          title: 'Abonnement',
+          title: 'Mon abonnement',
         }}
       />
       <Stack.Screen

@@ -26,6 +26,7 @@ interface BottomSheetProps {
   children: React.ReactNode;
   snapPoints?: number[];
   initialSnap?: number;
+  dark?: boolean;
 }
 
 export function BottomSheet({
@@ -35,6 +36,7 @@ export function BottomSheet({
   children,
   snapPoints = [0.5],
   initialSnap = 0,
+  dark = false,
 }: BottomSheetProps) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -118,6 +120,7 @@ export function BottomSheet({
           <Animated.View
             style={[
               styles.sheet,
+              dark && styles.sheetDark,
               {
                 height: currentHeight,
                 transform: [{ translateY }],
@@ -125,14 +128,14 @@ export function BottomSheet({
             ]}
           >
             <View style={styles.handleContainer} {...panResponder.panHandlers}>
-              <View style={styles.handle} />
+              <View style={[styles.handle, dark && styles.handleDark]} />
             </View>
 
             {title && (
-              <View style={styles.header}>
-                <Text style={styles.title}>{title}</Text>
+              <View style={[styles.header, dark && styles.headerDark]}>
+                <Text style={[styles.title, dark && styles.titleDark]}>{title}</Text>
                 <Pressable style={styles.closeButton} onPress={onClose}>
-                  <FontAwesome name="times" size={scaledIcon(20)} color={colors.gray[500]} />
+                  <FontAwesome name="times" size={scaledIcon(20)} color={dark ? colors.gray[400] : colors.gray[500]} />
                 </Pressable>
               </View>
             )}
@@ -194,5 +197,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing[6],
     paddingTop: spacing[4],
+  },
+  sheetDark: {
+    backgroundColor: colors.primary[950],
+  },
+  handleDark: {
+    backgroundColor: colors.gray[600],
+  },
+  headerDark: {
+    borderBottomColor: colors.gray[800],
+  },
+  titleDark: {
+    color: colors.white,
   },
 });

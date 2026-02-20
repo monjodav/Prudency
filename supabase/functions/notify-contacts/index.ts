@@ -62,21 +62,32 @@ Deno.serve(async (req) => {
     // Use service role to read contacts across RLS boundaries
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Also verify the caller is authenticated
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Check if this is a service-level call (from check-trip-timeout or other internal function)
+    const isServiceCall = authHeader === `Bearer ${supabaseServiceKey}`;
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAuth.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    let userId: string | null = null;
+
+    if (isServiceCall) {
+      // Service-level call - userId will be extracted from the alert
+      userId = null; // Will be set after fetching the alert
+    } else {
+      // User-level call - verify the caller is authenticated
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
       });
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabaseAuth.auth.getUser();
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = user.id;
     }
 
     // Parse and validate input
@@ -117,8 +128,9 @@ Deno.serve(async (req) => {
 
     const alertData = alert as unknown as AlertWithUser;
 
-    // Verify alert belongs to authenticated user
-    if (alertData.user_id !== user.id) {
+    // For user-level calls, verify alert belongs to authenticated user
+    // For service-level calls, skip this check (already authorized)
+    if (userId !== null && alertData.user_id !== userId) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

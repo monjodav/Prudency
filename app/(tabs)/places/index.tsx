@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   Pressable,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +14,8 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
+import { ContextMenu } from '@/src/components/ui/ContextMenu';
+import { Snackbar } from '@/src/components/ui/Snackbar';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import type { SavedPlace } from '@/src/types/database';
 import { figmaScale, scaledIcon, ms } from '@/src/utils/scaling';
@@ -40,26 +41,31 @@ export default function PlacesListScreen() {
   const insets = useSafeAreaInsets();
   const { places, isLoading, deletePlace } = usePlaces();
 
-  const handleDeletePlace = (placeId: string, placeName: string) => {
-    Alert.alert(
-      'Supprimer le lieu',
-      `Etes-vous sur de vouloir supprimer "${placeName}" ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deletePlace(placeId);
-            } catch {
-              Alert.alert('Erreur', 'Impossible de supprimer le lieu.');
-            }
-          },
-        },
-      ]
-    );
-  };
+  const [snackbar, setSnackbar] = useState<{
+    visible: boolean;
+    title: string;
+    variant: 'success' | 'error';
+  }>({ visible: false, title: '', variant: 'success' });
+
+  const handleDeletePlace = useCallback(
+    async (placeId: string, placeName: string) => {
+      try {
+        await deletePlace(placeId);
+        setSnackbar({
+          visible: true,
+          title: `Le lieu "${placeName}" a bien ete supprime`,
+          variant: 'error',
+        });
+      } catch {
+        setSnackbar({
+          visible: true,
+          title: 'Impossible de supprimer le lieu',
+          variant: 'error',
+        });
+      }
+    },
+    [deletePlace],
+  );
 
   const renderPlace = ({ item }: { item: SavedPlace }) => (
     <Pressable
@@ -75,19 +81,26 @@ export default function PlacesListScreen() {
           {item.address}
         </Text>
       </View>
-      <Pressable
-        style={styles.deleteButton}
-        onPress={() => handleDeletePlace(item.id, item.name)}
-        hitSlop={8}
-      >
-        <Ionicons name="trash-outline" size={scaledIcon(18)} color={colors.error[400]} />
-      </Pressable>
+      <ContextMenu
+        items={[
+          {
+            label: 'Modifier',
+            icon: 'pencil-outline',
+            onPress: () => router.push(`/(tabs)/places/${item.id}`),
+          },
+          {
+            label: 'Supprimer',
+            icon: 'trash-outline',
+            onPress: () => handleDeletePlace(item.id, item.name),
+            destructive: true,
+          },
+        ]}
+      />
     </Pressable>
   );
 
   return (
     <View style={styles.container}>
-      {/* Background ellipse */}
       <View style={styles.ellipseContainer}>
         <View style={styles.ellipse} />
       </View>
@@ -126,15 +139,21 @@ export default function PlacesListScreen() {
             renderItem={renderPlace}
             contentContainerStyle={styles.listContent}
           />
-          <View style={styles.addButtonContainer}>
-            <Button
-              title="Ajouter un lieu"
-              onPress={() => router.push('/(tabs)/places/add')}
-              fullWidth
-            />
-          </View>
+          <Pressable
+            style={styles.fab}
+            onPress={() => router.push('/(tabs)/places/add')}
+          >
+            <Ionicons name="add" size={scaledIcon(28)} color={colors.white} />
+          </Pressable>
         </>
       )}
+
+      <Snackbar
+        visible={snackbar.visible}
+        title={snackbar.title}
+        variant={snackbar.variant}
+        onHide={() => setSnackbar((prev) => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }
@@ -218,9 +237,6 @@ const styles = StyleSheet.create({
     color: colors.primary[200],
     marginTop: spacing[1],
   },
-  deleteButton: {
-    padding: spacing[2],
-  },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -250,14 +266,20 @@ const styles = StyleSheet.create({
   emptyButton: {
     minWidth: ms(200, 0.5),
   },
-  addButtonContainer: {
+  fab: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: spacing[6],
-    backgroundColor: colors.primary[950],
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    bottom: spacing[8],
+    right: spacing[6],
+    width: ms(56, 0.5),
+    height: ms(56, 0.5),
+    borderRadius: ms(56, 0.5) / 2,
+    backgroundColor: colors.primary[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
 });

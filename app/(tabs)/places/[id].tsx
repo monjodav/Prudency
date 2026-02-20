@@ -7,7 +7,6 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +18,7 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
+import { Snackbar } from '@/src/components/ui/Snackbar';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import { TripMap } from '@/src/components/map/TripMap';
 import { figmaScale, scaledIcon, scaledRadius, ms } from '@/src/utils/scaling';
@@ -55,6 +55,12 @@ export default function EditPlaceScreen() {
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [snackbar, setSnackbar] = useState<{
+    visible: boolean;
+    title: string;
+    variant: 'success' | 'error';
+  }>({ visible: false, title: '', variant: 'success' });
 
   useEffect(() => {
     if (place) {
@@ -118,35 +124,35 @@ export default function EditPlaceScreen() {
         place_type: placeType,
         icon: placeType,
       });
-      router.back();
+      setSnackbar({
+        visible: true,
+        title: 'Modifications enregistrees',
+        variant: 'success',
+      });
+      setTimeout(() => router.back(), 1500);
     } catch {
-      Alert.alert('Erreur', 'Impossible de sauvegarder les modifications.');
+      setSnackbar({
+        visible: true,
+        title: 'Modifications non enregistrees',
+        variant: 'error',
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!id) return;
-    Alert.alert(
-      'Supprimer le lieu',
-      `Etes-vous sur de vouloir supprimer "${name}" ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deletePlace(id);
-              router.back();
-            } catch {
-              Alert.alert('Erreur', 'Impossible de supprimer le lieu.');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await deletePlace(id);
+      router.back();
+    } catch {
+      setSnackbar({
+        visible: true,
+        title: 'Impossible de supprimer le lieu',
+        variant: 'error',
+      });
+    }
   };
 
   if (!place) {
@@ -164,12 +170,10 @@ export default function EditPlaceScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Background ellipse */}
       <View style={styles.ellipseContainer}>
         <View style={styles.ellipse} />
       </View>
 
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing[2] }]}>
         <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="arrow-back" size={scaledIcon(24)} color={colors.white} />
@@ -189,7 +193,6 @@ export default function EditPlaceScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Place type selector */}
           <Text style={styles.sectionLabel}>Type de lieu</Text>
           <View style={styles.typeGrid}>
             {PLACE_TYPES.map((type) => (
@@ -218,7 +221,6 @@ export default function EditPlaceScreen() {
             ))}
           </View>
 
-          {/* Name input */}
           <Input
             label="Nom du lieu"
             placeholder="Ex: Maison, Bureau, Salle de sport..."
@@ -231,7 +233,6 @@ export default function EditPlaceScreen() {
             variant="dark"
           />
 
-          {/* Address input with search */}
           <View style={styles.addressContainer}>
             <Input
               label="Adresse"
@@ -261,7 +262,6 @@ export default function EditPlaceScreen() {
             </Pressable>
           </View>
 
-          {/* Location confirmation */}
           {latitude !== null && longitude !== null && (
             <View style={styles.locationConfirmed}>
               <Ionicons name="checkmark-circle" size={scaledIcon(20)} color={colors.success[400]} />
@@ -271,7 +271,6 @@ export default function EditPlaceScreen() {
             </View>
           )}
 
-          {/* Map preview */}
           {latitude !== null && longitude !== null ? (
             <TripMap
               arrival={{ lat: latitude, lng: longitude }}
@@ -286,7 +285,6 @@ export default function EditPlaceScreen() {
             </View>
           )}
 
-          {/* Delete button */}
           <Pressable
             style={({ pressed }) => [styles.deleteSection, pressed && styles.deleteSectionPressed]}
             onPress={handleDelete}
@@ -296,7 +294,6 @@ export default function EditPlaceScreen() {
           </Pressable>
         </ScrollView>
 
-        {/* Save button */}
         <View style={styles.footer}>
           <Button
             title="Enregistrer les modifications"
@@ -307,6 +304,13 @@ export default function EditPlaceScreen() {
           />
         </View>
       </KeyboardAvoidingView>
+
+      <Snackbar
+        visible={snackbar.visible}
+        title={snackbar.title}
+        variant={snackbar.variant}
+        onHide={() => setSnackbar((prev) => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }

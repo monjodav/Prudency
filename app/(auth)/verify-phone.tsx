@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/src/theme/colors';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
+import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, ms } from '@/src/utils/scaling';
 
 const CODE_LENGTH = 6;
@@ -125,6 +126,11 @@ export default function VerifyPhoneScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Logo */}
+          <View style={styles.logoTopContainer}>
+            <PrudencyLogo size="md" />
+          </View>
+
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Vérifie ton numéro</Text>
@@ -185,10 +191,6 @@ export default function VerifyPhoneScreen() {
             fullWidth
           />
 
-          {/* Logo at bottom */}
-          <View style={styles.logoContainer}>
-            <Text style={styles.logo}>PRUDENCY</Text>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </OnboardingBackground>
@@ -270,16 +272,8 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: scaledSpacing(40),
   },
-  logoContainer: {
+  logoTopContainer: {
     alignItems: 'center',
-    marginTop: scaledSpacing(32),
-  },
-  logo: {
-    fontSize: scaledFontSize(35),
-    fontWeight: '200',
-    fontFamily: 'Montserrat_200ExtraLight',
-    color: colors.white,
-    letterSpacing: ms(2, 0.3),
-    textAlign: 'center',
+    marginBottom: scaledSpacing(24),
   },
 });

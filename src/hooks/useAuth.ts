@@ -1,27 +1,12 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useAuthStore } from '@/src/stores/authStore';
-import { supabase } from '@/src/services/supabaseClient';
 import * as authService from '@/src/services/authService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export function useAuth() {
-  const { session, user, isLoading, setSession, setLoading, reset } = useAuthStore();
+  // Auth state is managed by AuthGate in _layout.tsx to avoid duplicate listeners
+  const { session, user, isLoading, reset } = useAuthStore();
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        setSession(newSession);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [setSession, setLoading]);
 
   const profileQuery = useQuery({
     queryKey: ['profile'],
@@ -35,8 +20,24 @@ export function useAuth() {
   });
 
   const signUpMutation = useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      authService.signUpWithEmail(email, password),
+    mutationFn: ({
+      email,
+      password,
+      metadata,
+    }: {
+      email: string;
+      password: string;
+      metadata?: { first_name?: string };
+    }) => authService.signUpWithEmail(email, password, metadata),
+  });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (
+      updates: Parameters<typeof authService.updateProfile>[0]
+    ) => authService.updateProfile(updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
   });
 
   const signOut = useCallback(async () => {
@@ -58,6 +59,9 @@ export function useAuth() {
     signUp: signUpMutation.mutateAsync,
     signUpError: signUpMutation.error,
     isSigningUp: signUpMutation.isPending,
+    updateProfile: updateProfileMutation.mutateAsync,
+    isUpdatingProfile: updateProfileMutation.isPending,
+    updateProfileError: updateProfileMutation.error,
     signOut,
     refetchProfile: profileQuery.refetch,
   };

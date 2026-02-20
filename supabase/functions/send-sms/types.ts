@@ -10,17 +10,13 @@ export const SendSmsInputSchema = z.object({
 export type SendSmsInput = z.infer<typeof SendSmsInputSchema>;
 
 export interface SendSmsOutput {
-  messageUuid: string;
+  messageId: string;
   status: string;
 }
 
-export interface PlivoMessageResponse {
-  message: string;
-  message_uuid: string[];
-  api_id: string;
-}
-
-export interface PlivoErrorResponse {
-  error: string;
-  api_id?: string;
+export interface OvhSmsResponse {
+  ids: number[];
+  invalidReceivers: string[];
+  totalCreditsRemoved: number;
+  validReceivers: string[];
 }

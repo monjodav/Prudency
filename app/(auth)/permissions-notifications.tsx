@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
+import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, scaledIcon, ms } from '@/src/utils/scaling';
 
 /**
@@ -47,9 +48,15 @@ export default function PermissionsNotificationsScreen() {
 
   return (
     <OnboardingBackground>
+      <View style={styles.logoTopContainer}>
+        <PrudencyLogo size="md" />
+      </View>
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="notifications-outline" size={scaledIcon(80)} color={colors.primary[50]} />
+        <View style={styles.concentricContainer}>
+          <View style={[styles.circle, styles.circleOuter]} />
+          <View style={[styles.circle, styles.circleMiddle]} />
+          <View style={[styles.circle, styles.circleInner]} />
+          <Ionicons name="notifications-outline" size={scaledIcon(40)} color={colors.primary[50]} />
         </View>
 
         <Text style={styles.title}>Autoriser les notifications</Text>
@@ -67,34 +74,54 @@ export default function PermissionsNotificationsScreen() {
           <Button
             title="Plus tard"
             variant="ghost"
+            size="sm"
             onPress={handleSkip}
             fullWidth
           />
         </View>
       </View>
 
-      <View style={styles.logoContainer}>
-        <Text style={styles.logo}>PRUDENCY</Text>
-      </View>
     </OnboardingBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  logoTopContainer: {
+    alignItems: 'center',
+    paddingTop: scaledSpacing(80),
+  },
   content: {
     flex: 1,
     paddingHorizontal: scaledSpacing(40),
-    paddingTop: scaledSpacing(120),
+    paddingTop: scaledSpacing(32),
     alignItems: 'center',
   },
-  iconContainer: {
-    width: ms(120, 0.5),
-    height: ms(120, 0.5),
-    borderRadius: scaledRadius(60),
-    backgroundColor: 'rgba(232, 234, 248, 0.1)',
+  concentricContainer: {
+    width: ms(160, 0.5),
+    height: ms(160, 0.5),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: scaledSpacing(32),
+  },
+  circle: {
+    position: 'absolute',
+    borderRadius: 9999,
+    backgroundColor: colors.secondary[400],
+  },
+  circleOuter: {
+    width: ms(160, 0.5),
+    height: ms(160, 0.5),
+    opacity: 0.1,
+  },
+  circleMiddle: {
+    width: ms(120, 0.5),
+    height: ms(120, 0.5),
+    opacity: 0.2,
+  },
+  circleInner: {
+    width: ms(80, 0.5),
+    height: ms(80, 0.5),
+    opacity: 0.3,
   },
   title: {
     fontSize: scaledFontSize(24),
@@ -116,17 +143,5 @@ const styles = StyleSheet.create({
   buttonContainer: {
     width: '100%',
     gap: scaledSpacing(16),
-  },
-  logoContainer: {
-    alignItems: 'center',
-    paddingBottom: scaledSpacing(40),
-  },
-  logo: {
-    fontSize: scaledFontSize(35),
-    fontWeight: '200',
-    fontFamily: 'Montserrat_200ExtraLight',
-    color: colors.white,
-    letterSpacing: ms(2, 0.3),
-    textAlign: 'center',
   },
 });

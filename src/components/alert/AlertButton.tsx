@@ -7,13 +7,14 @@ import {
   Animated,
   GestureResponderEvent,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
-import { scaledFontSize, scaledSpacing, ms } from '@/src/utils/scaling';
+import { scaledFontSize, scaledSpacing, scaledIcon, ms } from '@/src/utils/scaling';
 
-const LONG_PRESS_DURATION_MS = 2000;
+const LONG_PRESS_DURATION_MS = 3000;
 const CANCEL_WINDOW_MS = 3000;
 
 type ButtonState = 'idle' | 'cancel_window' | 'confirmed';
@@ -186,7 +187,7 @@ export function AlertButton({
             </>
           ) : (
             <>
-              <Text style={styles.icon}>!</Text>
+              <Ionicons name="shield-checkmark" size={scaledIcon(40)} color={colors.alert.text} />
               <Text style={styles.label}>ALERTE</Text>
             </>
           )}
@@ -195,7 +196,7 @@ export function AlertButton({
       <Text style={styles.hint}>
         {isCancelWindow
           ? 'Appuyez pour annuler'
-          : 'Maintenez pour alerter'}
+          : 'Appuie 3s pour alerter en urgence'}
       </Text>
     </View>
   );
@@ -226,11 +227,6 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
-  },
-  icon: {
-    fontSize: scaledFontSize(32),
-    fontWeight: '800',
-    color: colors.alert.text,
   },
   label: {
     ...typography.buttonSmall,

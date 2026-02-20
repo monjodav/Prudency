@@ -8,7 +8,7 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { scaledIcon, scaledFontSize, ms } from '@/src/utils/scaling';
 
-const COUNTDOWN_SECONDS = 5 * 60;
+const COUNTDOWN_SECONDS = 2 * 60;
 
 interface NoResponseDialogProps {
   visible: boolean;

@@ -18,6 +18,7 @@ import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useSocialAuth } from '@/src/hooks/useSocialAuth';
 import { AuthError } from '@supabase/supabase-js';
+import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { scaledSpacing, scaledFontSize, scaledIcon, ms } from '@/src/utils/scaling';
 
 export default function RegisterScreen() {
@@ -103,6 +104,11 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Logo */}
+          <View style={styles.logoTopContainer}>
+            <PrudencyLogo size="md" />
+          </View>
+
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Inscription</Text>
@@ -142,7 +148,10 @@ export default function RegisterScreen() {
               />
 
               {/* Forgot password link */}
-              <Pressable style={styles.forgotPasswordContainer}>
+              <Pressable
+                style={styles.forgotPasswordContainer}
+                onPress={() => router.push('/(auth)/forgot-password')}
+              >
                 <Text style={styles.forgotPassword}>Mot de passe oublié ?</Text>
               </Pressable>
             </View>
@@ -163,7 +172,7 @@ export default function RegisterScreen() {
             {/* Login link */}
             <View style={styles.loginLinkContainer}>
               <Text style={styles.loginLinkText}>
-                Tu as déjà un compte ?{'\n'}
+                Tu as déjà un compte ?{' '}
                 <Link href="/(auth)/login" asChild>
                   <Text style={styles.loginLinkAction}>Connecte-toi !</Text>
                 </Link>
@@ -206,10 +215,6 @@ export default function RegisterScreen() {
             )}
           </View>
 
-          {/* Logo at bottom */}
-          <View style={styles.logoContainer}>
-            <Text style={styles.logo}>PRUDENCY</Text>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </OnboardingBackground>
@@ -299,16 +304,8 @@ const styles = StyleSheet.create({
     color: colors.primary[50],
     marginHorizontal: scaledSpacing(16),
   },
-  logoContainer: {
+  logoTopContainer: {
     alignItems: 'center',
-    marginTop: scaledSpacing(32),
-  },
-  logo: {
-    fontSize: scaledFontSize(35),
-    fontWeight: '200',
-    fontFamily: 'Montserrat_200ExtraLight',
-    color: colors.white,
-    letterSpacing: ms(2, 0.3),
-    textAlign: 'center',
+    marginBottom: scaledSpacing(24),
   },
 });

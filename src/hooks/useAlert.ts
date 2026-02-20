@@ -36,6 +36,25 @@ export function useAlert() {
     },
   });
 
+  const resolveAlertByTripMutation = useMutation({
+    mutationFn: async ({
+      tripId,
+      status,
+    }: {
+      tripId: string;
+      status?: 'resolved' | 'false_alarm';
+    }) => {
+      const alert = await alertService.getActiveAlertByTripId(tripId);
+      if (!alert) {
+        throw new Error('Aucune alerte active pour ce trajet');
+      }
+      return alertService.resolveAlert(alert.id, status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.alerts });
+    },
+  });
+
   return {
     alerts: alertsQuery.data ?? [],
     isLoading: alertsQuery.isLoading,
@@ -46,5 +65,7 @@ export function useAlert() {
     triggerError: triggerAlertMutation.error,
     resolveAlert: resolveAlertMutation.mutateAsync,
     isResolving: resolveAlertMutation.isPending,
+    resolveAlertByTrip: resolveAlertByTripMutation.mutateAsync,
+    isResolvingByTrip: resolveAlertByTripMutation.isPending,
   };
 }

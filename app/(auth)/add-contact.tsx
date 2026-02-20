@@ -16,6 +16,8 @@ import { colors } from '@/src/theme/colors';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { useContacts } from '@/src/hooks/useContacts';
+import { useAuth } from '@/src/hooks/useAuth';
+import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, scaledIcon, figmaScale, ms } from '@/src/utils/scaling';
 
 /**
@@ -26,7 +28,9 @@ import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, scaledIc
 export default function AddContactScreen() {
   const router = useRouter();
   const { createContact } = useContacts();
-  const [name, setName] = useState('');
+  const { updateProfile } = useAuth();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -34,14 +38,18 @@ export default function AddContactScreen() {
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!name.trim()) {
-      newErrors.name = 'Nom requis';
+    if (!firstName.trim()) {
+      newErrors.firstName = 'Prenom requis';
+    }
+
+    if (!lastName.trim()) {
+      newErrors.lastName = 'Nom requis';
     }
 
     if (!phone.trim()) {
-      newErrors.phone = 'Numéro de téléphone requis';
+      newErrors.phone = 'Numero de telephone requis';
     } else if (!/^(\+33|0)[1-9](\d{8})$/.test(phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Numéro de téléphone invalide';
+      newErrors.phone = 'Numero de telephone invalide';
     }
 
     setErrors(newErrors);
@@ -64,7 +72,8 @@ export default function AddContactScreen() {
       const contact = await Contacts.presentContactPickerAsync();
 
       if (contact) {
-        setName(`${contact.firstName || ''} ${contact.lastName || ''}`.trim());
+        setFirstName(contact.firstName || '');
+        setLastName(contact.lastName || '');
         if (contact.phoneNumbers && contact.phoneNumbers.length > 0) {
           const firstPhone = contact.phoneNumbers[0];
           if (firstPhone?.number) {
@@ -80,19 +89,29 @@ export default function AddContactScreen() {
     }
   };
 
+  const completeOnboarding = async () => {
+    try {
+      await updateProfile({ onboarding_completed: true });
+    } catch {
+      // Non-blocking: profile update failure should not prevent navigation
+    }
+    router.replace('/(tabs)');
+  };
+
   const handleSaveContact = async () => {
     if (!validate()) return;
 
     setLoading(true);
     try {
       const cleanPhone = phone.replace(/\s/g, '');
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
       await createContact({
-        name: name.trim(),
+        name: fullName,
         phone: cleanPhone,
         isPrimary: true,
       });
 
-      router.replace('/(tabs)');
+      await completeOnboarding();
     } catch {
       setErrors({ submit: 'Une erreur est survenue' });
     } finally {
@@ -108,13 +127,13 @@ export default function AddContactScreen() {
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Continuer',
-          onPress: () => router.replace('/(tabs)'),
+          onPress: completeOnboarding,
         },
       ]
     );
   };
 
-  const isFormValid = name.trim() !== '' && phone.trim() !== '';
+  const isFormValid = firstName.trim() !== '' && lastName.trim() !== '' && phone.trim() !== '';
 
   return (
     <View style={styles.container}>
@@ -132,6 +151,11 @@ export default function AddContactScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Logo */}
+          <View style={styles.logoTopContainer}>
+            <PrudencyLogo size="md" />
+          </View>
+
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
@@ -140,6 +164,12 @@ export default function AddContactScreen() {
             <Text style={styles.title}>Ajoute une personne de confiance</Text>
             <Text style={styles.subtitle}>
               Cette personne sera prévenue si quelque chose ne va pas pendant ton trajet.
+            </Text>
+            <Text style={styles.explanationText}>
+              Elle recevra une alerte uniquement si ton trajet n'est pas finalisé à temps ou si tu déclenches une alerte.
+            </Text>
+            <Text style={styles.explanationText}>
+              Cette personne devra accepter ta demande avant de pouvoir être alertée.
             </Text>
           </View>
 
@@ -159,20 +189,33 @@ export default function AddContactScreen() {
           {/* Form */}
           <View style={styles.form}>
             <Input
-              label="Nom *"
-              placeholder="Maman"
-              value={name}
+              label="Prenom *"
+              placeholder="Marie"
+              value={firstName}
               onChangeText={(text) => {
-                setName(text);
-                if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+                setFirstName(text);
+                if (errors.firstName) setErrors((prev) => ({ ...prev, firstName: '' }));
               }}
-              error={errors.name}
+              error={errors.firstName}
               autoCapitalize="words"
               variant="dark"
             />
 
             <Input
-              label="Téléphone *"
+              label="Nom *"
+              placeholder="Dupont"
+              value={lastName}
+              onChangeText={(text) => {
+                setLastName(text);
+                if (errors.lastName) setErrors((prev) => ({ ...prev, lastName: '' }));
+              }}
+              error={errors.lastName}
+              autoCapitalize="words"
+              variant="dark"
+            />
+
+            <Input
+              label="Telephone *"
               placeholder="+33 6 12 34 56 78"
               value={phone}
               onChangeText={(text) => {
@@ -184,7 +227,6 @@ export default function AddContactScreen() {
               autoComplete="tel"
               variant="dark"
             />
-
           </View>
 
           {errors.submit && <Text style={styles.errorText}>{errors.submit}</Text>}
@@ -192,7 +234,7 @@ export default function AddContactScreen() {
           {/* Buttons */}
           <View style={styles.buttonContainer}>
             <Button
-              title="Ajouter ce contact"
+              title="Envoyer une demande"
               onPress={handleSaveContact}
               loading={loading}
               fullWidth
@@ -203,10 +245,6 @@ export default function AddContactScreen() {
             </Pressable>
           </View>
 
-          {/* Logo at bottom */}
-          <View style={styles.logoContainer}>
-            <Text style={styles.logo}>PRUDENCY</Text>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -273,14 +311,24 @@ const styles = StyleSheet.create({
     lineHeight: scaledLineHeight(24),
     opacity: 0.9,
   },
+  explanationText: {
+    fontSize: scaledFontSize(14),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50],
+    textAlign: 'center',
+    lineHeight: scaledLineHeight(20),
+    opacity: 0.7,
+    marginTop: scaledSpacing(8),
+  },
   importButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: scaledSpacing(12),
-    paddingVertical: scaledSpacing(16),
-    paddingHorizontal: scaledSpacing(24),
-    borderWidth: 1,
+    paddingVertical: scaledSpacing(20),
+    paddingHorizontal: scaledSpacing(32),
+    borderWidth: 2,
     borderColor: colors.primary[50],
     borderRadius: 9999,
     marginBottom: scaledSpacing(24),
@@ -333,17 +381,8 @@ const styles = StyleSheet.create({
     color: colors.primary[50],
     opacity: 0.8,
   },
-  logoContainer: {
+  logoTopContainer: {
     alignItems: 'center',
-    marginTop: 'auto',
-    paddingTop: scaledSpacing(32),
-  },
-  logo: {
-    fontSize: scaledFontSize(35),
-    fontWeight: '200',
-    fontFamily: 'Montserrat_200ExtraLight',
-    color: colors.white,
-    letterSpacing: ms(2, 0.3),
-    textAlign: 'center',
+    marginBottom: scaledSpacing(16),
   },
 });

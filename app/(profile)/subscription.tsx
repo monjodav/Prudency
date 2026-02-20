@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Pressable,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -11,267 +10,259 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
-import { Badge } from '@/src/components/ui/Badge';
-import { Toast } from '@/src/components/ui/Toast';
-import { scaledSpacing, scaledIcon } from '@/src/utils/scaling';
+import { DarkScreen } from '@/src/components/ui/DarkScreen';
+import { Snackbar } from '@/src/components/ui/Snackbar';
+import { ms, scaledIcon } from '@/src/utils/scaling';
 
-interface PlanFeature {
-  text: string;
-  included: boolean;
-}
-
-interface Plan {
-  id: string;
-  name: string;
-  price: string;
-  period: string;
-  features: PlanFeature[];
-  recommended?: boolean;
-}
-
-const PLANS: Plan[] = [
-  {
-    id: 'free',
-    name: 'Gratuit',
-    price: '0€',
-    period: 'pour toujours',
-    features: [
-      { text: '3 contacts de confiance', included: true },
-      { text: 'Trajets illimites', included: true },
-      { text: 'Alertes manuelles', included: true },
-      { text: 'Alertes automatiques', included: false },
-      { text: 'Historique 7 jours', included: true },
-      { text: 'Support prioritaire', included: false },
-    ],
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    price: '4,99€',
-    period: '/mois',
-    recommended: true,
-    features: [
-      { text: '5 contacts de confiance', included: true },
-      { text: 'Trajets illimites', included: true },
-      { text: 'Alertes manuelles', included: true },
-      { text: 'Alertes automatiques', included: true },
-      { text: 'Historique 30 jours', included: true },
-      { text: 'Support prioritaire', included: true },
-    ],
-  },
-];
-
-const SNACKBAR_MESSAGE = "Fonctionnalité à venir. L'abonnement sera disponible prochainement.";
-const SNACKBAR_DURATION_DEFAULT = 3500;
-const SNACKBAR_DURATION_PLUS = 2500;
+const FEATURES = [
+  'Garder mon trajet secret',
+  'Ajout de notes',
+  'Detection d\'anomalie durant le trajet',
+  'Envoie alerte a ta/tes personne(s) de confiance',
+] as const;
 
 export default function SubscriptionScreen() {
-  const [currentPlan] = useState('free');
-  const [selectedPlan, setSelectedPlan] = useState(currentPlan);
-  const [toastVisible, setToastVisible] = useState(false);
-  const [toastDuration, setToastDuration] = useState(SNACKBAR_DURATION_DEFAULT);
+  const [selectedPlan, setSelectedPlan] = useState<'standard' | 'plus'>('standard');
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
 
-  const showSnackbar = (duration: number = SNACKBAR_DURATION_DEFAULT) => {
-    setToastDuration(duration);
-    setToastVisible(true);
-  };
-
-  const handleSubscribe = () => {
-    showSnackbar();
-  };
-
-  const handlePlanPress = (planId: string) => {
-    setSelectedPlan(planId);
-    if (planId === 'premium') {
-      showSnackbar(SNACKBAR_DURATION_PLUS);
-    } else {
-      showSnackbar();
-    }
+  const handleActivatePlus = () => {
+    setSnackbarVisible(true);
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <DarkScreen scrollable>
       <View style={styles.header}>
-        <Text style={styles.title}>Choisissez votre plan</Text>
+        <Text style={styles.title}>Mon abonnement</Text>
         <Text style={styles.subtitle}>
-          Debloquez toutes les fonctionnalites pour une protection optimale
+          Tu utilises actuellement Prudency en version Standard.
         </Text>
       </View>
 
       <View style={styles.plans}>
-        {PLANS.map((plan) => (
-          <Pressable
-            key={plan.id}
-            style={[
-              styles.planCard,
-              selectedPlan === plan.id && styles.planCardSelected,
-              plan.recommended && styles.planCardRecommended,
-            ]}
-            onPress={() => handlePlanPress(plan.id)}
-          >
-            {plan.recommended && (
-              <View style={styles.recommendedBadge}>
-                <Text style={styles.recommendedText}>Recommande</Text>
-              </View>
-            )}
+        <PlanOption
+          label="Standard"
+          badge="Gratuit"
+          badgeColor={colors.success[500]}
+          selected={selectedPlan === 'standard'}
+          onPress={() => setSelectedPlan('standard')}
+        />
+        <PlanOption
+          label="Prudency Plus"
+          note="Fonctionnalites a venir"
+          selected={selectedPlan === 'plus'}
+          onPress={() => {
+            setSelectedPlan('plus');
+            setSnackbarVisible(true);
+          }}
+          disabled
+        />
+      </View>
 
-            <View style={styles.planHeader}>
-              <Text style={styles.planName}>{plan.name}</Text>
-              <View style={styles.priceContainer}>
-                <Text style={styles.planPrice}>{plan.price}</Text>
-                <Text style={styles.planPeriod}>{plan.period}</Text>
-              </View>
-            </View>
-
-            <View style={styles.planFeatures}>
-              {plan.features.map((feature, index) => (
-                <View key={index} style={styles.featureRow}>
-                  <FontAwesome
-                    name={feature.included ? 'check' : 'times'}
-                    size={scaledIcon(14)}
-                    color={feature.included ? colors.success[500] : colors.gray[400]}
-                  />
-                  <Text
-                    style={[
-                      styles.featureText,
-                      !feature.included && styles.featureTextDisabled,
-                    ]}
-                  >
-                    {feature.text}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {currentPlan === plan.id && (
-              <Badge label="Plan actuel" variant="info" />
-            )}
-          </Pressable>
+      <View style={styles.featuresCard}>
+        <View style={styles.featuresHeader}>
+          <Text style={styles.featuresTitle}>Standard</Text>
+          <View style={styles.freeBadge}>
+            <Text style={styles.freeBadgeText}>Gratuit</Text>
+          </View>
+        </View>
+        {FEATURES.map((feature) => (
+          <View key={feature} style={styles.featureRow}>
+            <FontAwesome name="check" size={scaledIcon(14)} color={colors.success[500]} />
+            <Text style={styles.featureText}>{feature}</Text>
+          </View>
         ))}
       </View>
 
-      {selectedPlan !== currentPlan && (
-        <View style={styles.footer}>
-          <Button
-            title={selectedPlan === 'premium' ? 'Passer a Premium' : 'Passer au plan gratuit'}
-            onPress={handleSubscribe}
-            fullWidth
-          />
-          <Text style={styles.disclaimer}>
-            Vous pouvez annuler a tout moment. Les paiements sont securises.
-          </Text>
-        </View>
-      )}
+      <Text style={styles.disclaimer}>
+        Abonnement mensuel sans engagement, resiliable a tout moment. En continuant, tu acceptes les CGU, CGV et la Politique de confidentialite.
+      </Text>
 
-      <Toast
-        visible={toastVisible}
-        message={SNACKBAR_MESSAGE}
-        type="info"
-        duration={toastDuration}
-        onHide={() => setToastVisible(false)}
+      <Button
+        title="Activer le Prudency Plus"
+        onPress={handleActivatePlus}
+        fullWidth
+        style={styles.ctaButton}
       />
-    </ScrollView>
+
+      <Snackbar
+        visible={snackbarVisible}
+        title="Fonctionnalite a venir"
+        subtitle="Les abonnements seront disponibles prochainement."
+        variant="info"
+        duration={3000}
+        onHide={() => setSnackbarVisible(false)}
+      />
+    </DarkScreen>
   );
 }
 
+function PlanOption({
+  label,
+  badge,
+  badgeColor,
+  note,
+  selected,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  badge?: string;
+  badgeColor?: string;
+  note?: string;
+  selected: boolean;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      style={[styles.planOption, selected && styles.planOptionSelected, disabled && styles.planDisabled]}
+      onPress={onPress}
+    >
+      <View style={[styles.radio, selected && styles.radioSelected]}>
+        {selected && <View style={styles.radioDot} />}
+      </View>
+      <View style={styles.planContent}>
+        <Text style={[styles.planLabel, disabled && styles.planLabelDisabled]}>{label}</Text>
+        {badge ? (
+          <View style={[styles.badge, { backgroundColor: badgeColor }]}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        ) : null}
+        {note ? <Text style={styles.planNote}>{note}</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
+const RADIO_SIZE = ms(22, 0.4);
+const DOT_SIZE = ms(12, 0.4);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  content: {
-    padding: spacing[6],
-  },
   header: {
-    marginBottom: spacing[8],
+    marginBottom: spacing[6],
   },
   title: {
     ...typography.h2,
-    color: colors.gray[900],
-    textAlign: 'center',
+    color: colors.white,
   },
   subtitle: {
     ...typography.body,
-    color: colors.gray[600],
-    textAlign: 'center',
+    color: colors.gray[300],
     marginTop: spacing[2],
   },
   plans: {
-    gap: spacing[4],
+    gap: spacing[3],
+    marginBottom: spacing[6],
   },
-  planCard: {
+  planOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary[900],
+    borderRadius: borderRadius.lg,
+    padding: spacing[4],
     borderWidth: 2,
-    borderColor: colors.gray[200],
-    borderRadius: borderRadius.xl,
-    padding: spacing[5],
-    position: 'relative',
+    borderColor: colors.primary[900],
   },
-  planCardSelected: {
-    borderColor: colors.primary[500],
-    backgroundColor: colors.primary[50],
+  planOptionSelected: {
+    borderColor: colors.primary[400],
   },
-  planCardRecommended: {
-    borderColor: colors.primary[500],
+  planDisabled: {
+    opacity: 0.5,
   },
-  recommendedBadge: {
-    position: 'absolute',
-    top: -scaledSpacing(12),
-    left: '50%',
-    transform: [{ translateX: -scaledSpacing(50) }],
-    backgroundColor: colors.primary[500],
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[1],
+  radio: {
+    width: RADIO_SIZE,
+    height: RADIO_SIZE,
+    borderRadius: RADIO_SIZE / 2,
+    borderWidth: 2,
+    borderColor: colors.gray[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing[3],
+  },
+  radioSelected: {
+    borderColor: colors.primary[400],
+  },
+  radioDot: {
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+    backgroundColor: colors.primary[400],
+  },
+  planContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  planLabel: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: '600',
+  },
+  planLabelDisabled: {
+    color: colors.gray[400],
+  },
+  badge: {
+    paddingHorizontal: spacing[2],
+    paddingVertical: 2,
     borderRadius: borderRadius.full,
   },
-  recommendedText: {
+  badgeText: {
     ...typography.caption,
     color: colors.white,
     fontWeight: '600',
   },
-  planHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing[4],
-  },
-  planName: {
-    ...typography.h3,
-    color: colors.gray[900],
-  },
-  priceContainer: {
-    alignItems: 'flex-end',
-  },
-  planPrice: {
-    ...typography.h2,
-    color: colors.primary[500],
-  },
-  planPeriod: {
+  planNote: {
     ...typography.caption,
-    color: colors.gray[500],
+    color: colors.gray[400],
+    width: '100%',
   },
-  planFeatures: {
+  featuresCard: {
+    backgroundColor: colors.primary[900],
+    borderRadius: borderRadius.lg,
+    padding: spacing[5],
+    marginBottom: spacing[6],
+  },
+  featuresHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing[3],
     marginBottom: spacing[4],
+  },
+  featuresTitle: {
+    ...typography.h3,
+    color: colors.white,
+  },
+  freeBadge: {
+    backgroundColor: colors.success[500],
+    paddingHorizontal: spacing[3],
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+  },
+  freeBadgeText: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: '600',
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[3],
+    paddingVertical: spacing[2],
   },
   featureText: {
     ...typography.body,
-    color: colors.gray[700],
-  },
-  featureTextDisabled: {
-    color: colors.gray[400],
-  },
-  footer: {
-    marginTop: spacing[8],
+    color: colors.gray[300],
   },
   disclaimer: {
     ...typography.caption,
     color: colors.gray[500],
     textAlign: 'center',
-    marginTop: spacing[4],
+    marginBottom: spacing[5],
+    lineHeight: 18,
+  },
+  ctaButton: {
+    marginBottom: spacing[4],
   },
 });

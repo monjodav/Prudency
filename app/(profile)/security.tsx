@@ -1,53 +1,126 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Switch,
   Pressable,
   Alert,
+  Linking,
+  Platform,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
+import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { ms, scaledIcon } from '@/src/utils/scaling';
+import { useBiometric } from '@/src/hooks/useBiometric';
+
+type PermissionStatus = 'granted' | 'denied' | 'undetermined';
+
+function usePermissionStatuses() {
+  const [location, setLocation] = useState<PermissionStatus>('undetermined');
+  const [notifications, setNotifications] = useState<PermissionStatus>('undetermined');
+  const [camera, setCamera] = useState<PermissionStatus>('undetermined');
+
+  const refresh = useCallback(async () => {
+    const [loc, notif] = await Promise.all([
+      Location.getForegroundPermissionsAsync(),
+      Notifications.getPermissionsAsync(),
+    ]);
+    setLocation(loc.status as PermissionStatus);
+    setNotifications(notif.status as PermissionStatus);
+    setCamera('undetermined');
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return { location, notifications, camera, refresh };
+}
+
+function openSystemSettings() {
+  if (Platform.OS === 'ios') {
+    void Linking.openURL('app-settings:');
+  } else {
+    void Linking.openSettings();
+  }
+}
+
+interface SettingRowProps {
+  icon: React.ComponentProps<typeof FontAwesome>['name'];
+  title: string;
+  description?: string;
+  trailing?: React.ReactNode;
+  onPress?: () => void;
+}
+
+function SettingRow({ icon, title, description, trailing, onPress }: SettingRowProps) {
+  const Container = onPress ? Pressable : View;
+  return (
+    <Container style={styles.settingItem} onPress={onPress}>
+      <FontAwesome name={icon} size={scaledIcon(20)} color={colors.gray[400]} style={styles.settingIcon} />
+      <View style={styles.settingContent}>
+        <Text style={styles.settingTitle}>{title}</Text>
+        {description ? <Text style={styles.settingDescription}>{description}</Text> : null}
+      </View>
+      {trailing}
+      {onPress && !trailing ? (
+        <FontAwesome name="chevron-right" size={scaledIcon(12)} color={colors.gray[500]} />
+      ) : null}
+    </Container>
+  );
+}
+
+function PermissionToggle({
+  label,
+  status,
+  icon,
+}: {
+  label: string;
+  status: PermissionStatus;
+  icon: React.ComponentProps<typeof FontAwesome>['name'];
+}) {
+  const isGranted = status === 'granted';
+  const statusLabel = isGranted ? 'Actif' : 'Desactive';
+
+  return (
+    <SettingRow
+      icon={icon}
+      title={label}
+      description={statusLabel}
+      onPress={openSystemSettings}
+      trailing={
+        <Switch
+          value={isGranted}
+          onValueChange={openSystemSettings}
+          trackColor={{ false: colors.gray[700], true: colors.primary[400] }}
+          thumbColor={isGranted ? colors.primary[500] : colors.gray[400]}
+        />
+      }
+    />
+  );
+}
 
 export default function SecurityScreen() {
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const [shareLocationWithContacts, setShareLocationWithContacts] = useState(true);
-  const [dataRetentionDays, setDataRetentionDays] = useState(30);
+  const { isAvailable, isEnabled: biometricEnabled, setEnabled: setBiometricEnabled } = useBiometric();
+  const permissions = usePermissionStatuses();
 
   const handleChangePassword = () => {
     Alert.alert(
       'Changer le mot de passe',
-      'Un email vous sera envoye pour reinitialiser votre mot de passe.',
+      'Un email te sera envoye pour reinitialiser ton mot de passe.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Envoyer',
           onPress: () => {
-            // Placeholder: send password reset email
-            Alert.alert('Email envoye', 'Verifiez votre boite mail.');
-          },
-        },
-      ]
-    );
-  };
-
-  const handleExportData = () => {
-    Alert.alert(
-      'Exporter mes donnees',
-      'Vous recevrez un email avec un lien pour telecharger vos donnees.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Exporter',
-          onPress: () => {
-            // Placeholder: request data export
-            Alert.alert('Demande envoyee', 'Vous recevrez un email sous 24h.');
+            Alert.alert('Email envoye', 'Verifie ta boite mail.');
           },
         },
       ]
@@ -57,165 +130,103 @@ export default function SecurityScreen() {
   const handleDeleteAccount = () => {
     Alert.alert(
       'Supprimer mon compte',
-      'Cette action est irreversible. Toutes vos donnees seront supprimees definitivement.',
+      'Cette action est irreversible. Toutes tes donnees seront supprimees definitivement.',
       [
         { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: () => {
-            // Placeholder: delete account
-          },
-        },
+        { text: 'Supprimer', style: 'destructive', onPress: () => {} },
       ]
     );
   };
 
+  const showComingSoon = () => {
+    Alert.alert('Page en construction', 'Cette page sera disponible prochainement.');
+  };
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Authentification</Text>
-        <View style={styles.sectionContent}>
-          <View style={styles.settingItem}>
-            <FontAwesome
-              name="lock"
-              size={scaledIcon(20)}
-              color={colors.gray[600]}
-              style={styles.settingIcon}
-            />
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>Biometrie</Text>
-              <Text style={styles.settingDescription}>
-                Face ID / Touch ID pour confirmer vos trajets
-              </Text>
-            </View>
+    <DarkScreen scrollable>
+      <Section title="Autorisations systeme">
+        <PermissionToggle label="Localisation" status={permissions.location} icon="map-marker" />
+        <PermissionToggle label="Notifications" status={permissions.notifications} icon="bell" />
+        <PermissionToggle label="Camera" status={permissions.camera} icon="camera" />
+      </Section>
+
+      <Section title="Authentification">
+        <SettingRow
+          icon="lock"
+          title="Biometrie"
+          description="Face ID / Touch ID pour confirmer tes trajets"
+          trailing={
             <Switch
               value={biometricEnabled}
-              onValueChange={setBiometricEnabled}
-              trackColor={{ false: colors.gray[300], true: colors.primary[400] }}
-              thumbColor={biometricEnabled ? colors.primary[500] : colors.gray[50]}
+              onValueChange={(value) => void setBiometricEnabled(value)}
+              disabled={!isAvailable}
+              trackColor={{ false: colors.gray[700], true: colors.primary[400] }}
+              thumbColor={biometricEnabled ? colors.primary[500] : colors.gray[400]}
             />
-          </View>
+          }
+        />
+        <SettingRow
+          icon="lock"
+          title="Changer le mot de passe"
+          onPress={handleChangePassword}
+        />
+      </Section>
 
-          <Pressable style={styles.settingItem} onPress={handleChangePassword}>
-            <FontAwesome name="lock" size={scaledIcon(20)} color={colors.gray[600]} style={styles.settingIcon} />
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>Changer le mot de passe</Text>
-            </View>
-            <FontAwesome name="chevron-right" size={scaledIcon(12)} color={colors.gray[400]} />
-          </Pressable>
-        </View>
-      </View>
+      <Section title="Informations legales">
+        <SettingRow icon="file-text-o" title="Mentions legales" onPress={showComingSoon} />
+        <SettingRow icon="file-text-o" title="CGU" onPress={showComingSoon} />
+        <SettingRow icon="shield" title="Politique de confidentialite" onPress={showComingSoon} />
+        <SettingRow icon="file-text-o" title="CGV" onPress={showComingSoon} />
+      </Section>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Confidentialite</Text>
-        <View style={styles.sectionContent}>
-          <View style={styles.settingItem}>
-            <FontAwesome
-              name="map-marker"
-              size={scaledIcon(20)}
-              color={colors.gray[600]}
-              style={styles.settingIcon}
-            />
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>Partage de position</Text>
-              <Text style={styles.settingDescription}>
-                Partager ma position avec mes contacts de confiance pendant un trajet
-              </Text>
-            </View>
-            <Switch
-              value={shareLocationWithContacts}
-              onValueChange={setShareLocationWithContacts}
-              trackColor={{ false: colors.gray[300], true: colors.primary[400] }}
-              thumbColor={shareLocationWithContacts ? colors.primary[500] : colors.gray[50]}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <FontAwesome
-              name="calendar"
-              size={scaledIcon(20)}
-              color={colors.gray[600]}
-              style={styles.settingIcon}
-            />
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>Conservation des donnees</Text>
-              <Text style={styles.settingDescription}>
-                Les trajets sont supprimes apres {dataRetentionDays} jours
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Mes donnees</Text>
-        <View style={styles.sectionContent}>
-          <Pressable style={styles.settingItem} onPress={handleExportData}>
-            <FontAwesome
-              name="download"
-              size={scaledIcon(20)}
-              color={colors.gray[600]}
-              style={styles.settingIcon}
-            />
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>Exporter mes donnees</Text>
-              <Text style={styles.settingDescription}>
-                Telecharger une copie de vos donnees (RGPD)
-              </Text>
-            </View>
-            <FontAwesome name="chevron-right" size={scaledIcon(12)} color={colors.gray[400]} />
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.dangerSection}>
-        <Text style={styles.sectionTitle}>Zone de danger</Text>
+      <Section title="Zone de danger">
         <View style={styles.dangerContent}>
           <Text style={styles.dangerDescription}>
-            La suppression de votre compte est irreversible. Toutes vos donnees, trajets et contacts seront supprimes.
+            La suppression de ton compte est irreversible. Toutes tes donnees, trajets et contacts seront supprimes.
           </Text>
           <Button
             title="Supprimer mon compte"
-            variant="outline"
+            variant="danger"
             onPress={handleDeleteAccount}
             fullWidth
-            style={styles.deleteButton}
           />
         </View>
-      </View>
-    </ScrollView>
+      </Section>
+    </DarkScreen>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionContent}>{children}</View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.gray[50],
-  },
   section: {
     marginBottom: spacing[6],
   },
   sectionTitle: {
     ...typography.label,
-    color: colors.gray[500],
+    color: colors.gray[400],
     textTransform: 'uppercase',
-    paddingHorizontal: spacing[6],
     paddingVertical: spacing[3],
   },
   sectionContent: {
-    backgroundColor: colors.white,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.gray[200],
+    backgroundColor: colors.primary[900],
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing[4],
-    paddingHorizontal: spacing[6],
+    paddingHorizontal: spacing[4],
     borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    borderBottomColor: colors.primary[950],
   },
   settingIcon: {
     width: ms(28, 0.5),
@@ -226,29 +237,19 @@ const styles = StyleSheet.create({
   },
   settingTitle: {
     ...typography.body,
-    color: colors.gray[900],
+    color: colors.white,
   },
   settingDescription: {
     ...typography.caption,
-    color: colors.gray[500],
+    color: colors.gray[400],
     marginTop: spacing[1],
   },
-  dangerSection: {
-    marginBottom: spacing[10],
-  },
   dangerContent: {
-    backgroundColor: colors.error[50],
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.error[200],
-    padding: spacing[6],
+    padding: spacing[4],
   },
   dangerDescription: {
     ...typography.bodySmall,
-    color: colors.error[700],
+    color: colors.gray[300],
     marginBottom: spacing[4],
-  },
-  deleteButton: {
-    borderColor: colors.error[500],
   },
 });

@@ -19,6 +19,8 @@ export type AnomalyReason =
   | 'technical_issue'
   | 'all_good';
 
+export type AnomalyType = 'overtime' | 'route_deviation' | 'prolonged_stop' | 'generic';
+
 interface AnomalyOption {
   reason: AnomalyReason;
   icon: keyof typeof Ionicons.glyphMap;
@@ -89,20 +91,59 @@ const ANOMALY_OPTIONS: AnomalyOption[] = [
   },
 ];
 
+interface AnomalyTitleConfig {
+  title: string;
+  subtitle: string;
+}
+
+function getAnomalyTitleConfig(anomalyType: AnomalyType): AnomalyTitleConfig {
+  switch (anomalyType) {
+    case 'overtime':
+      return {
+        title: 'Retard detecte',
+        subtitle: 'Tu as depasse ton heure d\'arrivee estimee. Que se passe-t-il ?',
+      };
+    case 'route_deviation':
+      return {
+        title: 'Changement de trajet detecte',
+        subtitle: 'Tu sembles avoir devie de ton itineraire prevu. Tout va bien ?',
+      };
+    case 'prolonged_stop':
+      return {
+        title: 'Arret prolonge',
+        subtitle: 'Ton trajet semble a l\'arret depuis un moment. Que se passe-t-il ?',
+      };
+    default:
+      return {
+        title: 'Que se passe-t-il ?',
+        subtitle: 'Selectionne la raison qui correspond le mieux a ta situation.',
+      };
+  }
+}
+
 interface AnomalyDialogProps {
   visible: boolean;
   onClose: () => void;
   onSelect: (reason: AnomalyReason) => void;
+  anomalyType?: AnomalyType;
 }
 
-export function AnomalyDialog({ visible, onClose, onSelect }: AnomalyDialogProps) {
+export function AnomalyDialog({
+  visible,
+  onClose,
+  onSelect,
+  anomalyType = 'generic',
+}: AnomalyDialogProps) {
+  const config = getAnomalyTitleConfig(anomalyType);
+
   return (
     <BottomSheet
       visible={visible}
       onClose={onClose}
-      title="Que se passe-t-il ?"
+      title={config.title}
       snapPoints={[0.75]}
     >
+      <Text style={styles.subtitle}>{config.subtitle}</Text>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
@@ -167,6 +208,11 @@ function AnomalyOptionRow({
 }
 
 const styles = StyleSheet.create({
+  subtitle: {
+    ...typography.bodySmall,
+    color: colors.gray[500],
+    marginBottom: spacing[4],
+  },
   listContent: {
     paddingBottom: spacing[10],
   },

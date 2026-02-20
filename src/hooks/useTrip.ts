@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as tripService from '@/src/services/tripService';
-import { TripCreateInput, TripRow } from '@/src/types/trip';
+import type { CreateTripInput } from '@/src/services/tripService';
 
 const QUERY_KEYS = {
   trips: ['trips'] as const,
@@ -17,7 +17,7 @@ export function useTrip() {
   });
 
   const createTripMutation = useMutation({
-    mutationFn: (input: TripCreateInput) => tripService.createTrip(input),
+    mutationFn: (input: CreateTripInput) => tripService.createTrip(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.trips });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.activeTrip });
@@ -54,6 +54,15 @@ export function useTrip() {
     },
   });
 
+  const extendTripMutation = useMutation({
+    mutationFn: ({ id, minutes }: { id: string; minutes: number }) =>
+      tripService.extendTrip(id, minutes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.trips });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.activeTrip });
+    },
+  });
+
   return {
     trips: tripsQuery.data ?? [],
     isLoading: tripsQuery.isLoading,
@@ -68,5 +77,7 @@ export function useTrip() {
     isCancelling: cancelTripMutation.isPending,
     completeTrip: completeTripMutation.mutateAsync,
     isCompleting: completeTripMutation.isPending,
+    extendTrip: extendTripMutation.mutateAsync,
+    isExtending: extendTripMutation.isPending,
   };
 }

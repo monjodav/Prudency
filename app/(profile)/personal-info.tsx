@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Pressable,
   Alert,
 } from 'react-native';
@@ -13,7 +12,9 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
+import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { useAuthStore } from '@/src/stores/authStore';
+import { supabase } from '@/src/services/supabaseClient';
 import { ms, scaledFontSize, scaledIcon } from '@/src/utils/scaling';
 
 export default function PersonalInfoScreen() {
@@ -30,10 +31,17 @@ export default function PersonalInfoScreen() {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // Placeholder: update profile
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+        },
+      });
+
+      if (error) throw error;
+
       setIsEditing(false);
-      Alert.alert('Succes', 'Vos informations ont ete mises a jour.');
+      Alert.alert('Succes', 'Tes informations ont ete mises a jour.');
     } catch {
       Alert.alert('Erreur', 'Une erreur est survenue.');
     } finally {
@@ -52,7 +60,7 @@ export default function PersonalInfoScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <DarkScreen scrollable avoidKeyboard>
       <View style={styles.avatarSection}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
@@ -60,7 +68,7 @@ export default function PersonalInfoScreen() {
           </Text>
         </View>
         <Pressable style={styles.changeAvatarButton}>
-          <FontAwesome name="camera" size={scaledIcon(14)} color={colors.primary[500]} />
+          <FontAwesome name="camera" size={scaledIcon(14)} color={colors.primary[300]} />
           <Text style={styles.changeAvatarText}>Changer la photo</Text>
         </Pressable>
       </View>
@@ -71,7 +79,7 @@ export default function PersonalInfoScreen() {
           value={formData.firstName}
           onChangeText={(value) => setFormData((prev) => ({ ...prev, firstName: value }))}
           editable={isEditing}
-          placeholder="Votre prenom"
+          placeholder="Ton prenom"
         />
 
         <Input
@@ -79,7 +87,7 @@ export default function PersonalInfoScreen() {
           value={formData.lastName}
           onChangeText={(value) => setFormData((prev) => ({ ...prev, lastName: value }))}
           editable={isEditing}
-          placeholder="Votre nom"
+          placeholder="Ton nom"
         />
 
         <Input
@@ -89,7 +97,7 @@ export default function PersonalInfoScreen() {
           editable={isEditing}
           keyboardType="email-address"
           autoCapitalize="none"
-          placeholder="votre@email.com"
+          placeholder="ton@email.com"
         />
 
         <View style={styles.phoneSection}>
@@ -123,7 +131,6 @@ export default function PersonalInfoScreen() {
               variant="outline"
               onPress={handleCancel}
               fullWidth
-              style={styles.cancelButton}
             />
           </>
         ) : (
@@ -134,19 +141,11 @@ export default function PersonalInfoScreen() {
           />
         )}
       </View>
-    </ScrollView>
+    </DarkScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  content: {
-    paddingHorizontal: spacing[6],
-    paddingVertical: spacing[6],
-  },
   avatarSection: {
     alignItems: 'center',
     marginBottom: spacing[8],
@@ -155,7 +154,7 @@ const styles = StyleSheet.create({
     width: ms(100, 0.5),
     height: ms(100, 0.5),
     borderRadius: ms(100, 0.5) / 2,
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.primary[700],
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing[3],
@@ -172,10 +171,10 @@ const styles = StyleSheet.create({
   },
   changeAvatarText: {
     ...typography.bodySmall,
-    color: colors.primary[500],
+    color: colors.primary[300],
   },
   form: {
-    gap: spacing[4],
+    gap: spacing[1],
     marginBottom: spacing[8],
   },
   phoneSection: {
@@ -186,12 +185,9 @@ const styles = StyleSheet.create({
   },
   changePhoneText: {
     ...typography.bodySmall,
-    color: colors.primary[500],
+    color: colors.primary[300],
   },
   actions: {
     gap: spacing[3],
-  },
-  cancelButton: {
-    marginTop: 0,
   },
 });

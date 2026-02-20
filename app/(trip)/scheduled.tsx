@@ -13,8 +13,8 @@ import { useTrip } from '@/src/hooks/useTrip';
 import { useLocation } from '@/src/hooks/useLocation';
 import { useTripStore } from '@/src/stores/tripStore';
 import { fetchDirections } from '@/src/services/directionsService';
-import { formatTime, formatDuration } from '@/src/utils/formatters';
-import { scaledIcon, scaledRadius, ms } from '@/src/utils/scaling';
+import { formatTime } from '@/src/utils/formatters';
+import { scaledIcon, ms } from '@/src/utils/scaling';
 import type { DecodedRoute } from '@/src/services/directionsService';
 
 export default function ScheduledTripScreen() {
@@ -26,7 +26,8 @@ export default function ScheduledTripScreen() {
 
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
-  const [minutesUntilStart, setMinutesUntilStart] = useState(0);
+  const [expanded, setExpanded] = useState(true);
+  const [showRoute, setShowRoute] = useState(false);
   const [route, setRoute] = useState<DecodedRoute | null>(null);
 
   const departure = trip?.departure_lat != null && trip?.departure_lng != null
@@ -51,6 +52,8 @@ export default function ScheduledTripScreen() {
 
   const estimatedDuration = trip?.estimated_duration_minutes ?? 30;
 
+  const [minutesUntilStart, setMinutesUntilStart] = useState(0);
+
   useEffect(() => {
     const update = () => {
       const diff = scheduledAt.getTime() - Date.now();
@@ -61,11 +64,9 @@ export default function ScheduledTripScreen() {
     return () => clearInterval(interval);
   }, [scheduledAt]);
 
-  const getTimeUntilLabel = useCallback((): string => {
-    if (minutesUntilStart <= 0) return 'Maintenant';
-    if (minutesUntilStart === 1) return 'Dans 1 minute';
-    return `Dans ${minutesUntilStart} minutes`;
-  }, [minutesUntilStart]);
+  const getStartTimeLabel = useCallback((): string => {
+    return formatTime(scheduledAt);
+  }, [scheduledAt]);
 
   const handleStartNow = async () => {
     setIsStarting(true);
@@ -75,10 +76,6 @@ export default function ScheduledTripScreen() {
     } catch {
       setIsStarting(false);
     }
-  };
-
-  const handleModify = () => {
-    router.push('/(trip)/create');
   };
 
   const handleCancelTrip = async () => {
@@ -97,93 +94,100 @@ export default function ScheduledTripScreen() {
     }
   };
 
+  const formatMinSec = (min: number): string => {
+    const m = Math.floor(min);
+    return `${m}m 00s`;
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="time-outline" size={scaledIcon(48)} color={colors.primary[500]} />
+      <TripMap
+        departure={departure}
+        arrival={arrivalLoc}
+        routeCoordinates={showRoute ? route?.polyline : undefined}
+        style={styles.fullMap}
+      />
+
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          <Pressable style={styles.cardHeader} onPress={() => setExpanded(!expanded)}>
+            <View style={styles.cardHeaderLeft}>
+              <Ionicons name="time-outline" size={scaledIcon(20)} color={colors.white} />
+              <View>
+                <Text style={styles.cardTitle}>Trajet a venir</Text>
+                <Text style={styles.cardSubtitle}>
+                  Debut du trajet a {getStartTimeLabel()}
+                </Text>
+              </View>
+            </View>
+            <Ionicons
+              name={expanded ? 'eye-outline' : 'eye-off-outline'}
+              size={scaledIcon(20)}
+              color={colors.white}
+            />
+          </Pressable>
+
+          {expanded && (
+            <View style={styles.cardBody}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Destination</Text>
+                <Text style={styles.detailValue} numberOfLines={1}>
+                  {trip?.arrival_address ?? 'Non definie'}
+                </Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Contacts</Text>
+                <Text style={styles.detailValue}>-</Text>
+              </View>
+
+              <View style={styles.timeRow}>
+                <View style={styles.timeItem}>
+                  <Text style={styles.timeLabel}>Temps ecoule</Text>
+                  <Text style={styles.timeValue}>00m 00s</Text>
+                </View>
+                <View style={styles.timeItem}>
+                  <Text style={styles.timeLabel}>Temps restant</Text>
+                  <Text style={styles.timeValue}>{formatMinSec(estimatedDuration)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '0%' }]} />
+              </View>
+
+              <Button
+                title="Commencer le trajet"
+                onPress={handleStartNow}
+                loading={isStarting}
+                fullWidth
+                size="lg"
+                icon={<Ionicons name="play" size={scaledIcon(18)} color={colors.white} />}
+              />
+
+              <Button
+                title={showRoute ? 'Masquer le trajet' : 'Afficher le trajet'}
+                variant="outline"
+                onPress={() => setShowRoute(!showRoute)}
+                fullWidth
+                icon={
+                  <Ionicons
+                    name={showRoute ? 'eye-off-outline' : 'eye-outline'}
+                    size={scaledIcon(18)}
+                    color={colors.primary[50]}
+                  />
+                }
+              />
+
+              <Pressable
+                style={styles.cancelLink}
+                onPress={() => setShowCancelConfirmation(true)}
+              >
+                <Text style={styles.cancelLinkText}>Annuler le trajet</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
-        <Text style={styles.title}>Trajet programme</Text>
-        <Text style={styles.timeUntil}>{getTimeUntilLabel()}</Text>
-      </View>
-
-      {(departure || arrivalLoc) && (
-        <TripMap
-          departure={departure}
-          arrival={arrivalLoc}
-          routeCoordinates={route?.polyline}
-          style={styles.tripMap}
-        />
-      )}
-
-      <View style={styles.tripCard}>
-        <View style={styles.tripRow}>
-          <View style={styles.tripIcon}>
-            <Ionicons name="flag-outline" size={scaledIcon(18)} color={colors.primary[500]} />
-          </View>
-          <View style={styles.tripInfo}>
-            <Text style={styles.tripLabel}>Destination</Text>
-            <Text style={styles.tripValue}>
-              {trip?.arrival_address ?? 'Non definie'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.tripRow}>
-          <View style={styles.tripIcon}>
-            <Ionicons name="calendar-outline" size={scaledIcon(18)} color={colors.primary[500]} />
-          </View>
-          <View style={styles.tripInfo}>
-            <Text style={styles.tripLabel}>Depart prevu</Text>
-            <Text style={styles.tripValue}>{formatTime(scheduledAt)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.tripRow}>
-          <View style={styles.tripIcon}>
-            <Ionicons name="hourglass-outline" size={scaledIcon(18)} color={colors.primary[500]} />
-          </View>
-          <View style={styles.tripInfo}>
-            <Text style={styles.tripLabel}>Duree estimee</Text>
-            <Text style={styles.tripValue}>{formatDuration(estimatedDuration)}</Text>
-          </View>
-        </View>
-
-      </View>
-
-      <View style={styles.actions}>
-        <Button
-          title="Demarrer maintenant"
-          onPress={handleStartNow}
-          loading={isStarting}
-          fullWidth
-          size="lg"
-          icon={<Ionicons name="play" size={scaledIcon(20)} color={colors.white} />}
-        />
-        <Button
-          title="Modifier"
-          variant="outline"
-          onPress={handleModify}
-          fullWidth
-          icon={<Ionicons name="create-outline" size={scaledIcon(20)} color={colors.primary[50]} />}
-        />
-        <Pressable
-          style={styles.cancelButton}
-          onPress={() => setShowCancelConfirmation(true)}
-        >
-          <Text style={styles.cancelText}>Annuler le trajet</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.noticeContainer}>
-        <Ionicons name="information-circle-outline" size={scaledIcon(18)} color={colors.info[500]} />
-        <Text style={styles.noticeText}>
-          Vous recevrez une notification quand il sera l'heure de partir
-        </Text>
       </View>
 
       <Modal
@@ -217,97 +221,98 @@ export default function ScheduledTripScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
-    padding: spacing[6],
+    backgroundColor: colors.primary[950],
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: spacing[8],
+  fullMap: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 0,
   },
-  iconContainer: {
-    width: ms(96, 0.5),
-    height: ms(96, 0.5),
-    borderRadius: ms(96, 0.5) / 2,
-    backgroundColor: colors.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing[4],
+  overlay: {
+    position: 'absolute',
+    top: ms(60, 0.5),
+    left: spacing[4],
+    right: spacing[4],
   },
-  title: {
-    ...typography.h2,
-    color: colors.gray[900],
-  },
-  timeUntil: {
-    ...typography.body,
-    color: colors.primary[500],
-    fontWeight: '600',
-    marginTop: spacing[2],
-  },
-  tripMap: {
-    marginBottom: spacing[4],
-  },
-  tripCard: {
-    backgroundColor: colors.gray[50],
+  card: {
+    backgroundColor: 'rgba(90, 53, 107, 0.92)',
     borderRadius: borderRadius.xl,
-    padding: spacing[5],
-    marginBottom: spacing[6],
+    overflow: 'hidden',
   },
-  tripRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  tripIcon: {
-    width: ms(40, 0.5),
-    height: ms(40, 0.5),
-    borderRadius: ms(40, 0.5) / 2,
-    backgroundColor: colors.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing[4],
-  },
-  tripInfo: {
-    flex: 1,
-  },
-  tripLabel: {
-    ...typography.caption,
-    color: colors.gray[500],
-    textTransform: 'uppercase',
-  },
-  tripValue: {
-    ...typography.body,
-    color: colors.gray[900],
-    fontWeight: '600',
-    marginTop: spacing[1],
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.gray[200],
-    marginVertical: spacing[4],
-  },
-  actions: {
-    gap: spacing[3],
-    marginBottom: spacing[6],
-  },
-  cancelButton: {
-    alignItems: 'center',
-    paddingVertical: spacing[3],
-  },
-  cancelText: {
-    ...typography.body,
-    color: colors.error[500],
-  },
-  noticeContainer: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[3],
-    backgroundColor: colors.info[50],
+    justifyContent: 'space-between',
     padding: spacing[4],
-    borderRadius: borderRadius.lg,
   },
-  noticeText: {
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  cardTitle: {
     ...typography.bodySmall,
-    color: colors.info[700],
-    flex: 1,
+    color: colors.white,
+    fontWeight: '600',
+  },
+  cardSubtitle: {
+    ...typography.caption,
+    color: colors.success[400],
+  },
+  cardBody: {
+    paddingHorizontal: spacing[4],
+    paddingBottom: spacing[4],
+    gap: spacing[3],
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detailLabel: {
+    ...typography.caption,
+    color: colors.gray[300],
+  },
+  detailValue: {
+    ...typography.bodySmall,
+    color: colors.white,
+    fontWeight: '600',
+    maxWidth: '60%',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  timeItem: {
+    alignItems: 'center',
+  },
+  timeLabel: {
+    ...typography.caption,
+    color: colors.gray[300],
+    marginBottom: spacing[1],
+  },
+  timeValue: {
+    ...typography.bodySmall,
+    color: colors.white,
+    fontWeight: '600',
+  },
+  progressBar: {
+    height: ms(4, 0.3),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.success[400],
+    borderRadius: borderRadius.full,
+  },
+  cancelLink: {
+    alignItems: 'center',
+    paddingVertical: spacing[1],
+  },
+  cancelLinkText: {
+    ...typography.bodySmall,
+    color: colors.error[400],
   },
   confirmText: {
     ...typography.body,

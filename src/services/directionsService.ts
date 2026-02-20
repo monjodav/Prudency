@@ -73,7 +73,6 @@ export async function fetchDirections(
   mode: TravelMode = 'driving',
 ): Promise<DecodedRoute | null> {
   if (!env.googleMapsApiKey) {
-    console.warn('Google Maps API key not configured');
     return null;
   }
 
@@ -88,14 +87,12 @@ export async function fetchDirections(
   const response = await fetch(`${DIRECTIONS_API_URL}?${params.toString()}`);
 
   if (!response.ok) {
-    console.warn(`Directions API HTTP error: ${response.status}`);
     return null;
   }
 
   const data: DirectionsApiResponse = await response.json();
 
   if (data.status !== 'OK' || data.routes.length === 0) {
-    console.warn(`Directions API status: ${data.status}`);
     return null;
   }
 

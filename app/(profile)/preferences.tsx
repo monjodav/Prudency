@@ -3,207 +3,201 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Switch,
-  Pressable,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
-import { ms, scaledIcon } from '@/src/utils/scaling';
+import { Input } from '@/src/components/ui/Input';
+import { Button } from '@/src/components/ui/Button';
+import { DarkScreen } from '@/src/components/ui/DarkScreen';
+import { Slider } from '@/src/components/ui/Slider';
+import { ms } from '@/src/utils/scaling';
 
-interface PreferenceItemProps {
-  icon: React.ComponentProps<typeof FontAwesome>['name'];
-  title: string;
-  description?: string;
-  value: boolean;
-  onValueChange: (value: boolean) => void;
+function SectionHeader({ title }: { title: string }) {
+  return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
-function PreferenceItem({
-  icon,
-  title,
-  description,
+function ToggleRow({
+  label,
   value,
   onValueChange,
-}: PreferenceItemProps) {
+}: {
+  label: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+}) {
   return (
-    <View style={styles.preferenceItem}>
-      <FontAwesome name={icon} size={scaledIcon(20)} color={colors.gray[600]} style={styles.preferenceIcon} />
-      <View style={styles.preferenceContent}>
-        <Text style={styles.preferenceTitle}>{title}</Text>
-        {description && (
-          <Text style={styles.preferenceDescription}>{description}</Text>
-        )}
-      </View>
+    <View style={styles.toggleRow}>
+      <Text style={styles.toggleLabel}>{label}</Text>
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: colors.gray[300], true: colors.primary[400] }}
-        thumbColor={value ? colors.primary[500] : colors.gray[50]}
-        ios_backgroundColor={colors.gray[300]}
+        trackColor={{ false: colors.gray[700], true: colors.primary[400] }}
+        thumbColor={value ? colors.primary[500] : colors.gray[400]}
       />
     </View>
   );
 }
 
-interface SelectItemProps {
-  icon: React.ComponentProps<typeof FontAwesome>['name'];
-  title: string;
-  value: string;
-  onPress: () => void;
-}
-
-function SelectItem({ icon, title, value, onPress }: SelectItemProps) {
-  return (
-    <Pressable style={styles.preferenceItem} onPress={onPress}>
-      <FontAwesome name={icon} size={scaledIcon(20)} color={colors.gray[600]} style={styles.preferenceIcon} />
-      <View style={styles.preferenceContent}>
-        <Text style={styles.preferenceTitle}>{title}</Text>
-      </View>
-      <Text style={styles.selectValue}>{value}</Text>
-      <FontAwesome name="chevron-right" size={scaledIcon(12)} color={colors.gray[400]} />
-    </Pressable>
-  );
-}
-
 export default function PreferencesScreen() {
-  const [preferences, setPreferences] = useState({
-    notifications: true,
-    soundAlerts: true,
-    hapticFeedback: true,
-    autoStartLocation: false,
-    darkMode: false,
-    language: 'Francais',
-    units: 'Kilometres',
-  });
+  const [alertTime, setAlertTime] = useState(15);
+  const [delayTolerance, setDelayTolerance] = useState(15);
+  const [alertDistance, setAlertDistance] = useState(2);
+  const [stopTime, setStopTime] = useState(10);
 
-  const handleToggle = (key: keyof typeof preferences) => {
-    setPreferences((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
+  const [questionCancelTrip, setQuestionCancelTrip] = useState(true);
+  const [questionEndTrip, setQuestionEndTrip] = useState(true);
+  const [securityQuestion, setSecurityQuestion] = useState('Quel est le prenom de ton pere ?');
+  const [securityAnswer, setSecurityAnswer] = useState('');
+
+  const [passwordCancelTrip, setPasswordCancelTrip] = useState(false);
+  const [passwordEndTrip, setPasswordEndTrip] = useState(false);
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
-        <View style={styles.sectionContent}>
-          <PreferenceItem
-            icon="bell"
-            title="Notifications push"
-            description="Recevoir des alertes sur votre telephone"
-            value={preferences.notifications}
-            onValueChange={() => handleToggle('notifications')}
-          />
-          <PreferenceItem
-            icon="volume-up"
-            title="Alertes sonores"
-            description="Jouer un son lors des alertes"
-            value={preferences.soundAlerts}
-            onValueChange={() => handleToggle('soundAlerts')}
-          />
-          <PreferenceItem
-            icon="hand-paper-o"
-            title="Retour haptique"
-            description="Vibrations lors des interactions"
-            value={preferences.hapticFeedback}
-            onValueChange={() => handleToggle('hapticFeedback')}
-          />
+    <DarkScreen scrollable avoidKeyboard>
+      <SectionHeader title="Alertes automatiques" />
+      <View style={styles.card}>
+        <Slider
+          label="Temps avant envoi d'alerte"
+          value={alertTime}
+          min={5}
+          max={30}
+          step={5}
+          unit=" min"
+          onChange={setAlertTime}
+        />
+        <Slider
+          label="Retard acceptable"
+          value={delayTolerance}
+          min={5}
+          max={30}
+          step={5}
+          unit=" min"
+          onChange={setDelayTolerance}
+        />
+
+        <View style={styles.warningBanner}>
+          <Text style={styles.warningText}>Fonctionnalite a venir</Text>
         </View>
+        <Slider
+          label="Distance avant envoi d'alerte"
+          value={alertDistance}
+          min={0.5}
+          max={5}
+          step={0.5}
+          unit=" km"
+          onChange={setAlertDistance}
+          disabled
+        />
+
+        <Slider
+          label="Temps d'arret"
+          value={stopTime}
+          min={5}
+          max={30}
+          step={5}
+          unit=" min"
+          onChange={setStopTime}
+        />
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Localisation</Text>
-        <View style={styles.sectionContent}>
-          <PreferenceItem
-            icon="location-arrow"
-            title="Demarrage automatique"
-            description="Demarrer le tracking GPS automatiquement"
-            value={preferences.autoStartLocation}
-            onValueChange={() => handleToggle('autoStartLocation')}
-          />
-        </View>
+      <SectionHeader title="Confirmations intelligentes" />
+      <View style={styles.card}>
+        <Text style={styles.sublabel}>Question de securite a double sens</Text>
+        <ToggleRow
+          label="Annuler le trajet"
+          value={questionCancelTrip}
+          onValueChange={setQuestionCancelTrip}
+        />
+        <ToggleRow
+          label="Terminer le trajet"
+          value={questionEndTrip}
+          onValueChange={setQuestionEndTrip}
+        />
+        <Input
+          label="Question actuelle"
+          value={securityQuestion}
+          onChangeText={setSecurityQuestion}
+          placeholder="Ta question de securite"
+        />
+        <Input
+          label="Reponse actuelle validee"
+          value={securityAnswer}
+          onChangeText={setSecurityAnswer}
+          placeholder="Ta reponse"
+        />
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Apparence</Text>
-        <View style={styles.sectionContent}>
-          <PreferenceItem
-            icon="moon-o"
-            title="Mode sombre"
-            description="Utiliser le theme sombre"
-            value={preferences.darkMode}
-            onValueChange={() => handleToggle('darkMode')}
-          />
-          <SelectItem
-            icon="globe"
-            title="Langue"
-            value={preferences.language}
-            onPress={() => {}}
-          />
-          <SelectItem
-            icon="tachometer"
-            title="Unites"
-            value={preferences.units}
-            onPress={() => {}}
-          />
-        </View>
+      <SectionHeader title="Mot de passe" />
+      <View style={styles.card}>
+        <ToggleRow
+          label="Annuler le trajet"
+          value={passwordCancelTrip}
+          onValueChange={setPasswordCancelTrip}
+        />
+        <ToggleRow
+          label="Terminer le trajet"
+          value={passwordEndTrip}
+          onValueChange={setPasswordEndTrip}
+        />
       </View>
-    </ScrollView>
+
+      <Button
+        title="Enregistrer"
+        onPress={() => {}}
+        fullWidth
+        style={styles.saveButton}
+      />
+    </DarkScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.gray[50],
-  },
-  section: {
-    marginBottom: spacing[6],
-  },
   sectionTitle: {
     ...typography.label,
-    color: colors.gray[500],
+    color: colors.gray[400],
     textTransform: 'uppercase',
-    paddingHorizontal: spacing[6],
-    paddingVertical: spacing[3],
+    marginTop: spacing[4],
+    marginBottom: spacing[3],
   },
-  sectionContent: {
-    backgroundColor: colors.white,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.gray[200],
+  card: {
+    backgroundColor: colors.primary[900],
+    borderRadius: borderRadius.lg,
+    padding: spacing[4],
+    marginBottom: spacing[2],
   },
-  preferenceItem: {
+  sublabel: {
+    ...typography.bodySmall,
+    color: colors.gray[300],
+    marginBottom: spacing[3],
+  },
+  toggleRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing[4],
-    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[3],
     borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    borderBottomColor: colors.primary[950],
   },
-  preferenceIcon: {
-    width: ms(28, 0.5),
-  },
-  preferenceContent: {
-    flex: 1,
-    marginLeft: spacing[3],
-  },
-  preferenceTitle: {
+  toggleLabel: {
     ...typography.body,
-    color: colors.gray[900],
+    color: colors.white,
   },
-  preferenceDescription: {
+  warningBanner: {
+    backgroundColor: colors.warning[600],
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    alignSelf: 'flex-start',
+    marginBottom: spacing[3],
+  },
+  warningText: {
     ...typography.caption,
-    color: colors.gray[500],
-    marginTop: spacing[1],
+    color: colors.white,
+    fontWeight: '600',
   },
-  selectValue: {
-    ...typography.body,
-    color: colors.gray[500],
-    marginRight: spacing[2],
+  saveButton: {
+    marginTop: spacing[6],
   },
 });

@@ -15,9 +15,11 @@ import { colors } from '@/src/theme/colors';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
+import { Modal } from '@/src/components/ui/Modal';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useSocialAuth } from '@/src/hooks/useSocialAuth';
 import { AuthError } from '@supabase/supabase-js';
+import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { scaledSpacing, scaledFontSize, scaledIcon, ms } from '@/src/utils/scaling';
 
 export default function LoginScreen() {
@@ -34,6 +36,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showDeletedModal, setShowDeletedModal] = useState(false);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -61,7 +64,7 @@ export default function LoginScreen() {
         if (err.message.includes('Invalid login credentials')) {
           setErrors({ password: 'Ton mot de passe est invalide' });
         } else if (err.message.includes('user_not_found') || err.message.includes('User not found')) {
-          setErrors({ submit: "Ce compte n'existe plus. Tu peux en créer un nouveau." });
+          setShowDeletedModal(true);
         } else {
           setErrors({ submit: err.message });
         }
@@ -102,10 +105,15 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Logo */}
+          <View style={styles.logoTopContainer}>
+            <PrudencyLogo size="md" />
+          </View>
+
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Connexion</Text>
-            <Text style={styles.subtitle}>Bon retour parmi nous !</Text>
+            <Text style={styles.subtitle}>Accède à ton espace</Text>
           </View>
 
           {/* Form */}
@@ -165,7 +173,7 @@ export default function LoginScreen() {
             {/* Register link */}
             <View style={styles.registerLinkContainer}>
               <Text style={styles.registerLinkText}>
-                Tu n'as pas encore de compte ?{'\n'}
+                Tu n'as pas encore de compte ?{' '}
                 <Link href="/(auth)/register" asChild>
                   <Text style={styles.registerLinkAction}>Inscris-toi !</Text>
                 </Link>
@@ -208,12 +216,23 @@ export default function LoginScreen() {
             )}
           </View>
 
-          {/* Logo at bottom */}
-          <View style={styles.logoContainer}>
-            <Text style={styles.logo}>PRUDENCY</Text>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showDeletedModal}
+        onClose={() => setShowDeletedModal(false)}
+        title="Compte supprimé"
+      >
+        <Text style={styles.modalText}>
+          Ce compte n'existe plus. Tu peux en créer un nouveau.
+        </Text>
+        <Button
+          title="Ok"
+          onPress={() => setShowDeletedModal(false)}
+          fullWidth
+        />
+      </Modal>
     </OnboardingBackground>
   );
 }
@@ -256,7 +275,7 @@ const styles = StyleSheet.create({
     gap: scaledSpacing(16),
   },
   forgotPasswordContainer: {
-    alignItems: 'center',
+    alignItems: 'flex-end',
     marginTop: scaledSpacing(8),
   },
   forgotPassword: {
@@ -301,16 +320,13 @@ const styles = StyleSheet.create({
     color: colors.primary[50],
     marginHorizontal: scaledSpacing(16),
   },
-  logoContainer: {
+  logoTopContainer: {
     alignItems: 'center',
-    marginTop: scaledSpacing(32),
+    marginBottom: scaledSpacing(24),
   },
-  logo: {
-    fontSize: scaledFontSize(35),
-    fontWeight: '200',
-    fontFamily: 'Montserrat_200ExtraLight',
-    color: colors.white,
-    letterSpacing: ms(2, 0.3),
-    textAlign: 'center',
+  modalText: {
+    fontSize: scaledFontSize(16),
+    color: colors.gray[700],
+    marginBottom: scaledSpacing(24),
   },
 });

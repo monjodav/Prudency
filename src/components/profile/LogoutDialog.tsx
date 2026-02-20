@@ -7,6 +7,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
@@ -70,6 +71,23 @@ export function LogoutDialog({
     onCancel();
   };
 
+  const handleForgotPassword = () => {
+    handleCancel();
+    Alert.alert(
+      'Mot de passe oublie',
+      'Un email de reinitialisation te sera envoye.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Envoyer',
+          onPress: () => {
+            Alert.alert('Email envoye', 'Verifie ta boite mail.');
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <Modal
       visible={visible}
@@ -88,7 +106,7 @@ export function LogoutDialog({
               <Ionicons
                 name="log-out-outline"
                 size={scaledIcon(28)}
-                color={colors.error[500]}
+                color={colors.error[400]}
               />
             </View>
             <Text style={styles.title}>Deconnexion</Text>
@@ -114,15 +132,18 @@ export function LogoutDialog({
             secureTextEntry
             secureToggle
             error={error}
-            variant="light"
             autoCapitalize="none"
             autoCorrect={false}
             containerStyle={styles.inputContainer}
           />
 
+          <Pressable onPress={handleForgotPassword} style={styles.forgotPassword}>
+            <Text style={styles.forgotPasswordText}>Mot de passe oublie ?</Text>
+          </Pressable>
+
           <View style={styles.actions}>
             <Button
-              title="Confirmer la deconnexion"
+              title="Je me deconnecte"
               variant="danger"
               onPress={handleConfirm}
               loading={isVerifying}
@@ -134,7 +155,6 @@ export function LogoutDialog({
               variant="ghost"
               onPress={handleCancel}
               fullWidth
-              style={styles.cancelButton}
             />
           </View>
         </View>
@@ -156,9 +176,11 @@ const styles = StyleSheet.create({
   dialog: {
     width: '90%',
     maxWidth: ms(400, 0.5),
-    backgroundColor: colors.white,
+    backgroundColor: colors.primary[950],
     borderRadius: borderRadius.xl,
     padding: spacing[6],
+    borderWidth: 1,
+    borderColor: colors.primary[900],
   },
   header: {
     alignItems: 'center',
@@ -168,14 +190,14 @@ const styles = StyleSheet.create({
     width: ms(56, 0.5),
     height: ms(56, 0.5),
     borderRadius: ms(56, 0.5) / 2,
-    backgroundColor: colors.error[50],
+    backgroundColor: colors.error[950],
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing[3],
   },
   title: {
     ...typography.h3,
-    color: colors.gray[900],
+    color: colors.white,
     fontWeight: '600',
   },
   consequencesList: {
@@ -197,16 +219,21 @@ const styles = StyleSheet.create({
   },
   consequenceText: {
     ...typography.bodySmall,
-    color: colors.gray[700],
+    color: colors.gray[300],
     flex: 1,
   },
   inputContainer: {
+    marginBottom: spacing[1],
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
     marginBottom: spacing[5],
+  },
+  forgotPasswordText: {
+    ...typography.bodySmall,
+    color: colors.primary[300],
   },
   actions: {
     gap: spacing[2],
-  },
-  cancelButton: {
-    borderColor: colors.transparent,
   },
 });

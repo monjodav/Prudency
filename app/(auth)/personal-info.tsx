@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
 import { useAuth } from '@/src/hooks/useAuth';
+import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, scaledIcon, ms } from '@/src/utils/scaling';
 
 /**
@@ -95,6 +97,11 @@ export default function PersonalInfoScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Logo */}
+          <View style={styles.logoTopContainer}>
+            <PrudencyLogo size="md" />
+          </View>
+
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Tes informations</Text>
@@ -159,9 +166,19 @@ export default function PersonalInfoScreen() {
               </View>
               <Text style={styles.termsText}>
                 J'accepte les{' '}
-                <Text style={styles.termsLink}>Conditions générales</Text>
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Alert.alert('Page en construction')}
+                >
+                  Conditions générales
+                </Text>
                 {' '}et la{' '}
-                <Text style={styles.termsLink}>Politique de confidentialité</Text>.
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Alert.alert('Page en construction')}
+                >
+                  Politique de confidentialité
+                </Text>.
               </Text>
             </Pressable>
             {errors.terms && <Text style={styles.errorText}>{errors.terms}</Text>}
@@ -179,10 +196,6 @@ export default function PersonalInfoScreen() {
             </View>
           </View>
 
-          {/* Logo at bottom */}
-          <View style={styles.logoContainer}>
-            <Text style={styles.logo}>PRUDENCY</Text>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </OnboardingBackground>
@@ -229,8 +242,8 @@ const styles = StyleSheet.create({
     marginTop: scaledSpacing(8),
   },
   checkbox: {
-    width: ms(20, 0.5),
-    height: ms(20, 0.5),
+    width: ms(24, 0.5),
+    height: ms(24, 0.5),
     borderWidth: 1,
     borderColor: colors.primary[50],
     borderRadius: scaledRadius(4),
@@ -261,16 +274,8 @@ const styles = StyleSheet.create({
   buttonContainer: {
     marginTop: scaledSpacing(24),
   },
-  logoContainer: {
+  logoTopContainer: {
     alignItems: 'center',
-    marginTop: scaledSpacing(32),
-  },
-  logo: {
-    fontSize: scaledFontSize(35),
-    fontWeight: '200',
-    fontFamily: 'Montserrat_200ExtraLight',
-    color: colors.white,
-    letterSpacing: ms(2, 0.3),
-    textAlign: 'center',
+    marginBottom: scaledSpacing(24),
   },
 });

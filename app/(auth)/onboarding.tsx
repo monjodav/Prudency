@@ -14,6 +14,8 @@ import { colors } from '@/src/theme/colors';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
 import { useAuthStore } from '@/src/stores/authStore';
+import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
+import { SplashLogo } from '@/src/components/splash/SplashLogo';
 import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, scaledIcon, ms } from '@/src/utils/scaling';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -32,7 +34,7 @@ const STEPS: OnboardingStep[] = [
   {
     id: 'welcome',
     icon: 'heart',
-    title: 'Bienvenue sur Prudency, {name}',
+    title: 'Bienvenue sur Prudency, {name} \u{1F499}',
     description:
       'Tu n\'es plus seule pendant tes déplacements. Prudency veille sur toi, à chaque trajet.',
     isWelcome: true,
@@ -177,18 +179,25 @@ export default function OnboardingScreen() {
         scrollEnabled={!isWelcome}
       />
 
-      {/* Pagination dots (not on welcome) */}
+      {/* Progress bar (not on welcome) */}
       {!isWelcome && (
-        <View style={styles.pagination}>
-          {STEPS.slice(1).map((_, index) => (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressTrack}>
             <View
-              key={index}
               style={[
-                styles.dot,
-                index === currentIndex - 1 ? styles.dotActive : styles.dotInactive,
+                styles.progressFill,
+                { width: `${(currentIndex / (STEPS.length - 1)) * 100}%` },
               ]}
             />
-          ))}
+          </View>
+          <View
+            style={[
+              styles.progressPicto,
+              { left: `${(currentIndex / (STEPS.length - 1)) * 100}%` },
+            ]}
+          >
+            <SplashLogo size={24} />
+          </View>
         </View>
       )}
 
@@ -203,10 +212,6 @@ export default function OnboardingScreen() {
         </View>
       )}
 
-      {/* Logo */}
-      <View style={styles.logoContainer}>
-        <Text style={styles.logo}>PRUDENCY</Text>
-      </View>
     </OnboardingBackground>
   );
 }
@@ -281,39 +286,29 @@ const styles = StyleSheet.create({
     color: colors.primary[50],
     opacity: 0.8,
   },
-  pagination: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: scaledSpacing(8),
+  progressContainer: {
+    paddingHorizontal: scaledSpacing(40),
     paddingBottom: scaledSpacing(24),
+    position: 'relative',
   },
-  dot: {
-    width: ms(8, 0.5),
-    height: ms(8, 0.5),
-    borderRadius: scaledRadius(4),
+  progressTrack: {
+    height: ms(4, 0.5),
+    backgroundColor: 'rgba(232, 234, 248, 0.2)',
+    borderRadius: scaledRadius(2),
+    overflow: 'hidden',
   },
-  dotActive: {
+  progressFill: {
+    height: '100%',
     backgroundColor: colors.primary[50],
-    width: ms(24, 0.5),
+    borderRadius: scaledRadius(2),
   },
-  dotInactive: {
-    backgroundColor: colors.primary[50],
-    opacity: 0.3,
+  progressPicto: {
+    position: 'absolute',
+    top: -ms(10, 0.5),
+    marginLeft: -ms(12, 0.5),
   },
   buttonContainer: {
     paddingHorizontal: scaledSpacing(64),
     paddingBottom: scaledSpacing(16),
-  },
-  logoContainer: {
-    alignItems: 'center',
-    paddingBottom: scaledSpacing(40),
-  },
-  logo: {
-    fontSize: scaledFontSize(35),
-    fontWeight: '200',
-    fontFamily: 'Montserrat_200ExtraLight',
-    color: colors.white,
-    letterSpacing: ms(2, 0.3),
-    textAlign: 'center',
   },
 });

@@ -10,7 +10,6 @@ export default function GuardianLayout() {
         },
         headerTintColor: colors.gray[900],
         headerShadowVisible: false,
-        headerBackTitleVisible: false,
       }}
     >
       <Stack.Screen

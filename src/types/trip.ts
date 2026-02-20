@@ -6,27 +6,20 @@ export type TripUpdate = Database['public']['Tables']['trips']['Update'];
 
 export type TripStatus = Database['public']['Enums']['trip_status'];
 
-export interface TripLocation {
+export type TripLocationRow = Database['public']['Tables']['trip_locations']['Row'];
+
+export interface ClientLocation {
   lat: number;
   lng: number;
   accuracy?: number;
   speed?: number;
   heading?: number;
-}
-
-export interface TripCreateInput {
-  estimatedDurationMinutes: number;
-  departureAddress?: string;
-  departureLat?: number;
-  departureLng?: number;
-  arrivalAddress?: string;
-  arrivalLat?: number;
-  arrivalLng?: number;
+  batteryLevel?: number;
 }
 
 export interface ActiveTripState {
   trip: TripRow;
-  currentLocation: TripLocation | null;
+  currentLocation: ClientLocation | null;
   remainingMinutes: number;
   isOvertime: boolean;
 }

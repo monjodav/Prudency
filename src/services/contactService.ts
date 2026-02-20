@@ -30,10 +30,17 @@ export async function getContacts(): Promise<TrustedContactRow[]> {
 }
 
 export async function getContactById(id: string): Promise<TrustedContactRow> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
   const { data, error } = await supabase
     .from('trusted_contacts')
     .select('*')
     .eq('id', id)
+    .eq('user_id', user.id)
     .single();
 
   if (error) {
@@ -58,15 +65,13 @@ export async function createContact(
     user_id: user.id,
     name: validated.name,
     phone: validated.phone,
-    email: validated.email || null,
     is_primary: validated.isPrimary,
-    notify_by_push: validated.notifyByPush,
-    notify_by_sms: validated.notifyBySms,
+    validation_status: 'pending',
   };
 
   const { data, error } = await supabase
     .from('trusted_contacts')
-    .insert(insertData as never)
+    .insert(insertData)
     .select()
     .single();
 
@@ -81,21 +86,26 @@ export async function updateContact(
   id: string,
   input: ContactUpdateInput
 ): Promise<TrustedContactRow> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
   const updateData: TrustedContactUpdate = {
     updated_at: new Date().toISOString(),
   };
 
   if (input.name !== undefined) updateData.name = input.name;
   if (input.phone !== undefined) updateData.phone = input.phone;
-  if (input.email !== undefined) updateData.email = input.email || null;
   if (input.isPrimary !== undefined) updateData.is_primary = input.isPrimary;
-  if (input.notifyByPush !== undefined) updateData.notify_by_push = input.notifyByPush;
-  if (input.notifyBySms !== undefined) updateData.notify_by_sms = input.notifyBySms;
+  if (input.isFavorite !== undefined) updateData.is_favorite = input.isFavorite;
 
   const { data, error } = await supabase
     .from('trusted_contacts')
-    .update(updateData as never)
+    .update(updateData)
     .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single();
 
@@ -106,11 +116,47 @@ export async function updateContact(
   return data as TrustedContactRow;
 }
 
+export async function sendInvitation(contactId: string): Promise<void> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
+  const contact = await getContactById(contactId);
+
+  const { data, error } = await supabase.functions.invoke(
+    'send-contact-invitation',
+    {
+      body: {
+        contactId,
+        recipientPhone: contact.phone,
+        recipientName: contact.name,
+      },
+    },
+  );
+
+  if (error) {
+    throw new Error(
+      error.message ?? "Erreur lors de l'envoi de l'invitation",
+    );
+  }
+
+  return data;
+}
+
 export async function deleteContact(id: string): Promise<void> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
   const { error } = await supabase
     .from('trusted_contacts')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', user.id);
 
   if (error) {
     throw error;

@@ -20,7 +20,7 @@ export function useLocation() {
   const startTracking = useCallback(async () => {
     const permission = await requestLocationPermission();
     if (permission !== 'granted') {
-      throw new Error('Permission de localisation refusée');
+      throw new Error('Permission de localisation refusee');
     }
 
     if (watchRef.current) {
@@ -29,6 +29,7 @@ export function useLocation() {
 
     setTracking(true);
 
+    // Start foreground tracking
     watchRef.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.Balanced,
@@ -61,20 +62,34 @@ export function useLocation() {
         }
       }
     );
+
+    // Also start background tracking for when app is backgrounded
+    try {
+      await locationService.startBackgroundTracking();
+    } catch {
+      // Background tracking not available, foreground tracking still works
+    }
   }, [activeTripId, setTracking, updateLocation, setBatteryLevel]);
 
-  const stopTracking = useCallback(() => {
+  const stopTracking = useCallback(async () => {
     if (watchRef.current) {
       watchRef.current.remove();
       watchRef.current = null;
     }
+
+    try {
+      await locationService.stopBackgroundTracking();
+    } catch {
+      // Ignore errors when stopping background tracking
+    }
+
     setTracking(false);
   }, [setTracking]);
 
   const getCurrentLocation = useCallback(async () => {
     const permission = await requestLocationPermission();
     if (permission !== 'granted') {
-      throw new Error('Permission de localisation refusée');
+      throw new Error('Permission de localisation refusee');
     }
 
     const location = await Location.getCurrentPositionAsync({

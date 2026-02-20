@@ -37,6 +37,13 @@ export function useContacts() {
     },
   });
 
+  const toggleFavorite = async (id: string, currentValue: boolean) => {
+    await updateContactMutation.mutateAsync({
+      id,
+      input: { isFavorite: !currentValue },
+    });
+  };
+
   return {
     contacts: contactsQuery.data ?? [],
     isLoading: contactsQuery.isLoading,
@@ -49,5 +56,6 @@ export function useContacts() {
     isUpdating: updateContactMutation.isPending,
     deleteContact: deleteContactMutation.mutateAsync,
     isDeleting: deleteContactMutation.isPending,
+    toggleFavorite,
   };
 }

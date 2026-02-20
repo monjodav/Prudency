@@ -14,8 +14,11 @@ export default function TripLayout() {
       <Stack.Screen
         name="create"
         options={{
-          title: 'Nouveau trajet',
+          title: 'Ajouter un trajet',
           presentation: 'modal',
+          headerStyle: { backgroundColor: colors.primary[950] },
+          headerTintColor: colors.white,
+          contentStyle: { backgroundColor: colors.primary[950] },
         }}
       />
       <Stack.Screen
