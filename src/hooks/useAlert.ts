@@ -12,7 +12,7 @@ export function useAlert() {
 
   const alertsQuery = useQuery({
     queryKey: QUERY_KEYS.alerts,
-    queryFn: alertService.getAlerts,
+    queryFn: () => alertService.getAlerts(),
   });
 
   const triggerAlertMutation = useMutation({
