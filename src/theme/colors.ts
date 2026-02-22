@@ -111,6 +111,12 @@ export const colors = {
     pulse: '#d44b4b',
   },
 
+  // Overlay colors
+  overlay: {
+    light: 'rgba(0, 0, 0, 0.4)',
+    medium: 'rgba(0, 0, 0, 0.6)',
+  },
+
   // Base colors
   white: '#ffffff',
   black: '#000000',

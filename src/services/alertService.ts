@@ -26,7 +26,10 @@ export async function triggerAlert(input: TriggerAlertInput): Promise<AlertRow> 
   return data;
 }
 
-export async function getAlerts(): Promise<AlertRow[]> {
+export async function getAlerts(
+  limit = 50,
+  offset = 0,
+): Promise<AlertRow[]> {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
@@ -37,7 +40,8 @@ export async function getAlerts(): Promise<AlertRow[]> {
     .from('alerts')
     .select('*')
     .eq('user_id', user.id)
-    .order('triggered_at', { ascending: false });
+    .order('triggered_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) {
     throw error;

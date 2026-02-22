@@ -70,6 +70,8 @@ export function formatBattery(level: number): string {
   return `${level}%`;
 }
 
+// MVP: French phone formatting only (0x xx xx xx xx / +33x xx xx xx xx).
+// Non-French numbers fall through and are returned as-is (E.164 or raw input).
 export function formatPhoneNumber(phone: string): string {
   const cleaned = phone.replace(/\D/g, '');
   if (cleaned.startsWith('33') && cleaned.length === 11) {

@@ -12,6 +12,7 @@ import {
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
+import { typography } from '@/src/theme/typography';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
@@ -20,7 +21,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useSocialAuth } from '@/src/hooks/useSocialAuth';
 import { AuthError } from '@supabase/supabase-js';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
-import { scaledSpacing, scaledFontSize, scaledIcon, ms } from '@/src/utils/scaling';
+import { scaledSpacing, scaledIcon } from '@/src/utils/scaling';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -253,18 +254,14 @@ const styles = StyleSheet.create({
     marginBottom: scaledSpacing(24),
   },
   title: {
-    fontSize: scaledFontSize(24),
-    fontWeight: '400',
-    fontFamily: 'Inter_400Regular',
-    color: colors.primary[50], // #e8eaf8
+    ...typography.h2,
+    color: colors.primary[50],
     textAlign: 'center',
     marginBottom: scaledSpacing(8),
   },
   subtitle: {
-    fontSize: scaledFontSize(16),
-    fontWeight: '400',
-    fontFamily: 'Inter_400Regular',
-    color: colors.primary[50], // #e8eaf8
+    ...typography.body,
+    color: colors.primary[50],
     textAlign: 'center',
   },
   form: {
@@ -279,13 +276,12 @@ const styles = StyleSheet.create({
     marginTop: scaledSpacing(8),
   },
   forgotPassword: {
-    fontSize: scaledFontSize(14),
-    fontWeight: '600',
-    color: colors.primary[50], // #e8eaf8
+    ...typography.link,
+    color: colors.primary[50],
     textAlign: 'center',
   },
   errorText: {
-    fontSize: scaledFontSize(14),
+    ...typography.bodySmall,
     color: colors.error[400],
     textAlign: 'center',
   },
@@ -294,11 +290,9 @@ const styles = StyleSheet.create({
     marginTop: scaledSpacing(8),
   },
   registerLinkText: {
-    fontSize: scaledFontSize(14),
-    fontWeight: '400',
-    color: colors.primary[50], // #e8eaf8
+    ...typography.handwritten,
+    color: colors.primary[50],
     textAlign: 'center',
-    fontFamily: 'Kalam_400Regular',
   },
   registerLinkAction: {
     textDecorationLine: 'underline',
@@ -315,8 +309,7 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   dividerText: {
-    fontSize: scaledFontSize(16),
-    fontWeight: '400',
+    ...typography.body,
     color: colors.primary[50],
     marginHorizontal: scaledSpacing(16),
   },
@@ -325,7 +318,7 @@ const styles = StyleSheet.create({
     marginBottom: scaledSpacing(24),
   },
   modalText: {
-    fontSize: scaledFontSize(16),
+    ...typography.body,
     color: colors.gray[700],
     marginBottom: scaledSpacing(24),
   },

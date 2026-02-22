@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: colors.overlay.light,
   },
   sheet: {
     backgroundColor: colors.white,

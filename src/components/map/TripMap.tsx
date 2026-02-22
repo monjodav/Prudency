@@ -13,6 +13,7 @@ import MapView, {
   Region,
 } from 'react-native-maps';
 import { colors } from '@/src/theme/colors';
+import { DARK_MAP_STYLE } from '@/src/theme/mapStyles';
 import { ms } from '@/src/utils/scaling';
 
 interface LatLng {
@@ -33,37 +34,6 @@ interface TripMapProps {
 export interface TripMapRef {
   animateToRegion: (region: Region, duration?: number) => void;
 }
-
-const DARK_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#8a8a9a' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a2e' }] },
-  {
-    featureType: 'road',
-    elementType: 'geometry',
-    stylers: [{ color: '#2a2a3e' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#333350' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'geometry',
-    stylers: [{ color: '#0e0e1a' }],
-  },
-  {
-    featureType: 'poi',
-    elementType: 'geometry',
-    stylers: [{ color: '#1e1e30' }],
-  },
-  {
-    featureType: 'poi',
-    elementType: 'labels',
-    stylers: [{ visibility: 'off' }],
-  },
-];
 
 const DEFAULT_REGION: Region = {
   latitude: 48.8566,
