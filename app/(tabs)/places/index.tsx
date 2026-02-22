@@ -18,7 +18,7 @@ import { ContextMenu } from '@/src/components/ui/ContextMenu';
 import { Snackbar } from '@/src/components/ui/Snackbar';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import type { SavedPlace } from '@/src/types/database';
-import { figmaScale, scaledIcon, ms } from '@/src/utils/scaling';
+import { figmaScale, scaledIcon, scaledShadow, ms } from '@/src/utils/scaling';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -276,10 +276,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 6,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...scaledShadow({
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+    }),
   },
 });

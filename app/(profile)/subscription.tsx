@@ -12,7 +12,7 @@ import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { Snackbar } from '@/src/components/ui/Snackbar';
-import { ms, scaledIcon } from '@/src/utils/scaling';
+import { ms, scaledIcon, scaledSpacing, scaledLineHeight } from '@/src/utils/scaling';
 
 const FEATURES = [
   'Garder mon trajet secret',
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   badge: {
     paddingHorizontal: spacing[2],
-    paddingVertical: 2,
+    paddingVertical: scaledSpacing(2),
     borderRadius: borderRadius.full,
   },
   badgeText: {
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   freeBadge: {
     backgroundColor: colors.success[500],
     paddingHorizontal: spacing[3],
-    paddingVertical: 2,
+    paddingVertical: scaledSpacing(2),
     borderRadius: borderRadius.full,
   },
   freeBadgeText: {
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     textAlign: 'center',
     marginBottom: spacing[5],
-    lineHeight: 18,
+    lineHeight: scaledLineHeight(18),
   },
   ctaButton: {
     marginBottom: spacing[4],

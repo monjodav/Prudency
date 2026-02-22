@@ -4,16 +4,16 @@ import { SplashLogo } from '@/src/components/splash/SplashLogo';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
-import { ms } from '@/src/utils/scaling';
+import { ms, scaledIcon } from '@/src/utils/scaling';
 
 interface PrudencyLogoProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
 const SIZES = {
-  sm: { icon: 32, gap: spacing[1] },
-  md: { icon: 48, gap: spacing[2] },
-  lg: { icon: 57, gap: spacing[2] },
+  sm: { icon: scaledIcon(32), gap: spacing[1] },
+  md: { icon: scaledIcon(48), gap: spacing[2] },
+  lg: { icon: scaledIcon(57), gap: spacing[2] },
 } as const;
 
 export function PrudencyLogo({ size = 'md' }: PrudencyLogoProps) {

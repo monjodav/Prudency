@@ -13,7 +13,7 @@ import { spacing, borderRadius } from '@/src/theme/spacing';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { Snackbar } from '@/src/components/ui/Snackbar';
 import { appVersion } from '@/src/config/env';
-import { ms, scaledRadius, scaledIcon } from '@/src/utils/scaling';
+import { ms, scaledRadius, scaledIcon, scaledLineHeight } from '@/src/utils/scaling';
 
 function LinkItem({
   icon,
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   missionText: {
     ...typography.body,
     color: colors.gray[300],
-    lineHeight: 22,
+    lineHeight: scaledLineHeight(22),
   },
   stepItem: {
     flexDirection: 'row',

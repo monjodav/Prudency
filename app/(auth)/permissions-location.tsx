@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
+import { borderRadius as radii } from '@/src/theme';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
@@ -165,7 +166,7 @@ const styles = StyleSheet.create({
   },
   circle: {
     position: 'absolute',
-    borderRadius: 9999,
+    borderRadius: radii.full,
     backgroundColor: colors.secondary[400],
   },
   circleOuter: {

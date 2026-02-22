@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
 import { colors } from '@/src/theme/colors';
+import { borderRadius as radii } from '@/src/theme';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { useContacts } from '@/src/hooks/useContacts';
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaledSpacing(32),
     borderWidth: 2,
     borderColor: colors.primary[50],
-    borderRadius: 9999,
+    borderRadius: radii.full,
     marginBottom: scaledSpacing(24),
   },
   importButtonText: {

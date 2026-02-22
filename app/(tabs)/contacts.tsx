@@ -20,7 +20,7 @@ import { ContactListItem } from '@/src/components/contact/ContactListItem';
 import { useContacts } from '@/src/hooks/useContacts';
 import { APP_CONFIG } from '@/src/utils/constants';
 import type { TrustedContactRow } from '@/src/types/contact';
-import { figmaScale, scaledIcon, ms } from '@/src/utils/scaling';
+import { figmaScale, scaledIcon, scaledShadow, ms } from '@/src/utils/scaling';
 
 const TABS = ['On me protege', 'Je protege'];
 
@@ -283,10 +283,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 6,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...scaledShadow({
+      shadowColor: colors.black,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+    }),
   },
 });

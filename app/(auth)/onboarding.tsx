@@ -196,7 +196,7 @@ export default function OnboardingScreen() {
               { left: `${(currentIndex / (STEPS.length - 1)) * 100}%` },
             ]}
           >
-            <SplashLogo size={24} />
+            <SplashLogo size={scaledIcon(24)} />
           </View>
         </View>
       )}
