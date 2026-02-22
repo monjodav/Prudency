@@ -1,15 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useActiveTrip } from '@/src/hooks/useActiveTrip';
 import { useTrip } from '@/src/hooks/useTrip';
 import { useLocation } from '@/src/hooks/useLocation';
 import { useBiometric } from '@/src/hooks/useBiometric';
 import { useTripStore } from '@/src/stores/tripStore';
 import { fetchDirections } from '@/src/services/directionsService';
+import { triggerAlert } from '@/src/services/alertService';
 import { ArrivalConfirmationView } from '@/src/components/trip/ArrivalConfirmationView';
 import { PasswordValidationView } from '@/src/components/trip/PasswordValidationView';
 import { CompletedView } from '@/src/components/trip/CompletedView';
+import { APP_CONFIG } from '@/src/utils/constants';
 import type { DecodedRoute } from '@/src/services/directionsService';
+
+const COUNTDOWN_SECONDS = APP_CONFIG.ALERT_TIMEOUT_BUFFER_MINUTES * 60;
+const HALFWAY_SECONDS = Math.floor(COUNTDOWN_SECONDS / 2);
 
 type ScreenPhase = 'arrival_confirmation' | 'password_validation' | 'completed';
 
@@ -24,6 +30,12 @@ export default function CompleteTripScreen() {
   const [phase, setPhase] = useState<ScreenPhase>('arrival_confirmation');
   const [error, setError] = useState<string | null>(null);
   const [route, setRoute] = useState<DecodedRoute | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(COUNTDOWN_SECONDS);
+  const [alertSent, setAlertSent] = useState(false);
+
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const halfwayTriggeredRef = useRef(false);
+  const alertTriggeredRef = useRef(false);
 
   const departure = trip?.departure_lat != null && trip?.departure_lng != null
     ? { lat: trip.departure_lat, lng: trip.departure_lng }
@@ -40,6 +52,66 @@ export default function CompleteTripScreen() {
       });
     }
   }, [departure?.lat, departure?.lng, arrival?.lat, arrival?.lng]);
+
+  const handleTimeoutAlert = useCallback(async () => {
+    if (alertTriggeredRef.current || !trip) return;
+    alertTriggeredRef.current = true;
+
+    try {
+      await triggerAlert({
+        tripId: trip.id,
+        type: 'timeout',
+        reason: 'Delai de confirmation depasse',
+      });
+      setAlertSent(true);
+    } catch (err) {
+      if (__DEV__) console.warn('Auto-alert failed:', err);
+      setError("Erreur lors de l'envoi de l'alerte automatique.");
+      alertTriggeredRef.current = false;
+    }
+  }, [trip]);
+
+  // Countdown timer for arrival confirmation phase
+  useEffect(() => {
+    if (phase !== 'arrival_confirmation') {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
+      setRemainingSeconds((prev) => {
+        const next = prev - 1;
+
+        // Halfway nudge
+        if (next === HALFWAY_SECONDS && !halfwayTriggeredRef.current) {
+          halfwayTriggeredRef.current = true;
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        }
+
+        // Timeout reached
+        if (next <= 0) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          handleTimeoutAlert();
+          return 0;
+        }
+
+        return next;
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [phase, handleTimeoutAlert]);
 
   const handleExtendFromArrival = async () => {
     if (!trip) return;
@@ -98,6 +170,8 @@ export default function CompleteTripScreen() {
         departure={departure}
         arrival={arrival}
         route={route}
+        remainingSeconds={remainingSeconds}
+        alertSent={alertSent}
       />
     );
   }

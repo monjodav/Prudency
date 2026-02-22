@@ -215,6 +215,21 @@ export default function LoginScreen() {
                 }
               />
             )}
+
+            {/* Facebook — coming soon */}
+            <View>
+              <Button
+                title="Continuer avec Facebook"
+                variant="social"
+                onPress={() => {}}
+                disabled
+                fullWidth
+                icon={
+                  <Ionicons name="logo-facebook" size={scaledIcon(20)} color={colors.gray[400]} />
+                }
+              />
+              <Text style={styles.comingSoonText}>Bientôt disponible</Text>
+            </View>
           </View>
 
         </ScrollView>
@@ -321,5 +336,11 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.gray[700],
     marginBottom: scaledSpacing(24),
+  },
+  comingSoonText: {
+    ...typography.caption,
+    color: colors.gray[400],
+    textAlign: 'center' as const,
+    marginTop: scaledSpacing(4),
   },
 });

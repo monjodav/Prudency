@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   Alert,
+  Linking,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,9 @@ import { useSocialAuth } from '@/src/hooks/useSocialAuth';
 import { AuthError } from '@supabase/supabase-js';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { scaledSpacing, scaledIcon } from '@/src/utils/scaling';
+
+const CGU_URL = 'https://prudency.app/cgu';
+const PRIVACY_URL = 'https://prudency.app/privacy';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -36,6 +40,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [acceptedCgu, setAcceptedCgu] = useState(false);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -92,7 +97,7 @@ export default function RegisterScreen() {
     }
   };
 
-  const isFormValid = email.trim() !== '' && password !== '';
+  const isFormValid = email.trim() !== '' && password !== '' && acceptedCgu;
 
   return (
     <OnboardingBackground>
@@ -157,6 +162,34 @@ export default function RegisterScreen() {
               </Pressable>
             </View>
 
+            {/* CGU checkbox */}
+            <Pressable
+              style={styles.cguRow}
+              onPress={() => setAcceptedCgu((prev) => !prev)}
+            >
+              <View style={[styles.checkbox, acceptedCgu && styles.checkboxChecked]}>
+                {acceptedCgu && (
+                  <Ionicons name="checkmark" size={scaledIcon(14)} color={colors.white} />
+                )}
+              </View>
+              <Text style={styles.cguText}>
+                {"J'accepte les "}
+                <Text
+                  style={styles.cguLink}
+                  onPress={() => Linking.openURL(CGU_URL)}
+                >
+                  Conditions Générales d'Utilisation
+                </Text>
+                {" et la "}
+                <Text
+                  style={styles.cguLink}
+                  onPress={() => Linking.openURL(PRIVACY_URL)}
+                >
+                  Politique de confidentialité
+                </Text>
+              </Text>
+            </Pressable>
+
             {errors.submit && (
               <Text style={styles.errorText}>{errors.submit}</Text>
             )}
@@ -214,6 +247,21 @@ export default function RegisterScreen() {
                 }
               />
             )}
+
+            {/* Facebook — coming soon */}
+            <View>
+              <Button
+                title="Continuer avec Facebook"
+                variant="social"
+                onPress={() => {}}
+                disabled
+                fullWidth
+                icon={
+                  <Ionicons name="logo-facebook" size={scaledIcon(20)} color={colors.gray[400]} />
+                }
+              />
+              <Text style={styles.comingSoonText}>Bientôt disponible</Text>
+            </View>
           </View>
 
         </ScrollView>
@@ -300,5 +348,38 @@ const styles = StyleSheet.create({
   logoTopContainer: {
     alignItems: 'center',
     marginBottom: scaledSpacing(24),
+  },
+  cguRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: scaledSpacing(10),
+  },
+  checkbox: {
+    width: scaledSpacing(20),
+    height: scaledSpacing(20),
+    borderRadius: scaledSpacing(4),
+    borderWidth: 1.5,
+    borderColor: colors.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: scaledSpacing(2),
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary[500],
+    borderColor: colors.primary[500],
+  },
+  cguText: {
+    ...typography.caption,
+    color: colors.primary[50],
+    flex: 1,
+  },
+  cguLink: {
+    textDecorationLine: 'underline' as const,
+  },
+  comingSoonText: {
+    ...typography.caption,
+    color: colors.gray[400],
+    textAlign: 'center' as const,
+    marginTop: scaledSpacing(4),
   },
 });

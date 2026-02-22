@@ -103,13 +103,6 @@ export default function TripNotesScreen() {
             icon: 'pencil-outline',
             onPress: () => handleEdit(item),
           },
-          {
-            label: 'Supprimer',
-            icon: 'trash-outline',
-            onPress: () => {},
-            destructive: true,
-            disabled: true,
-          },
         ]}
       />
     </View>
