@@ -43,7 +43,7 @@
 - expo-apple-authentication pour Apple Sign In
 - expo-auth-session + expo-web-browser pour Google Sign In
 - expo-secure-store pour le stockage sécurisé des tokens
-- Plivo pour l'envoi de SMS aux contacts de confiance (via Edge Functions)
+- OVH SMS API pour l'envoi de SMS aux contacts de confiance (via Edge Functions)
 
 ### Sécurité
 - Row Level Security (RLS) activé sur TOUTES les tables Supabase

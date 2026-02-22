@@ -16,6 +16,7 @@ export function useActiveTrip() {
     queryFn: tripService.getActiveTrip,
     enabled: !!session,
     refetchInterval: 30_000,
+    staleTime: 10_000,
   });
 
   const trip = activeTripQuery.data ?? null;

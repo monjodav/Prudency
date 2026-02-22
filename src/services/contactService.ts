@@ -125,6 +125,10 @@ export async function sendInvitation(contactId: string): Promise<void> {
 
   const contact = await getContactById(contactId);
 
+  if (contact.user_id !== user.id) {
+    throw new Error('Ce contact ne vous appartient pas');
+  }
+
   const { data, error } = await supabase.functions.invoke(
     'send-contact-invitation',
     {

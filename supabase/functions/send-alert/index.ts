@@ -4,14 +4,12 @@ import {
   type NotifiedContact,
   type SendAlertOutput,
 } from "./types.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { fetchWithRetry } from "../_shared/retry.ts";
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -49,6 +47,29 @@ Deno.serve(async (req) => {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Rate limiting: max 10 alerts per user per 60 seconds
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const sixtySecondsAgo = new Date(Date.now() - 60_000).toISOString();
+    const { count: recentAlertCount } = await supabaseAdmin
+      .from("alerts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("triggered_at", sixtySecondsAgo);
+
+    if ((recentAlertCount ?? 0) >= 10) {
+      return new Response(
+        JSON.stringify({ error: "Too many alerts. Please wait before trying again." }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": "60",
+          },
+        }
+      );
     }
 
     // Parse and validate input
@@ -144,7 +165,7 @@ Deno.serve(async (req) => {
     const notifiedContacts: NotifiedContact[] = [];
 
     try {
-      const notifyResponse = await fetch(
+      const notifyResponse = await fetchWithRetry(
         `${supabaseUrl}/functions/v1/notify-contacts`,
         {
           method: "POST",
@@ -153,12 +174,11 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ alertId: alert.id }),
-        }
+        },
       );
 
       if (notifyResponse.ok) {
         // Fetch the contacts that were notified for the response
-        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
         const { data: contacts } = await supabaseAdmin
           .from("trusted_contacts")
           .select("id, name")
@@ -173,8 +193,7 @@ Deno.serve(async (req) => {
           }
         }
       } else {
-        const errorBody = await notifyResponse.text();
-        console.error("Notify contacts failed:", errorBody);
+        console.error("Notify contacts failed: status", notifyResponse.status);
       }
     } catch (notifyErr) {
       console.error("Notify contacts error:", notifyErr);
@@ -193,10 +212,11 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
         "X-RateLimit-Limit": "10",
         "X-RateLimit-Window": "60",
+        "X-RateLimit-Remaining": String(Math.max(0, 10 - ((recentAlertCount ?? 0) + 1))),
       },
     });
   } catch (error) {
-    console.error("send-alert error:", error);
+    console.error("send-alert error:", error instanceof Error ? error.message : "Unknown");
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       {

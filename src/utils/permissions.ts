@@ -31,9 +31,10 @@ export async function requestLocationPermission(): Promise<PermissionStatus> {
 }
 
 export async function requestBackgroundLocationPermission(): Promise<PermissionStatus> {
-  const foreground = await requestLocationPermission();
-  if (foreground !== 'granted') {
-    return foreground;
+  const foregroundStatus = await requestLocationPermission();
+  if (foregroundStatus !== 'granted') {
+    // Background location requires foreground first; treat as denied
+    return 'denied';
   }
   const { status } = await Location.requestBackgroundPermissionsAsync();
   return mapExpoStatus(status);

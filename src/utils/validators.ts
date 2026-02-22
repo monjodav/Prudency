@@ -28,9 +28,11 @@ export const coordinatesSchema = z.object({
 export const createTripSchema = z.object({
   estimatedDurationMinutes: tripDurationSchema,
   departureAddress: z.string().optional(),
-  departureCoords: coordinatesSchema.optional(),
+  departureLat: z.number().min(-90).max(90).optional(),
+  departureLng: z.number().min(-180).max(180).optional(),
   arrivalAddress: z.string().optional(),
-  arrivalCoords: coordinatesSchema.optional(),
+  arrivalLat: z.number().min(-90).max(90).optional(),
+  arrivalLng: z.number().min(-180).max(180).optional(),
 });
 
 export const createContactSchema = z.object({

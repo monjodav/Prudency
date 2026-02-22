@@ -96,14 +96,22 @@ export async function stopBackgroundTracking(): Promise<void> {
   }
 }
 
+function isLocationData(data: unknown): data is { locations: Location.LocationObject[] } {
+  return (
+    data != null &&
+    typeof data === 'object' &&
+    'locations' in data &&
+    Array.isArray((data as Record<string, unknown>).locations)
+  );
+}
+
 // Background task handler - registered at module level
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (error) {
     return;
   }
 
-  const locationData = data as { locations: Location.LocationObject[] };
-  if (!locationData?.locations?.length) {
+  if (!isLocationData(data) || data.locations.length === 0) {
     return;
   }
 
@@ -114,7 +122,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
     return;
   }
 
-  const location = locationData.locations[0];
+  const location = data.locations[0];
   if (!location) {
     return;
   }
@@ -135,7 +143,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
       heading: location.coords.heading ?? undefined,
       batteryLevel: battery,
     });
-  } catch {
-    // Silently fail to avoid crashing the background task
+  } catch (err) {
+    if (__DEV__) console.warn('Background location update failed:', err);
   }
 });

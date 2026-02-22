@@ -58,14 +58,9 @@ export function useAnomalyDetection() {
   }, []);
 
   const dismissAnomalyDialog = useCallback(() => {
-    setState((prev) => {
-      if (prev.noResponseShownForAnomaly) {
-        return { ...prev, showAnomalyDialog: false };
-      }
+    setState((prev) => ({ ...prev, showAnomalyDialog: false }));
 
-      return { ...prev, showAnomalyDialog: false };
-    });
-
+    clearNoResponseTimer();
     noResponseTimerRef.current = setTimeout(() => {
       setState((prev) => {
         if (prev.noResponseShownForAnomaly || prev.currentAnomaly) {
@@ -78,7 +73,7 @@ export function useAnomalyDetection() {
         };
       });
     }, NO_RESPONSE_DELAY_MS);
-  }, []);
+  }, [clearNoResponseTimer]);
 
   const handleAnomalySelect = useCallback(
     (reason: AnomalyReason) => {

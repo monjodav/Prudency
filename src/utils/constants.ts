@@ -18,16 +18,21 @@ export const STORAGE_KEYS = {
 export const TRIP_STATUS = {
   DRAFT: 'draft',
   ACTIVE: 'active',
+  SCHEDULED: 'scheduled',
+  PAUSED: 'paused',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
   TIMEOUT: 'timeout',
   ALERTED: 'alerted',
+  ALERT: 'alert',
 } as const;
 
 export const ALERT_TYPE = {
   MANUAL: 'manual',
   AUTOMATIC: 'automatic',
   TIMEOUT: 'timeout',
+  INACTIVITY: 'inactivity',
+  DEVIATION: 'deviation',
 } as const;
 
 export const ALERT_STATUS = {

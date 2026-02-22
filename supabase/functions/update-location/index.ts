@@ -3,14 +3,14 @@ import {
   UpdateLocationInputSchema,
   type UpdateLocationOutput,
 } from "./types.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+const LOCATION_RATE_LIMIT_MS = 5_000; // 1 update per 5 seconds per trip
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -66,6 +66,23 @@ Deno.serve(async (req) => {
 
     const { tripId, lat, lng, accuracy, speed, heading, batteryLevel } =
       parseResult.data;
+
+    // Rate limit: max 1 location update per 5 seconds per trip
+    const rateLimitKey = `location:${tripId}`;
+    const rateCheck = checkRateLimit(rateLimitKey, LOCATION_RATE_LIMIT_MS);
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "Too many location updates" }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateCheck.retryAfterSeconds),
+          },
+        }
+      );
+    }
 
     // Verify trip belongs to user and is active
     const { data: trip, error: tripError } = await supabase
@@ -134,7 +151,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("update-location error:", error);
+    console.error("update-location error:", error instanceof Error ? error.message : "Unknown");
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       {

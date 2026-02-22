@@ -4,14 +4,12 @@ import {
   type CheckTripTimeoutOutput,
   TIMEOUT_BUFFER_MINUTES,
 } from "./types.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { fetchWithRetry } from "../_shared/retry.ts";
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -28,10 +26,11 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const cronSecret = Deno.env.get("CRON_SECRET");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
 
-    // Allow if: 1) Authorization header matches service role key, or 2) X-Cron-Secret header matches
+    // Allow if: 1) X-Internal-Secret header matches, or 2) X-Cron-Secret header matches
     const cronSecretHeader = req.headers.get("X-Cron-Secret");
-    const isServiceCall = authHeader === `Bearer ${supabaseServiceKey}`;
+    const isServiceCall = !!(internalSecret && req.headers.get("X-Internal-Secret") === internalSecret);
     const isCronCall = cronSecret && cronSecretHeader === cronSecret;
 
     if (!isServiceCall && !isCronCall) {
@@ -168,21 +167,21 @@ Deno.serve(async (req) => {
 
     // Notify contacts via internal call (using service role key for auth)
     try {
-      const notifyResponse = await fetch(
+      const notifyResponse = await fetchWithRetry(
         `${supabaseUrl}/functions/v1/notify-contacts`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${supabaseServiceKey}`,
             "Content-Type": "application/json",
+            ...(internalSecret ? { "X-Internal-Secret": internalSecret } : {}),
           },
           body: JSON.stringify({ alertId: alert.id }),
-        }
+        },
       );
 
       if (!notifyResponse.ok) {
-        const errorBody = await notifyResponse.text();
-        console.error("Notify contacts failed:", errorBody);
+        console.error("Notify contacts failed: status", notifyResponse.status);
       }
     } catch (notifyErr) {
       console.error("Notify contacts error:", notifyErr);
@@ -200,7 +199,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("check-trip-timeout error:", error);
+    console.error("check-trip-timeout error:", error instanceof Error ? error.message : "Unknown");
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       {

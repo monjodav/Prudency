@@ -42,6 +42,12 @@ export default function ProfileLayout() {
           title: 'A propos',
         }}
       />
+      <Stack.Screen
+        name="add-contact"
+        options={{
+          title: 'Ajouter un contact',
+        }}
+      />
     </Stack>
   );
 }

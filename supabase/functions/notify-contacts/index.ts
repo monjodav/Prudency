@@ -5,12 +5,11 @@ import {
   type NotifyContactsOutput,
   type TrustedContact,
 } from "./types.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
+import { fetchWithRetry } from "../_shared/retry.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+const NOTIFY_RATE_LIMIT_MS = 60_000; // 1 notification batch per 60 seconds per alert
 
 function buildAlertMessage(
   alert: AlertWithUser,
@@ -36,6 +35,8 @@ function buildAlertMessage(
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -63,7 +64,8 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Check if this is a service-level call (from check-trip-timeout or other internal function)
-    const isServiceCall = authHeader === `Bearer ${supabaseServiceKey}`;
+    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
+    const isServiceCall = !!(internalSecret && req.headers.get("X-Internal-Secret") === internalSecret);
 
     let userId: string | null = null;
 
@@ -107,6 +109,23 @@ Deno.serve(async (req) => {
     }
 
     const { alertId } = parseResult.data;
+
+    // Rate limit: max 1 notification per 60 seconds per alert
+    const rateLimitKey = `notify:${alertId}`;
+    const rateCheck = checkRateLimit(rateLimitKey, NOTIFY_RATE_LIMIT_MS);
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "Notifications already sent recently" }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateCheck.retryAfterSeconds),
+          },
+        }
+      );
+    }
 
     // Fetch alert with user profile
     const { data: alert, error: alertError } = await supabaseAdmin
@@ -183,28 +202,28 @@ Deno.serve(async (req) => {
       .filter((contact) => contact.notify_by_sms && contact.phone)
       .map(async (contact) => {
         try {
-          const smsResponse = await fetch(
+          const smsResponse = await fetchWithRetry(
             `${supabaseUrl}/functions/v1/send-sms`,
             {
               method: "POST",
               headers: {
                 Authorization: authHeader,
                 "Content-Type": "application/json",
+                ...(internalSecret ? { "X-Internal-Secret": internalSecret } : {}),
               },
               body: JSON.stringify({
                 to: contact.phone,
                 message,
               }),
-            }
+            },
           );
 
           if (!smsResponse.ok) {
-            const errorBody = await smsResponse.text();
             output.failures.push({
               contactId: contact.id,
               contactName: contact.name,
               method: "sms",
-              error: `SMS failed: ${smsResponse.status} ${errorBody}`,
+              error: `SMS failed: status ${smsResponse.status}`,
             });
             return;
           }
@@ -227,7 +246,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("notify-contacts error:", error);
+    console.error("notify-contacts error:", error instanceof Error ? error.message : "Unknown");
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       {

@@ -32,7 +32,7 @@ export async function getSavedPlaces(): Promise<SavedPlace[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return (data as SavedPlace[]) ?? [];
+  return (data ?? []) as SavedPlace[];
 }
 
 export async function createSavedPlace(input: CreatePlaceInput): Promise<SavedPlace> {
@@ -65,10 +65,17 @@ export async function updateSavedPlace(
 ): Promise<SavedPlace> {
   const validated = updatePlaceSchema.parse(input);
 
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
   const { data, error } = await supabase
     .from('saved_places')
     .update(validated as SavedPlaceUpdate)
     .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single();
 
@@ -77,10 +84,17 @@ export async function updateSavedPlace(
 }
 
 export async function deleteSavedPlace(id: string): Promise<void> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
   const { error } = await supabase
     .from('saved_places')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', user.id);
 
   if (error) throw error;
 }

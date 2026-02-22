@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,7 +58,9 @@ export default function HomeScreen() {
     ? { ...userLocation, latitudeDelta: 0.01, longitudeDelta: 0.01 }
     : DEFAULT_REGION;
 
-  const handleAlert = () => {};
+  const handleAlert = () => {
+    router.push('/(trip)/create');
+  };
 
   const handleRecenter = useCallback(() => {
     if (!userLocation) return;
@@ -107,7 +110,7 @@ export default function HomeScreen() {
       <View style={[styles.fabColumn, { top: insets.top + spacing[4] }]}>
         <Pressable
           style={styles.fab}
-          onPress={() => {/* notifications */}}
+          onPress={() => Alert.alert('Notifications', 'Bientot disponible')}
         >
           <Ionicons name="notifications-outline" size={scaledIcon(22)} color={colors.white} />
         </Pressable>

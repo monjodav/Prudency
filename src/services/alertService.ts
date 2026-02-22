@@ -68,10 +68,17 @@ export async function getAlertById(id: string): Promise<AlertRow> {
 }
 
 export async function getActiveAlertByTripId(tripId: string): Promise<AlertRow | null> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
   const { data, error } = await supabase
     .from('alerts')
     .select('*')
     .eq('trip_id', tripId)
+    .eq('user_id', user.id)
     .is('resolved_at', null)
     .order('triggered_at', { ascending: false })
     .limit(1)

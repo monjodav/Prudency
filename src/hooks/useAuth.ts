@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useAuthStore } from '@/src/stores/authStore';
+import { useTripStore } from '@/src/stores/tripStore';
 import * as authService from '@/src/services/authService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -43,6 +44,7 @@ export function useAuth() {
   const signOut = useCallback(async () => {
     await authService.signOut();
     queryClient.clear();
+    useTripStore.getState().reset();
     reset();
   }, [queryClient, reset]);
 

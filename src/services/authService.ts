@@ -50,13 +50,22 @@ export async function verifyPassword(password: string): Promise<boolean> {
     throw new Error('Utilisateur non connecte');
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
+  // Use signInWithPassword then immediately refresh to avoid creating a dangling session.
+  // Supabase JS v2 does not expose a dedicated reauthenticate endpoint,
+  // so we verify credentials and rely on the client replacing the session token.
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: user.email,
     password,
   });
 
   if (error) {
     return false;
+  }
+
+  // Refresh the session to ensure the existing session token is current
+  // and no orphaned session remains from the re-authentication call.
+  if (data.session) {
+    await supabase.auth.refreshSession();
   }
 
   return true;

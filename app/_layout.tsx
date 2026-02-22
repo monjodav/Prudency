@@ -1,9 +1,9 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { Slot } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 
@@ -21,10 +21,9 @@ import {
 } from '@expo-google-fonts/montserrat';
 import { Kalam_400Regular } from '@expo-google-fonts/kalam';
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { useColorScheme } from 'react-native';
 import { queryClient } from '@/src/config/queryClient';
-import { supabase } from '@/src/services/supabaseClient';
-import { useAuthStore } from '@/src/stores/authStore';
+import { useAuthGate } from '@/src/hooks/useAuthGate';
 import { AnimatedSplashScreen } from '@/src/components/splash';
 
 export { ErrorBoundary } from 'expo-router';
@@ -36,59 +35,7 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { session, isLoading, setSession, setLoading } = useAuthStore();
-  const segments = useSegments();
-  const router = useRouter();
-  const profileCheckDone = useRef(false);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      profileCheckDone.current = false;
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [setSession, setLoading]);
-
-  useEffect(() => {
-    if (isLoading) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-
-    if (!session && !inAuthGroup) {
-      profileCheckDone.current = false;
-      router.replace('/(auth)/login');
-    } else if (session && inAuthGroup && !profileCheckDone.current) {
-      profileCheckDone.current = true;
-      void (async () => {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('first_name, phone, onboarding_completed')
-            .eq('id', session.user.id)
-            .single();
-
-          if (!profile?.first_name || !profile?.phone) {
-            router.replace('/(auth)/personal-info');
-          } else if (!profile.onboarding_completed) {
-            router.replace('/(auth)/permissions-location');
-          } else {
-            router.replace('/(tabs)');
-          }
-        } catch {
-          router.replace('/(tabs)');
-        }
-      })();
-    }
-  }, [session, isLoading, segments, router]);
-
+  useAuthGate();
   return <>{children}</>;
 }
 

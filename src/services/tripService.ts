@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { TripRow, TripInsert, TripUpdate } from '@/src/types/trip';
 import { TRIP_STATUS } from '@/src/utils/constants';
+import { createTripSchema } from '@/src/utils/validators';
 
 export interface CreateTripInput {
   arrivalAddress?: string;
@@ -13,6 +14,8 @@ export interface CreateTripInput {
 }
 
 export async function createTrip(input: CreateTripInput): Promise<TripRow> {
+  createTripSchema.parse(input);
+
   const {
     data: { user },
     error: authError,
@@ -144,6 +147,15 @@ export async function updateTrip(
     >
   >,
 ): Promise<TripRow> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
   const updateData: TripUpdate = {
     ...updates,
   };
@@ -152,6 +164,7 @@ export async function updateTrip(
     .from('trips')
     .update(updateData)
     .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single();
 
@@ -181,6 +194,15 @@ export async function extendTrip(
 }
 
 export async function cancelTrip(id: string): Promise<TripRow> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
   const updateData: TripUpdate = {
     status: TRIP_STATUS.CANCELLED,
     cancelled_at: new Date().toISOString(),
@@ -190,6 +212,7 @@ export async function cancelTrip(id: string): Promise<TripRow> {
     .from('trips')
     .update(updateData)
     .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single();
 
@@ -201,6 +224,15 @@ export async function cancelTrip(id: string): Promise<TripRow> {
 }
 
 export async function completeTrip(id: string): Promise<TripRow> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
   const updateData: TripUpdate = {
     status: TRIP_STATUS.COMPLETED,
     completed_at: new Date().toISOString(),
@@ -210,6 +242,7 @@ export async function completeTrip(id: string): Promise<TripRow> {
     .from('trips')
     .update(updateData)
     .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single();
 

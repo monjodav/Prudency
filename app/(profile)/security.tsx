@@ -22,6 +22,12 @@ import { useBiometric } from '@/src/hooks/useBiometric';
 
 type PermissionStatus = 'granted' | 'denied' | 'undetermined';
 
+function mapPermissionStatus(status: string): PermissionStatus {
+  if (status === 'granted') return 'granted';
+  if (status === 'denied') return 'denied';
+  return 'undetermined';
+}
+
 function usePermissionStatuses() {
   const [location, setLocation] = useState<PermissionStatus>('undetermined');
   const [notifications, setNotifications] = useState<PermissionStatus>('undetermined');
@@ -32,8 +38,8 @@ function usePermissionStatuses() {
       Location.getForegroundPermissionsAsync(),
       Notifications.getPermissionsAsync(),
     ]);
-    setLocation(loc.status as PermissionStatus);
-    setNotifications(notif.status as PermissionStatus);
+    setLocation(mapPermissionStatus(loc.status));
+    setNotifications(mapPermissionStatus(notif.status));
     setCamera('undetermined');
   }, []);
 
@@ -129,12 +135,8 @@ export default function SecurityScreen() {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Supprimer mon compte',
-      'Cette action est irreversible. Toutes tes donnees seront supprimees definitivement.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: () => {} },
-      ]
+      'Fonctionnalite en cours',
+      'La suppression de compte sera disponible prochainement.'
     );
   };
 

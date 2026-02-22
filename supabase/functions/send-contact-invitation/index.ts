@@ -5,12 +5,7 @@ import {
   MAX_INVITATIONS_PER_CONTACT,
   INVITATION_DELAYS_MS,
 } from "./types.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 function generateInvitationToken(): string {
   const array = new Uint8Array(32);
@@ -21,6 +16,8 @@ function generateInvitationToken(): string {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -181,6 +178,7 @@ Deno.serve(async (req) => {
     }
 
     // Send SMS via the send-sms Edge Function
+    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
     const smsResponse = await fetch(
       `${supabaseUrl}/functions/v1/send-sms`,
       {
@@ -188,6 +186,7 @@ Deno.serve(async (req) => {
         headers: {
           Authorization: authHeader,
           "Content-Type": "application/json",
+          ...(internalSecret ? { "X-Internal-Secret": internalSecret } : {}),
         },
         body: JSON.stringify({
           to: recipientPhone,
@@ -197,8 +196,7 @@ Deno.serve(async (req) => {
     );
 
     if (!smsResponse.ok) {
-      const errorBody = await smsResponse.text();
-      console.error("SMS send failed:", smsResponse.status, errorBody);
+      console.error("SMS send failed: status", smsResponse.status);
       return new Response(
         JSON.stringify({ error: "Failed to send invitation SMS" }),
         {
@@ -218,7 +216,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("send-contact-invitation error:", error);
+    console.error("send-contact-invitation error:", error instanceof Error ? error.message : "Unknown");
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       {

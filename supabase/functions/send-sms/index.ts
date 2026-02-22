@@ -4,18 +4,13 @@ import {
   type OvhSmsResponse,
   type SendSmsOutput,
 } from "./types.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const OVH_APPLICATION_KEY = Deno.env.get("OVH_APPLICATION_KEY");
 const OVH_APPLICATION_SECRET = Deno.env.get("OVH_APPLICATION_SECRET");
 const OVH_CONSUMER_KEY = Deno.env.get("OVH_CONSUMER_KEY");
 const OVH_SMS_SERVICE_NAME = Deno.env.get("OVH_SMS_SERVICE_NAME");
 const OVH_SMS_SENDER = Deno.env.get("OVH_SMS_SENDER") ?? "Prudency";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 async function computeOvhSignature(
   applicationSecret: string,
@@ -35,6 +30,8 @@ async function computeOvhSignature(
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -61,7 +58,8 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // Allow both user-level and service-level calls
-    const isServiceCall = authHeader === `Bearer ${supabaseServiceKey}`;
+    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
+    const isServiceCall = !!(internalSecret && req.headers.get("X-Internal-Secret") === internalSecret);
 
     if (!isServiceCall) {
       const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -150,8 +148,7 @@ Deno.serve(async (req) => {
     });
 
     if (!ovhResponse.ok) {
-      const errorBody = await ovhResponse.text();
-      console.error("OVH SMS API error:", ovhResponse.status, errorBody);
+      console.error("OVH SMS API error: status", ovhResponse.status);
       return new Response(
         JSON.stringify({ error: "Failed to send SMS" }),
         {
@@ -183,7 +180,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("send-sms error:", error);
+    console.error("send-sms error:", error instanceof Error ? error.message : "Unknown");
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       {

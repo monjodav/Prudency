@@ -91,3 +91,12 @@ export function formatCoordinates(lat: number, lng: number): string {
 export function getGoogleMapsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps?q=${lat},${lng}`;
 }
+
+export function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((p) => p.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
