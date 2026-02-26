@@ -1,18 +1,18 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { Button } from '@/src/components/ui/Button';
+import { useAddPlace } from '@/src/hooks/useAddPlace';
+import type { PlaceAutocompleteResult } from '@/src/services/placesService';
+import { colors } from '@/src/theme/colors';
+import { spacing } from '@/src/theme/spacing';
+import type { SavedPlace } from '@/src/types/database';
+import { ms, scaledFontSize, scaledIcon, scaledRadius } from '@/src/utils/scaling';
+import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetTextInput,
 } from '@gorhom/bottom-sheet';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/src/theme/colors';
-import { spacing } from '@/src/theme/spacing';
-import { ms, scaledIcon, scaledRadius, scaledFontSize } from '@/src/utils/scaling';
-import { Button } from '@/src/components/ui/Button';
-import { useAddPlace } from '@/src/hooks/useAddPlace';
-import type { SavedPlace } from '@/src/types/database';
-import type { PlaceAutocompleteResult } from '@/src/services/placesService';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type SheetPage = 'list' | 'addPlace';
 
@@ -71,7 +71,7 @@ export function PlacesBottomSheet({
   }, [onSheetChange, page, reset]);
 
   const snapPoints = useMemo(
-    () => [ms(32, 0.4), '75%', '85%'],
+    () => [ms(32, 0.4), '35%', '45%'],
     [],
   );
 
@@ -330,34 +330,45 @@ export function PlacesBottomSheet({
             />
             {isSearching ? (
               <ActivityIndicator size="small" color={colors.primary[300]} style={styles.inputIcon} />
+            ) : selectedPlace ? (
+              <Pressable onPress={() => handleSearch('')} style={styles.inputIcon} hitSlop={8}>
+                <Ionicons name="close-circle" size={scaledIcon(24)} color={colors.gray[50]} />
+              </Pressable>
             ) : (
               <Ionicons name="search" size={scaledIcon(24)} color={colors.gray[50]} style={styles.inputIcon} />
             )}
           </View>
 
-          {/* Autocomplete results — DS List Item in card */}
+          {/* Autocomplete results — scrollable list */}
           {showAutocomplete && (
-            <View style={[styles.card, { marginTop: spacing[2] }]}>
-              {searchResults.map((result, i) => (
-                <Pressable
-                  key={result.placeId}
-                  style={({ pressed }) => [
-                    styles.listItemRow,
-                    i < searchResults.length - 1 && styles.listItemDivider,
-                    pressed && styles.listItemPressed,
-                  ]}
-                  onPress={() => handleSelectAutocomplete(result)}
-                >
-                  <View style={styles.listItemContent}>
-                    <Ionicons name="location-outline" size={scaledIcon(24)} color={colors.primary[300]} />
-                    <View style={styles.listItemTextContainer}>
-                      <Text style={styles.recentPlaceName} numberOfLines={1}>{result.mainText}</Text>
-                      <Text style={styles.recentPlaceAddress} numberOfLines={1}>{result.secondaryText}</Text>
+            <ScrollView
+              nestedScrollEnabled
+              style={styles.autocompleteList}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.card}>
+                {searchResults.map((result, i) => (
+                  <Pressable
+                    key={result.placeId}
+                    style={({ pressed }) => [
+                      styles.listItemRow,
+                      i < searchResults.length - 1 && styles.listItemDivider,
+                      pressed && styles.listItemPressed,
+                    ]}
+                    onPress={() => handleSelectAutocomplete(result)}
+                  >
+                    <View style={styles.listItemContent}>
+                      <Ionicons name="location-outline" size={scaledIcon(24)} color={colors.primary[300]} />
+                      <View style={styles.listItemTextContainer}>
+                        <Text style={styles.recentPlaceName} numberOfLines={1}>{result.mainText}</Text>
+                        <Text style={styles.recentPlaceAddress} numberOfLines={1}>{result.secondaryText}</Text>
+                      </View>
                     </View>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
           )}
 
           {/* Name field — DS Input component */}
@@ -463,7 +474,6 @@ const styles = StyleSheet.create({
   },
   // Section header: DS List Item used as title
   sectionHeader: {
-    paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
   },
   sectionTitle: {
@@ -532,6 +542,10 @@ const styles = StyleSheet.create({
     marginTop: spacing[8],
   },
 
+  autocompleteList: {
+    maxHeight: ms(200, 0.4),
+    marginTop: spacing[2],
+  },
   // "Enregistrer un lieu" — DS List Item with border primary/300
   addPlaceRow: {
     flexDirection: 'row',
