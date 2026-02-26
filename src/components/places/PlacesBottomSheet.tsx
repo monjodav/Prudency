@@ -8,9 +8,11 @@ import type { SavedPlace } from '@/src/types/database';
 import { ms, scaledFontSize, scaledIcon, scaledRadius } from '@/src/utils/scaling';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, {
+  BottomSheetBackdrop,
   BottomSheetTextInput,
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
+import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { BlurView } from 'expo-blur';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -49,11 +51,13 @@ export function PlacesBottomSheet({
     name,
     setName,
     selectedPlace,
+    editingId,
     isFormValid,
     isSaving,
     handleSearch,
     handleSelectResult,
     handleSelectRecentPlace,
+    prefill,
     handleSave,
     reset,
   } = useAddPlace();
@@ -72,6 +76,19 @@ export function PlacesBottomSheet({
       reset();
     }
   }, [onSheetChange, page, reset]);
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={0}
+        appearsOnIndex={1}
+        opacity={0.3}
+        pressBehavior="collapse"
+      />
+    ),
+    [],
+  );
 
   const snapPoints = useMemo(
     () => ['4%', '45%'],
@@ -146,7 +163,8 @@ export function PlacesBottomSheet({
         label: 'Modifier',
         icon: 'pencil' as keyof typeof Ionicons.glyphMap,
         onPress: () => {
-          // TODO: navigate to edit place
+          prefill(place);
+          setPage('addPlace');
         },
       },
       {
@@ -156,7 +174,7 @@ export function PlacesBottomSheet({
         destructive: true,
       },
     ];
-  }, [onDeletePlace]);
+  }, [onDeletePlace, prefill]);
 
   const showAutocomplete = searchResults.length > 0 && !selectedPlace;
 
@@ -257,6 +275,7 @@ export function PlacesBottomSheet({
         </Pressable>
       )}
       bottomInset={bottomInset}
+      backdropComponent={renderBackdrop}
       enableDynamicSizing={false}
       enablePanDownToClose={false}
       overDragResistanceFactor={10}
@@ -332,7 +351,7 @@ export function PlacesBottomSheet({
             <Pressable onPress={handleBack} hitSlop={12}>
               <Ionicons name="arrow-back" size={scaledIcon(24)} color={colors.white} />
             </Pressable>
-            <Text style={styles.formHeaderTitle}>Enregistrer un lieu</Text>
+            <Text style={styles.formHeaderTitle}>{editingId ? 'Modifier le lieu' : 'Enregistrer un lieu'}</Text>
             <View style={{ width: scaledIcon(24) }} />
           </View>
 
@@ -435,7 +454,7 @@ export function PlacesBottomSheet({
           {/* Save button — DS Button primary */}
           <View style={styles.buttonContainer}>
             <Button
-              title="Confirmer le lieu"
+              title={editingId ? 'Modifier le lieu' : 'Confirmer le lieu'}
               variant="primary"
               onPress={handleSubmit}
               fullWidth

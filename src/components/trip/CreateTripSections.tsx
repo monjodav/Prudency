@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Pressable,
   ActivityIndicator,
-  Switch,
+  Pressable,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Input } from '@/src/components/ui/Input';
-import { scaledIcon } from '@/src/utils/scaling';
+import { ListItem } from '@/src/components/ui/ListItem';
+import { Toggle } from '@/src/components/ui/Toggle';
+import { Checkbox } from '@/src/components/ui/Checkbox';
+import { ms, scaledIcon } from '@/src/utils/scaling';
 import type { PlaceAutocompleteResult } from '@/src/services/placesService';
 
 interface Contact {
@@ -34,16 +37,22 @@ export function DepartureSection({ address, onChangeAddress, onUseCurrentLocatio
   return (
     <View>
       <Input
-        label="Lieu de depart"
-        placeholder="D'ou pars-tu ?"
+        label="Lieu de départ"
+        placeholder="D'où pars-tu ?"
         value={address}
         onChangeText={onChangeAddress}
         variant="dark"
       />
-      <Pressable style={styles.currentLocationBtn} onPress={onUseCurrentLocation}>
-        <Ionicons name="locate-outline" size={scaledIcon(18)} color={colors.primary[400]} />
-        <Text style={styles.currentLocationText}>Utiliser ma position actuelle</Text>
-      </Pressable>
+      <View style={styles.currentLocationWrapper}>
+        <ListItem
+          text="Utiliser ma position actuelle"
+          variant="outline"
+          iconLeft={
+            <Ionicons name="locate" size={scaledIcon(20)} color={colors.primary[300]} />
+          }
+          onPress={onUseCurrentLocation}
+        />
+      </View>
     </View>
   );
 }
@@ -56,6 +65,8 @@ interface DestinationSectionProps {
   isSearching: boolean;
   searchResults: PlaceAutocompleteResult[];
   onSelectPlace: (result: PlaceAutocompleteResult) => void;
+  savedPlaces?: { name: string; onPress: () => void }[];
+  recentPlaces?: { name: string; address: string; onPress: () => void }[];
 }
 
 export function DestinationSection({
@@ -64,12 +75,14 @@ export function DestinationSection({
   isSearching,
   searchResults,
   onSelectPlace,
+  savedPlaces,
+  recentPlaces,
 }: DestinationSectionProps) {
   return (
     <View>
       <Input
         label="Lieu d'arrivée"
-        placeholder="Ou vas-tu ?"
+        placeholder="Où vas-tu ?"
         value={address}
         onChangeText={onChangeAddress}
         variant="dark"
@@ -78,21 +91,64 @@ export function DestinationSection({
         <ActivityIndicator size="small" color={colors.primary[400]} style={styles.searchSpinner} />
       )}
       {searchResults.length > 0 && (
-        <View style={styles.autocompleteList}>
-          {searchResults.map((result) => (
-            <Pressable
-              key={result.placeId}
-              style={styles.autocompleteItem}
-              onPress={() => onSelectPlace(result)}
-            >
-              <Ionicons name="location-outline" size={scaledIcon(18)} color={colors.gray[400]} />
-              <View style={styles.autocompleteText}>
-                <Text style={styles.autocompleteMain} numberOfLines={1}>{result.mainText}</Text>
-                <Text style={styles.autocompleteSecondary} numberOfLines={1}>{result.secondaryText}</Text>
-              </View>
-            </Pressable>
+        <View style={styles.resultsCard}>
+          {searchResults.map((result, i) => (
+            <View key={result.placeId}>
+              <ListItem
+                text={result.mainText}
+                secondaryText={result.secondaryText}
+                iconLeft={
+                  <Ionicons name="location-outline" size={scaledIcon(20)} color={colors.primary[300]} />
+                }
+                onPress={() => onSelectPlace(result)}
+              />
+              {i < searchResults.length - 1 && <View style={styles.divider} />}
+            </View>
           ))}
         </View>
+      )}
+      {searchResults.length === 0 && !isSearching && (
+        <>
+          {savedPlaces && savedPlaces.length > 0 && (
+            <View style={styles.suggestionsSection}>
+              <Text style={styles.suggestionsTitle}>Trajets enregistrés</Text>
+              <View style={styles.resultsCard}>
+                {savedPlaces.map((place, i) => (
+                  <View key={place.name + i}>
+                    <ListItem
+                      text={place.name}
+                      iconLeft={
+                        <Ionicons name="bookmark" size={scaledIcon(20)} color={colors.primary[300]} />
+                      }
+                      onPress={place.onPress}
+                    />
+                    {i < savedPlaces.length - 1 && <View style={styles.divider} />}
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+          {recentPlaces && recentPlaces.length > 0 && (
+            <View style={styles.suggestionsSection}>
+              <Text style={styles.suggestionsTitle}>Trajets récents</Text>
+              <View style={styles.resultsCard}>
+                {recentPlaces.map((place, i) => (
+                  <View key={place.name + i}>
+                    <ListItem
+                      text={place.name}
+                      secondaryText={place.address}
+                      iconLeft={
+                        <Ionicons name="time" size={scaledIcon(20)} color={colors.primary[300]} />
+                      }
+                      onPress={place.onPress}
+                    />
+                    {i < recentPlaces.length - 1 && <View style={styles.divider} />}
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+        </>
       )}
     </View>
   );
@@ -102,24 +158,130 @@ export function DestinationSection({
 
 interface DepartureTimeSectionProps {
   departureTime: Date;
+  onChangeTime: (date: Date) => void;
   onSetNow: () => void;
 }
 
-export function DepartureTimeSection({ departureTime, onSetNow }: DepartureTimeSectionProps) {
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
+const ITEM_HEIGHT = ms(44, 0.4);
+const VISIBLE_ITEMS = 5;
+
+function ScrollColumn({ data, selected, onSelect }: {
+  data: number[];
+  selected: number;
+  onSelect: (val: number) => void;
+}) {
+  const listRef = useRef<FlatList>(null);
+  const initialIndex = data.indexOf(selected);
+
+  const handleScrollEnd = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / ITEM_HEIGHT);
+    const clamped = Math.max(0, Math.min(index, data.length - 1));
+    const value = data[clamped];
+    if (value !== undefined && value !== selected) {
+      onSelect(value);
+    }
+  }, [data, selected, onSelect]);
+
+  return (
+    <View style={styles.scrollColumnWrapper}>
+      <View style={styles.scrollHighlight} pointerEvents="none" />
+      <FlatList
+        ref={listRef}
+        data={data}
+        keyExtractor={(item) => String(item)}
+        initialScrollIndex={initialIndex >= 0 ? initialIndex : 0}
+        getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_HEIGHT}
+        decelerationRate="fast"
+        onMomentumScrollEnd={handleScrollEnd}
+        contentContainerStyle={{
+          paddingVertical: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
+        }}
+        renderItem={({ item }) => {
+          const isSelected = item === selected;
+          return (
+            <Pressable onPress={() => onSelect(item)} style={styles.scrollItem}>
+              <Text style={[styles.scrollItemText, isSelected && styles.scrollItemTextSelected]}>
+                {String(item).padStart(2, '0')}
+              </Text>
+            </Pressable>
+          );
+        }}
+      />
+    </View>
+  );
+}
+
+export function DepartureTimeSection({ departureTime, onChangeTime, onSetNow }: DepartureTimeSectionProps) {
+  const [showPicker, setShowPicker] = useState(false);
   const timeStr = departureTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  const handleHourChange = useCallback((hour: number) => {
+    const next = new Date(departureTime);
+    next.setHours(hour);
+    onChangeTime(next);
+  }, [departureTime, onChangeTime]);
+
+  const handleMinuteChange = useCallback((minute: number) => {
+    const next = new Date(departureTime);
+    next.setMinutes(minute);
+    onChangeTime(next);
+  }, [departureTime, onChangeTime]);
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Indique ton heure de depart</Text>
-      <View style={styles.departureTimeRow}>
-        <View style={styles.departureTimeDisplay}>
-          <Text style={styles.departureTimeLabel}>Depart</Text>
-          <Text style={styles.departureTimeValue}>{timeStr}</Text>
+      <Text style={styles.sectionLabel}>Temps</Text>
+      <Text style={styles.sectionHint}>Indique ton heure de départ</Text>
+      <View style={styles.timeRow}>
+        <View style={styles.timeDisplay}>
+          <Text style={styles.timeLabel}>Départ</Text>
+          <Pressable onPress={() => setShowPicker(!showPicker)} style={styles.timeValueBtn}>
+            <Text style={styles.timeValue}>{timeStr}</Text>
+          </Pressable>
         </View>
-        <Pressable onPress={onSetNow}>
-          <Text style={styles.departureNowText}>Partir maintenant</Text>
-        </Pressable>
+        <ListItem
+          text="Partir maintenant"
+          variant="outline"
+          iconLeft={
+            <Ionicons name="time" size={scaledIcon(20)} color={colors.primary[300]} />
+          }
+          onPress={() => {
+            onSetNow();
+            setShowPicker(false);
+          }}
+          style={styles.nowButton}
+        />
       </View>
+      {showPicker && (
+        <View style={styles.pickerCard}>
+          <View style={styles.pickerContainer}>
+            <ScrollColumn data={HOURS} selected={departureTime.getHours()} onSelect={handleHourChange} />
+            <Text style={styles.pickerSeparator}>:</Text>
+            <ScrollColumn data={MINUTES} selected={departureTime.getMinutes()} onSelect={handleMinuteChange} />
+          </View>
+          <View style={styles.pickerActions}>
+            <Pressable
+              onPress={() => {
+                onSetNow();
+                setShowPicker(false);
+              }}
+              style={styles.pickerBtnSecondary}
+            >
+              <Text style={styles.pickerBtnSecondaryText}>Maintenant</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setShowPicker(false)}
+              style={styles.pickerBtnPrimary}
+            >
+              <Text style={styles.pickerBtnPrimaryText}>Confirmer</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -137,7 +299,7 @@ interface TransportOption {
 const TRANSPORT_OPTIONS: TransportOption[] = [
   { mode: 'walk', label: 'Marche', icon: 'walk-outline' },
   { mode: 'transit', label: 'Transports', icon: 'bus-outline' },
-  { mode: 'bike', label: 'Velo', icon: 'bicycle-outline' },
+  { mode: 'bike', label: 'Vélo', icon: 'bicycle-outline' },
   { mode: 'car', label: 'Voiture', icon: 'car-outline' },
 ];
 
@@ -149,22 +311,29 @@ interface TransportSectionProps {
 export function TransportSection({ selected, onSelect }: TransportSectionProps) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Choisis ton mode de transport</Text>
+      <Text style={styles.sectionLabel}>Transport</Text>
+      <Text style={styles.sectionHint}>Choisis ton mode de transport</Text>
       <View style={styles.transportRow}>
         {TRANSPORT_OPTIONS.map((option) => {
           const isSelected = selected === option.mode;
           return (
             <Pressable
               key={option.mode}
-              style={[styles.transportOption, isSelected && styles.transportOptionSelected]}
               onPress={() => onSelect(option.mode)}
+              style={[
+                styles.transportOption,
+                isSelected ? styles.transportOptionSelected : styles.transportOptionOutline,
+              ]}
             >
               <Ionicons
                 name={option.icon}
                 size={scaledIcon(24)}
                 color={isSelected ? colors.white : colors.gray[400]}
               />
-              <Text style={[styles.transportLabel, isSelected && styles.transportLabelSelected]}>
+              <Text style={[
+                styles.transportLabel,
+                isSelected && styles.transportLabelSelected,
+              ]}>
                 {option.label}
               </Text>
             </Pressable>
@@ -194,52 +363,65 @@ export function ContactSection({
 }: ContactSectionProps) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Contact de confiance</Text>
+      <Text style={styles.sectionLabel}>Contact</Text>
       {contactsLoading ? (
         <ActivityIndicator size="small" color={colors.primary[400]} />
       ) : contacts.length === 0 ? (
-        <View style={styles.noContactsBanner}>
-          <Ionicons name="person-add-outline" size={scaledIcon(20)} color={colors.gray[300]} />
-          <View style={styles.noContactsContent}>
-            <Text style={styles.noContactsText}>
-              Aucun contact de confiance configure.
+        <>
+          <Text style={styles.contactHint}>
+            Pour activer les alertes pendant ton trajet,{' '}
+            <Text style={styles.contactHintBold}>
+              Prudency a besoin d'au moins une personne de confiance confirmée.
             </Text>
-            <Pressable style={styles.addContactLink} onPress={onShowAddContact}>
-              <Ionicons name="add-circle-outline" size={scaledIcon(16)} color={colors.primary[400]} />
-              <Text style={styles.addContactLinkText}>Ajouter un contact de confiance +</Text>
-            </Pressable>
-          </View>
-        </View>
+            {' '}La personne choisie doit avoir{' '}
+            <Text style={styles.contactHintBold}>accepté ce rôle</Text>
+            {' '}pour pouvoir{' '}
+            <Text style={styles.contactHintBold}>
+              recevoir une alerte en cas de problème.
+            </Text>
+          </Text>
+          <ListItem
+            text="Ajouter un contact de confiance"
+            variant="outline"
+            iconRight={
+              <Ionicons name="add" size={scaledIcon(20)} color={colors.primary[300]} />
+            }
+            onPress={onShowAddContact}
+          />
+        </>
       ) : (
-        <View style={styles.contactsList}>
-          {contacts.map((contact) => {
-            const isSelected = selectedContactId === contact.id;
-            return (
-              <Pressable
-                key={contact.id}
-                style={[styles.contactItem, isSelected && styles.contactItemSelected]}
-                onPress={() => onSelectContact(contact.id)}
-              >
-                <View style={styles.contactInfo}>
-                  <Ionicons
-                    name={isSelected ? 'checkmark-circle' : 'person-circle-outline'}
-                    size={scaledIcon(24)}
-                    color={isSelected ? colors.primary[400] : colors.gray[500]}
-                  />
-                  <View style={styles.contactDetails}>
-                    <Text style={styles.contactName}>{contact.name}</Text>
-                    <Text style={styles.contactPhone}>{contact.phone}</Text>
-                  </View>
-                </View>
-                {contact.is_primary && (
-                  <View style={styles.primaryBadge}>
-                    <Text style={styles.primaryBadgeText}>Principal</Text>
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+        <>
+          <Text style={styles.sectionHint}>
+            Il sera alerté en cas de retard ou anomalie durant ton trajet.
+          </Text>
+          <View style={styles.contactsList}>
+            {contacts.map((contact) => {
+              const isSelected = selectedContactId === contact.id;
+              return (
+                <ListItem
+                  key={contact.id}
+                  text={contact.name}
+                  variant={isSelected ? 'selected' : 'default'}
+                  iconLeft={
+                    <Ionicons
+                      name="person-circle"
+                      size={scaledIcon(32)}
+                      color={colors.secondary[400]}
+                    />
+                  }
+                  iconRight={
+                    <Checkbox
+                      checked={isSelected}
+                      onToggle={() => onSelectContact(contact.id)}
+                    />
+                  }
+                  onPress={() => onSelectContact(contact.id)}
+                  style={styles.contactItem}
+                />
+              );
+            })}
+          </View>
+        </>
       )}
     </View>
   );
@@ -261,26 +443,31 @@ export function TogglesSection({
   onToggleSilentNotifications,
 }: TogglesSectionProps) {
   return (
-    <View style={styles.section}>
-      <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>Partager ma position</Text>
-        <Switch
-          value={shareLocation}
-          onValueChange={onToggleShareLocation}
-          trackColor={{ false: colors.gray[700], true: colors.primary[500] }}
-          thumbColor={colors.white}
+    <>
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Position</Text>
+        <Text style={styles.sectionHint}>Partage de position en direct</Text>
+        <ListItem
+          text="Partager ma position"
+          iconRight={
+            <Toggle active={shareLocation} onToggle={onToggleShareLocation} />
+          }
+          style={styles.toggleItem}
         />
       </View>
-      <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>Notifications silencieuses (Sauf urgence)</Text>
-        <Switch
-          value={silentNotifications}
-          onValueChange={onToggleSilentNotifications}
-          trackColor={{ false: colors.gray[700], true: colors.primary[500] }}
-          thumbColor={colors.white}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Option</Text>
+        <Text style={styles.sectionHint}>Notifications silencieuses sauf en cas de retard</Text>
+        <ListItem
+          text="Notifications silencieuses"
+          secondaryText="(Sauf urgence)"
+          iconRight={
+            <Toggle active={silentNotifications} onToggle={onToggleSilentNotifications} />
+          }
+          style={styles.toggleItem}
         />
       </View>
-    </View>
+    </>
   );
 }
 
@@ -300,81 +487,147 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: spacing[6],
   },
-  sectionTitle: {
+  sectionLabel: {
     ...typography.label,
     color: colors.gray[400],
-    marginBottom: spacing[3],
-    textTransform: 'uppercase',
+    marginBottom: spacing[1],
   },
-  currentLocationBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
+  sectionHint: {
+    ...typography.caption,
+    color: colors.gray[500],
+    marginBottom: spacing[3],
+  },
+  currentLocationWrapper: {
     marginTop: -spacing[2],
     marginBottom: spacing[4],
-  },
-  currentLocationText: {
-    ...typography.bodySmall,
-    color: colors.primary[400],
-    fontWeight: '600',
   },
   searchSpinner: {
     marginVertical: spacing[2],
   },
-  autocompleteList: {
+  resultsCard: {
     backgroundColor: colors.primary[900],
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.primary[800],
-    marginBottom: spacing[4],
     overflow: 'hidden',
   },
-  autocompleteItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing[3],
-    gap: spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary[800],
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginHorizontal: spacing[4],
   },
-  autocompleteText: {
-    flex: 1,
+  suggestionsSection: {
+    marginBottom: spacing[4],
   },
-  autocompleteMain: {
-    ...typography.body,
-    color: colors.white,
-    fontWeight: '500',
-  },
-  autocompleteSecondary: {
+  suggestionsTitle: {
     ...typography.caption,
-    color: colors.gray[500],
+    color: colors.gray[400],
+    marginBottom: spacing[2],
   },
-  departureTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.primary[900],
-    padding: spacing[4],
-    borderRadius: borderRadius.lg,
+  timeRow: {
+    gap: spacing[3],
   },
-  departureTimeDisplay: {
+  timeDisplay: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[3],
   },
-  departureTimeLabel: {
+  timeLabel: {
     ...typography.body,
     color: colors.gray[300],
   },
-  departureTimeValue: {
+  timeValueBtn: {
+    borderWidth: 1,
+    borderColor: colors.primary[300],
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+  },
+  timeValue: {
     ...typography.h3,
     color: colors.white,
     fontWeight: '600',
   },
-  departureNowText: {
+  pickerCard: {
+    backgroundColor: colors.gray[950],
+    borderRadius: borderRadius.lg,
+    marginTop: spacing[3],
+    overflow: 'hidden',
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: ITEM_HEIGHT * VISIBLE_ITEMS,
+  },
+  pickerActions: {
+    flexDirection: 'row',
+    gap: spacing[3],
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[2],
+    paddingBottom: spacing[3],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  pickerBtnSecondary: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing[3],
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.gray[700],
+  },
+  pickerBtnSecondaryText: {
     ...typography.bodySmall,
-    color: colors.primary[400],
+    color: colors.gray[300],
+    fontWeight: '500',
+  },
+  pickerBtnPrimary: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing[3],
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary[500],
+  },
+  pickerBtnPrimaryText: {
+    ...typography.bodySmall,
+    color: colors.white,
     fontWeight: '600',
+  },
+  scrollColumnWrapper: {
+    width: ms(72, 0.4),
+    height: ITEM_HEIGHT * VISIBLE_ITEMS,
+    position: 'relative',
+  },
+  scrollHighlight: {
+    position: 'absolute',
+    top: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
+    left: spacing[1],
+    right: spacing[1],
+    height: ITEM_HEIGHT,
+    backgroundColor: colors.gray[800],
+    borderRadius: borderRadius.md,
+    zIndex: -1,
+  },
+  scrollItem: {
+    height: ITEM_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollItemText: {
+    ...typography.body,
+    color: colors.gray[600],
+    fontSize: ms(18, 0.4),
+  },
+  scrollItemTextSelected: {
+    color: colors.white,
+    fontWeight: '600',
+  },
+  pickerSeparator: {
+    ...typography.h2,
+    color: colors.white,
+    marginHorizontal: spacing[1],
+  },
+  nowButton: {
+    flex: 0,
   },
   transportRow: {
     flexDirection: 'row',
@@ -383,16 +636,19 @@ const styles = StyleSheet.create({
   transportOption: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: spacing[3],
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.primary[900],
-    borderWidth: 1,
-    borderColor: colors.primary[800],
     gap: spacing[1],
+    borderRadius: borderRadius.md,
+  },
+  transportOptionOutline: {
+    borderWidth: 1,
+    borderColor: colors.secondary[400],
   },
   transportOptionSelected: {
-    backgroundColor: colors.primary[500],
-    borderColor: colors.primary[500],
+    borderWidth: 1,
+    borderColor: colors.secondary[400],
+    backgroundColor: colors.secondary[900],
   },
   transportLabel: {
     ...typography.caption,
@@ -400,92 +656,32 @@ const styles = StyleSheet.create({
   },
   transportLabelSelected: {
     color: colors.white,
-  },
-  noContactsBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary[900],
-    padding: spacing[3],
-    borderRadius: borderRadius.lg,
-    gap: spacing[2],
-  },
-  noContactsContent: {
-    flex: 1,
-    gap: spacing[2],
-  },
-  noContactsText: {
-    ...typography.bodySmall,
-    color: colors.gray[300],
-  },
-  addContactLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-  },
-  addContactLinkText: {
-    ...typography.bodySmall,
-    color: colors.primary[400],
     fontWeight: '600',
+  },
+  contactHint: {
+    ...typography.bodySmall,
+    color: colors.gray[400],
+    marginBottom: spacing[3],
+    lineHeight: ms(22, 0.4),
+  },
+  contactHintBold: {
+    fontWeight: '700',
+    color: colors.gray[300],
   },
   contactsList: {
     gap: spacing[2],
   },
   contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: colors.primary[900],
-    padding: spacing[3],
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: colors.primary[800],
   },
-  contactItemSelected: {
-    borderColor: colors.primary[400],
-    backgroundColor: 'rgba(44, 65, 188, 0.2)',
-  },
-  contactInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-    flex: 1,
-  },
-  contactDetails: {
-    flex: 1,
-  },
-  contactName: {
-    ...typography.body,
-    color: colors.white,
-    fontWeight: '600',
-  },
-  contactPhone: {
-    ...typography.caption,
-    color: colors.gray[500],
-  },
-  primaryBadge: {
-    backgroundColor: 'rgba(44, 65, 188, 0.2)',
-    paddingHorizontal: spacing[2],
-    paddingVertical: spacing[1],
-    borderRadius: borderRadius.sm,
-  },
-  primaryBadgeText: {
-    ...typography.caption,
-    color: colors.primary[400],
-    fontWeight: '600',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  toggleItem: {
+    backgroundColor: colors.primary[900],
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary[900],
-  },
-  toggleLabel: {
-    ...typography.body,
-    color: colors.white,
-    flex: 1,
-    marginRight: spacing[3],
   },
   footerWarning: {
     ...typography.caption,

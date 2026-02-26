@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { BlurView } from 'expo-blur';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
@@ -27,6 +28,8 @@ interface BottomSheetProps {
   snapPoints?: number[];
   initialSnap?: number;
   dark?: boolean;
+  overlayOpacity?: number;
+  onBack?: () => void;
 }
 
 export function BottomSheet({
@@ -37,6 +40,8 @@ export function BottomSheet({
   snapPoints = [0.5],
   initialSnap = 0,
   dark = false,
+  overlayOpacity = 0.5,
+  onBack,
 }: BottomSheetProps) {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -53,7 +58,7 @@ export function BottomSheet({
           stiffness: 150,
         }),
         Animated.timing(backdropOpacity, {
-          toValue: 0.5,
+          toValue: overlayOpacity,
           duration: 200,
           useNativeDriver: true,
         }),
@@ -117,6 +122,7 @@ export function BottomSheet({
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardView}
         >
+          <Pressable style={styles.flex} onPress={onClose} />
           <Animated.View
             style={[
               styles.sheet,
@@ -127,16 +133,30 @@ export function BottomSheet({
               },
             ]}
           >
+            {dark && (
+              <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+            )}
             <View style={styles.handleContainer} {...panResponder.panHandlers}>
               <View style={[styles.handle, dark && styles.handleDark]} />
             </View>
 
             {title && (
               <View style={[styles.header, dark && styles.headerDark]}>
-                <Text style={[styles.title, dark && styles.titleDark]}>{title}</Text>
-                <Pressable style={styles.closeButton} onPress={onClose}>
-                  <FontAwesome name="times" size={scaledIcon(20)} color={dark ? colors.gray[400] : colors.gray[500]} />
-                </Pressable>
+                {onBack ? (
+                  <Pressable style={styles.closeButton} onPress={onBack}>
+                    <FontAwesome name="chevron-left" size={scaledIcon(18)} color={dark ? colors.gray[400] : colors.gray[500]} />
+                  </Pressable>
+                ) : (
+                  <View style={styles.closeButton} />
+                )}
+                <Text style={[styles.title, dark && styles.titleDark, styles.titleCenter]}>{title}</Text>
+                {!onBack ? (
+                  <Pressable style={styles.closeButton} onPress={onClose}>
+                    <FontAwesome name="times" size={scaledIcon(20)} color={dark ? colors.gray[400] : colors.gray[500]} />
+                  </Pressable>
+                ) : (
+                  <View style={styles.closeButton} />
+                )}
               </View>
             )}
 
@@ -159,7 +179,9 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
-    justifyContent: 'flex-end',
+  },
+  flex: {
+    flex: 1,
   },
   sheet: {
     backgroundColor: colors.white,
@@ -189,6 +211,10 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h3,
     color: colors.gray[900],
+    flex: 1,
+  },
+  titleCenter: {
+    textAlign: 'center',
   },
   closeButton: {
     padding: spacing[2],
@@ -199,7 +225,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing[4],
   },
   sheetDark: {
-    backgroundColor: colors.primary[950],
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   handleDark: {
     backgroundColor: colors.gray[600],

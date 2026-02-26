@@ -78,9 +78,10 @@ export function ContextMenu({ items, children }: ContextMenuProps) {
                 key={index}
                 style={({ pressed }) => [
                   styles.menuItem,
+                  item.destructive && styles.menuItemDestructive,
                   index < items.length - 1 && styles.menuItemBorder,
                   item.disabled && styles.menuItemDisabled,
-                  pressed && styles.menuItemPressed,
+                  pressed && (item.destructive ? styles.menuItemDestructivePressed : styles.menuItemPressed),
                 ]}
                 onPress={() => handleItemPress(item)}
                 disabled={item.disabled}
@@ -144,8 +145,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.primary[400],
   },
+  menuItemDestructive: {
+    backgroundColor: colors.error[400],
+  },
   menuItemPressed: {
     backgroundColor: colors.primary[600],
+  },
+  menuItemDestructivePressed: {
+    backgroundColor: colors.error[500],
   },
   menuItemDisabled: {
     opacity: 0.5,

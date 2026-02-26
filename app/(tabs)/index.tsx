@@ -21,6 +21,7 @@ import { useTripStore } from '@/src/stores/tripStore';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import { AlertButton } from '@/src/components/alert/AlertButton';
 import { PlacesBottomSheet } from '@/src/components/places/PlacesBottomSheet';
+import { CreateTripSheet } from '@/src/components/trip/CreateTripSheet';
 import { Snackbar } from '@/src/components/ui/Snackbar';
 import { formatDuration } from '@/src/utils/formatters';
 import type { SavedPlace } from '@/src/types/database';
@@ -54,6 +55,7 @@ export default function HomeScreen() {
     variant: 'success' | 'error';
     action?: { label: string; onPress: () => void };
   }>({ visible: false, title: '', variant: 'success' });
+  const [showCreateTrip, setShowCreateTrip] = useState(false);
   const footerOpacity = useRef(new Animated.Value(1)).current;
   const overlayOpacity = useRef(new Animated.Value(1)).current;
 
@@ -206,27 +208,38 @@ export default function HomeScreen() {
   }, [deletePlace]);
 
   const handleDeletePlace = useCallback(async (place: SavedPlace) => {
-    await deletePlace(place.id);
-    setSnackbar({
-      visible: true,
-      title: 'Lieu enregistré supprimé',
-      subtitle: `Le lieu '${place.name}' a bien été supprimé`,
-      variant: 'error',
-      action: {
-        label: 'Annuler',
-        onPress: async () => {
-          setSnackbar((s) => ({ ...s, visible: false }));
-          await addPlace({
-            name: place.name,
-            address: place.address,
-            latitude: place.latitude,
-            longitude: place.longitude,
-            place_type: place.place_type ?? undefined,
-            icon: place.icon ?? undefined,
-          });
+    try {
+      await deletePlace(place.id);
+      setSnackbar({
+        visible: true,
+        title: 'Lieu enregistré supprimé',
+        subtitle: `Le lieu '${place.name}' a bien été supprimé`,
+        variant: 'error',
+        action: {
+          label: 'Annuler',
+          onPress: () => {
+            setSnackbar((s) => ({ ...s, visible: false }));
+            addPlace({
+              name: place.name,
+              address: place.address,
+              latitude: place.latitude,
+              longitude: place.longitude,
+              place_type: place.place_type ?? undefined,
+              icon: place.icon ?? undefined,
+            }).catch(() => {
+              // silently fail — place already deleted
+            });
+          },
         },
-      },
-    });
+      });
+    } catch {
+      setSnackbar({
+        visible: true,
+        title: 'Erreur',
+        subtitle: 'Impossible de supprimer le lieu',
+        variant: 'error',
+      });
+    }
   }, [deletePlace, addPlace]);
 
   const handleSaveError = useCallback(() => {
@@ -322,7 +335,7 @@ export default function HomeScreen() {
         </Pressable>
         <Pressable
           style={styles.fab}
-          onPress={() => router.push('/(trip)/create')}
+          onPress={() => setShowCreateTrip(true)}
         >
           <Ionicons name="add" size={scaledIcon(22)} color={colors.white} />
         </Pressable>
@@ -389,6 +402,11 @@ export default function HomeScreen() {
         onSaveSuccess={handleSaveSuccess}
         onSaveError={handleSaveError}
         onPlaceSelected={handlePlaceSelectedOnMap}
+      />
+
+      <CreateTripSheet
+        visible={showCreateTrip}
+        onClose={() => setShowCreateTrip(false)}
       />
 
       <Snackbar

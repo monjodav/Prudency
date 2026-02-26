@@ -14,13 +14,14 @@ interface SelectedPlace {
 }
 
 export function useAddPlace() {
-  const { addPlace, isAddingPlace } = usePlaces();
+  const { addPlace, isAddingPlace, updatePlace, isUpdatingPlace } = usePlaces();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PlaceAutocompleteResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [name, setName] = useState('');
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearch = useCallback((text: string) => {
@@ -83,10 +84,31 @@ export function useAddPlace() {
     Keyboard.dismiss();
   }, []);
 
+  const prefill = useCallback((place: SavedPlace) => {
+    setEditingId(place.id);
+    setSearchQuery(place.address);
+    setName(place.name);
+    setSelectedPlace({
+      address: place.address,
+      lat: place.latitude,
+      lng: place.longitude,
+    });
+    setSearchResults([]);
+  }, []);
+
   const handleSave = useCallback(async (): Promise<SavedPlace | null> => {
     if (!selectedPlace || !name.trim()) return null;
 
     try {
+      if (editingId) {
+        const updated = await updatePlace(editingId, {
+          name: name.trim(),
+          address: selectedPlace.address,
+          latitude: selectedPlace.lat,
+          longitude: selectedPlace.lng,
+        });
+        return updated;
+      }
       const saved = await addPlace({
         name: name.trim(),
         address: selectedPlace.address,
@@ -98,7 +120,7 @@ export function useAddPlace() {
     } catch {
       throw new Error('Impossible de sauvegarder le lieu');
     }
-  }, [selectedPlace, name, addPlace]);
+  }, [selectedPlace, name, addPlace, editingId, updatePlace]);
 
   const reset = useCallback(() => {
     setSearchQuery('');
@@ -106,6 +128,7 @@ export function useAddPlace() {
     setIsSearching(false);
     setName('');
     setSelectedPlace(null);
+    setEditingId(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
   }, []);
 
@@ -118,11 +141,13 @@ export function useAddPlace() {
     name,
     setName,
     selectedPlace,
+    editingId,
     isFormValid,
-    isSaving: isAddingPlace,
+    isSaving: isAddingPlace || isUpdatingPlace,
     handleSearch,
     handleSelectResult,
     handleSelectRecentPlace,
+    prefill,
     handleSave,
     reset,
   };

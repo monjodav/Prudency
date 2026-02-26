@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Switch } from 'react-native';
+import { View, ScrollView, StyleSheet, Linking, Alert } from 'react-native';
+import * as Contacts from 'expo-contacts';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
-import { typography } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
+import { mvs } from '@/src/utils/scaling';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
+import { scaledIcon } from '@/src/utils/scaling';
 
 interface ContactFormData {
   name: string;
@@ -44,6 +47,8 @@ export function ContactForm({
     ...initialValues,
   });
   const [errors, setErrors] = useState<Partial<Record<keyof ContactFormData, string>>>({});
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
 
   const updateField = <K extends keyof ContactFormData>(
     key: K,
@@ -57,16 +62,14 @@ export function ContactForm({
 
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof ContactFormData, string>> = {};
-    if (!form.name.trim()) {
-      newErrors.name = 'Le nom est requis';
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+    if (!fullName) {
+      newErrors.name = 'Le prénom est requis';
     }
     if (!form.phone.trim()) {
-      newErrors.phone = 'Le numero de telephone est requis';
+      newErrors.phone = 'Le numéro de téléphone est requis';
     } else if (!/^\+?[0-9\s-]{8,}$/.test(form.phone.replace(/\s/g, ''))) {
       newErrors.phone = 'Numéro de téléphone invalide';
-    }
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      newErrors.email = 'Email invalide';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -74,114 +77,104 @@ export function ContactForm({
 
   const handleSubmit = () => {
     if (validate()) {
-      onSubmit(form);
+      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+      onSubmit({ ...form, name: fullName });
     }
   };
 
+  const handleImportContact = async () => {
+    const { status, canAskAgain } = await Contacts.requestPermissionsAsync();
+
+    if (status !== 'granted') {
+      if (!canAskAgain) {
+        Alert.alert(
+          'Accès aux contacts',
+          'Prudency a besoin d\'accéder à tes contacts pour importer les informations. Active l\'accès dans les réglages.',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Réglages', onPress: () => Linking.openSettings() },
+          ],
+        );
+      }
+      return;
+    }
+
+    const contact = await Contacts.presentContactPickerAsync();
+    if (!contact) return;
+
+    if (contact.firstName) setFirstName(contact.firstName);
+    if (contact.lastName) setLastName(contact.lastName);
+
+    const phone = contact.phoneNumbers?.[0]?.number;
+    if (phone) updateField('phone', phone);
+  };
+
   return (
-    <View style={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       <Input
-        label="Nom"
-        placeholder="Nom du contact"
-        value={form.name}
-        onChangeText={(text) => updateField('name', text)}
+        label="Prénom"
+        placeholder="Prénom"
+        value={firstName}
+        onChangeText={(text) => {
+          setFirstName(text);
+          if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+        }}
         error={errors.name}
         autoCapitalize="words"
+        variant="dark"
       />
 
       <Input
-        label="Téléphone"
+        label="Nom *"
+        placeholder="Nom"
+        value={lastName}
+        onChangeText={setLastName}
+        autoCapitalize="words"
+        variant="dark"
+      />
+
+      <Input
+        label="Téléphone *"
         placeholder="+33 6 12 34 56 78"
         value={form.phone}
         onChangeText={(text) => updateField('phone', text)}
         error={errors.phone}
         keyboardType="phone-pad"
+        variant="dark"
       />
 
-      <Input
-        label="Email (optionnel)"
-        placeholder="contact@exemple.fr"
-        value={form.email}
-        onChangeText={(text) => updateField('email', text)}
-        error={errors.email}
-        keyboardType="email-address"
-        autoCapitalize="none"
+      <Button
+        title="Importer un contact"
+        variant="outline"
+        onPress={handleImportContact}
+        fullWidth
+        icon={<Ionicons name="download-outline" size={scaledIcon(18)} color={colors.primary[400]} />}
       />
 
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Contact principal</Text>
-        <Switch
-          value={form.isPrimary}
-          onValueChange={(value) => updateField('isPrimary', value)}
-          trackColor={{ true: colors.primary[500], false: colors.gray[300] }}
-          thumbColor={colors.white}
-        />
-      </View>
-
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Notification SMS</Text>
-        <Switch
-          value={form.notifyBySms}
-          onValueChange={(value) => updateField('notifyBySms', value)}
-          trackColor={{ true: colors.primary[500], false: colors.gray[300] }}
-          thumbColor={colors.white}
-        />
-      </View>
-
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Notification push</Text>
-        <Switch
-          value={form.notifyByPush}
-          onValueChange={(value) => updateField('notifyByPush', value)}
-          trackColor={{ true: colors.primary[500], false: colors.gray[300] }}
-          thumbColor={colors.white}
-        />
-      </View>
-
-      <View style={styles.actions}>
-        <Button
-          title="Annuler"
-          variant="ghost"
-          onPress={onCancel}
-          style={styles.cancelButton}
-        />
+      <View style={styles.submitWrapper}>
         <Button
           title={submitLabel}
+          variant="primary"
           onPress={handleSubmit}
           loading={loading}
-          style={styles.submitButton}
+          disabled={!firstName.trim() || !form.phone.trim()}
+          fullWidth
         />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingVertical: spacing[2],
+  scrollContent: {
+    paddingTop: spacing[2],
+    paddingBottom: spacing[8],
   },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
-  },
-  switchLabel: {
-    ...typography.body,
-    color: colors.gray[700],
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: spacing[6],
-    gap: spacing[3],
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  submitButton: {
-    flex: 1,
+  submitWrapper: {
+    marginTop: mvs(180, 0.5),
   },
 });
