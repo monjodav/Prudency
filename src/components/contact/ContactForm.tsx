@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, Linking, Alert } from 'react-native';
+import { View, ScrollView, Text, TextInput, Image, StyleSheet, Linking, Alert } from 'react-native';
 import * as Contacts from 'expo-contacts';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
-import { mvs } from '@/src/utils/scaling';
+import { ms, mvs, scaledIcon, scaledFontSize, scaledSpacing, scaledRadius } from '@/src/utils/scaling';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
-import { scaledIcon } from '@/src/utils/scaling';
 
 interface ContactFormData {
   name: string;
@@ -35,6 +34,19 @@ const DEFAULT_VALUES: ContactFormData = {
   notifyByPush: true,
 };
 
+const COUNTRY_PREFIX = '+33';
+
+function formatPhoneDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 9);
+  const parts: string[] = [];
+  if (digits.length > 0) parts.push(digits.slice(0, 1));
+  if (digits.length > 1) parts.push(digits.slice(1, 3));
+  if (digits.length > 3) parts.push(digits.slice(3, 5));
+  if (digits.length > 5) parts.push(digits.slice(5, 7));
+  if (digits.length > 7) parts.push(digits.slice(7, 9));
+  return parts.join(' ');
+}
+
 export function ContactForm({
   initialValues,
   onSubmit,
@@ -49,6 +61,8 @@ export function ContactForm({
   const [errors, setErrors] = useState<Partial<Record<keyof ContactFormData, string>>>({});
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [phoneDisplay, setPhoneDisplay] = useState('');
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
   const updateField = <K extends keyof ContactFormData>(
     key: K,
@@ -60,15 +74,17 @@ export function ContactForm({
     }
   };
 
+  const phoneDigits = phoneDisplay.replace(/\D/g, '');
+
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof ContactFormData, string>> = {};
     const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
     if (!fullName) {
       newErrors.name = 'Le prénom est requis';
     }
-    if (!form.phone.trim()) {
+    if (!phoneDigits) {
       newErrors.phone = 'Le numéro de téléphone est requis';
-    } else if (!/^\+?[0-9\s-]{8,}$/.test(form.phone.replace(/\s/g, ''))) {
+    } else if (phoneDigits.length < 9) {
       newErrors.phone = 'Numéro de téléphone invalide';
     }
     setErrors(newErrors);
@@ -78,7 +94,8 @@ export function ContactForm({
   const handleSubmit = () => {
     if (validate()) {
       const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-      onSubmit({ ...form, name: fullName });
+      const e164Phone = `${COUNTRY_PREFIX}${phoneDigits}`;
+      onSubmit({ ...form, name: fullName, phone: e164Phone });
     }
   };
 
@@ -99,14 +116,41 @@ export function ContactForm({
       return;
     }
 
-    const contact = await Contacts.presentContactPickerAsync();
+    const picked = await Contacts.presentContactPickerAsync();
+    if (!picked?.id) return;
+
+    const contact = await Contacts.getContactByIdAsync(picked.id, [
+      Contacts.Fields.FirstName,
+      Contacts.Fields.LastName,
+      Contacts.Fields.PhoneNumbers,
+      Contacts.Fields.Image,
+    ]);
     if (!contact) return;
 
-    if (contact.firstName) setFirstName(contact.firstName);
-    if (contact.lastName) setLastName(contact.lastName);
+    if (contact.lastName) setFirstName(contact.lastName);
+    if (contact.firstName) setLastName(contact.firstName);
 
-    const phone = contact.phoneNumbers?.[0]?.number;
-    if (phone) updateField('phone', phone);
+    if (contact.image?.uri) {
+      setAvatarUri(contact.image.uri);
+    }
+
+    const rawPhone = contact.phoneNumbers?.[0]?.number;
+    if (rawPhone) {
+      const cleaned = rawPhone.replace(/[\s.\-()]/g, '');
+      let digits = cleaned;
+      if (cleaned.startsWith('+33')) {
+        digits = cleaned.slice(3);
+      } else if (cleaned.startsWith('0')) {
+        digits = cleaned.slice(1);
+      }
+      setPhoneDisplay(formatPhoneDisplay(digits));
+      if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+    } else {
+      Alert.alert(
+        'Numéro manquant',
+        'Ce contact n\'a pas de numéro de téléphone enregistré.',
+      );
+    }
   };
 
   return (
@@ -115,6 +159,12 @@ export function ContactForm({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
+      {avatarUri && (
+        <View style={styles.avatarContainer}>
+          <Image source={{ uri: avatarUri }} style={styles.avatar} />
+        </View>
+      )}
+
       <Input
         label="Prénom"
         placeholder="Prénom"
@@ -137,15 +187,35 @@ export function ContactForm({
         variant="dark"
       />
 
-      <Input
-        label="Téléphone *"
-        placeholder="+33 6 12 34 56 78"
-        value={form.phone}
-        onChangeText={(text) => updateField('phone', text)}
-        error={errors.phone}
-        keyboardType="phone-pad"
-        variant="dark"
-      />
+      <View style={styles.phoneFieldContainer}>
+        <Text style={styles.phoneLabel}>Téléphone *</Text>
+        <View style={[
+          styles.phoneRow,
+          errors.phone ? styles.phoneRowError : undefined,
+        ]}>
+          <View style={styles.phonePrefix}>
+            <Text style={styles.phonePrefixFlag}>🇫🇷</Text>
+            <Text style={styles.phonePrefixCode}>{COUNTRY_PREFIX}</Text>
+          </View>
+          <View style={styles.phoneSeparator} />
+          <TextInput
+            style={styles.phoneInput}
+            placeholder="6 12 34 56 78"
+            placeholderTextColor={colors.gray[500]}
+            value={phoneDisplay}
+            onChangeText={(text) => {
+              setPhoneDisplay(formatPhoneDisplay(text));
+              if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+            }}
+            keyboardType="phone-pad"
+            autoCorrect={false}
+            autoComplete="tel"
+            textContentType="telephoneNumber"
+            maxLength={13}
+          />
+        </View>
+        {errors.phone && <Text style={styles.phoneError}>{errors.phone}</Text>}
+      </View>
 
       <Button
         title="Importer un contact"
@@ -161,7 +231,7 @@ export function ContactForm({
           variant="primary"
           onPress={handleSubmit}
           loading={loading}
-          disabled={!firstName.trim() || !form.phone.trim()}
+          disabled={!firstName.trim() || phoneDigits.length < 9}
           fullWidth
         />
       </View>
@@ -173,6 +243,71 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: spacing[2],
     paddingBottom: spacing[8],
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    marginBottom: spacing[4],
+  },
+  avatar: {
+    width: ms(80, 0.4),
+    height: ms(80, 0.4),
+    borderRadius: ms(40, 0.4),
+    backgroundColor: colors.gray[800],
+  },
+  phoneFieldContainer: {
+    gap: scaledSpacing(8),
+    marginBottom: spacing[3],
+  },
+  phoneLabel: {
+    fontSize: scaledFontSize(14),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.gray[50],
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary[50],
+    borderRadius: scaledRadius(8),
+    height: ms(48, 0.5),
+    paddingHorizontal: scaledSpacing(12),
+  },
+  phoneRowError: {
+    borderColor: colors.error[600],
+  },
+  phonePrefix: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaledSpacing(6),
+  },
+  phonePrefixFlag: {
+    fontSize: scaledFontSize(18),
+  },
+  phonePrefixCode: {
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.white,
+  },
+  phoneSeparator: {
+    width: 1,
+    height: ms(24, 0.5),
+    backgroundColor: colors.primary[200],
+    marginHorizontal: scaledSpacing(10),
+  },
+  phoneInput: {
+    flex: 1,
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.white,
+    height: '100%',
+    paddingVertical: 0,
+  },
+  phoneError: {
+    fontSize: scaledFontSize(12),
+    color: colors.error[500],
   },
   submitWrapper: {
     marginTop: mvs(180, 0.5),

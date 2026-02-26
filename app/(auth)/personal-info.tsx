@@ -173,7 +173,7 @@ export default function PersonalInfoScreen() {
                 <View style={styles.phoneSeparator} />
                 <TextInput
                   style={styles.phoneInput}
-                  placeholder="6 87 68 94 11"
+                  placeholder="6 12 34 56 78"
                   placeholderTextColor={colors.gray[500]}
                   value={phone}
                   onChangeText={(text) => {
