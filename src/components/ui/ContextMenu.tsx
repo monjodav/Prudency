@@ -9,8 +9,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius } from '@/src/theme/spacing';
-import { scaledIcon, scaledShadow, ms } from '@/src/utils/scaling';
+import { spacing, borderRadius, shadows } from '@/src/theme/spacing';
+import { scaledIcon, ms } from '@/src/utils/scaling';
 
 interface ContextMenuItem {
   label: string;
@@ -31,8 +31,8 @@ export function ContextMenu({ items, children }: ContextMenuProps) {
   const triggerRef = useRef<View>(null);
 
   const handleOpen = () => {
-    triggerRef.current?.measureInWindow((x, y, width, height) => {
-      setMenuPosition({ x: x - ms(120, 0.5), y: y + height + spacing[1] });
+    triggerRef.current?.measureInWindow((x, y, _width, height) => {
+      setMenuPosition({ x: x - ms(160, 0.5), y: y + height + spacing[1] });
       setVisible(true);
     });
   };
@@ -51,7 +51,7 @@ export function ContextMenu({ items, children }: ContextMenuProps) {
             <Ionicons
               name="ellipsis-vertical"
               size={scaledIcon(20)}
-              color={colors.gray[400]}
+              color={colors.gray[50]}
             />
           </View>
         )}
@@ -76,28 +76,15 @@ export function ContextMenu({ items, children }: ContextMenuProps) {
             {items.map((item, index) => (
               <Pressable
                 key={index}
-                style={[
+                style={({ pressed }) => [
                   styles.menuItem,
                   index < items.length - 1 && styles.menuItemBorder,
                   item.disabled && styles.menuItemDisabled,
+                  pressed && styles.menuItemPressed,
                 ]}
                 onPress={() => handleItemPress(item)}
                 disabled={item.disabled}
               >
-                {item.icon && (
-                  <Ionicons
-                    name={item.icon}
-                    size={scaledIcon(18)}
-                    color={
-                      item.disabled
-                        ? colors.gray[400]
-                        : item.destructive
-                          ? colors.error[500]
-                          : colors.gray[900]
-                    }
-                    style={styles.menuItemIcon}
-                  />
-                )}
                 <Text
                   style={[
                     styles.menuItemText,
@@ -107,6 +94,20 @@ export function ContextMenu({ items, children }: ContextMenuProps) {
                 >
                   {item.label}
                 </Text>
+                {item.icon && (
+                  <Ionicons
+                    name={item.icon}
+                    size={scaledIcon(18)}
+                    color={
+                      item.disabled
+                        ? colors.gray[400]
+                        : item.destructive
+                          ? colors.white
+                          : colors.white
+                    }
+                    style={styles.menuItemIcon}
+                  />
+                )}
               </Pressable>
             ))}
           </View>
@@ -125,42 +126,42 @@ const styles = StyleSheet.create({
   },
   menu: {
     position: 'absolute',
-    minWidth: ms(160, 0.5),
-    backgroundColor: colors.white,
+    minWidth: ms(180, 0.5),
+    backgroundColor: colors.primary[500],
     borderRadius: borderRadius.lg,
-    paddingVertical: spacing[1],
-    ...scaledShadow({
-      shadowColor: colors.black,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      elevation: 8,
-    }),
+    overflow: 'hidden',
+    ...shadows.xl,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: spacing[3],
     paddingHorizontal: spacing[4],
+    gap: spacing[2],
   },
   menuItemBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.gray[100],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primary[400],
+  },
+  menuItemPressed: {
+    backgroundColor: colors.primary[600],
   },
   menuItemDisabled: {
     opacity: 0.5,
   },
   menuItemIcon: {
-    marginRight: spacing[3],
+    marginLeft: spacing[1],
   },
   menuItemText: {
     ...typography.body,
-    color: colors.gray[900],
+    color: colors.white,
+    fontWeight: '500',
   },
   menuItemTextDestructive: {
-    color: colors.error[500],
+    color: colors.white,
   },
   menuItemTextDisabled: {
-    color: colors.gray[400],
+    color: colors.gray[300],
   },
 });

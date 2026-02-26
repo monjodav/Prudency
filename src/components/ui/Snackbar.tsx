@@ -22,8 +22,8 @@ interface SnackbarProps {
 }
 
 const VARIANT_CONFIG: Record<SnackbarVariant, { bgColor: string; iconName: string }> = {
-  success: { bgColor: colors.success[900], iconName: 'check-circle' },
-  error: { bgColor: colors.error[900], iconName: 'exclamation-circle' },
+  success: { bgColor: colors.success[900], iconName: 'smile-o' },
+  error: { bgColor: colors.error[900], iconName: 'frown-o' },
   info: { bgColor: colors.secondary[700], iconName: 'info-circle' },
 };
 

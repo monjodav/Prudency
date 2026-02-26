@@ -39,7 +39,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { activeTripId, lastKnownLat, lastKnownLng, arrivalAddress, estimatedDurationMinutes, updateLocation } = useTripStore();
-  const { places, deletePlace } = usePlaces();
+  const { places, deletePlace, addPlace } = usePlaces();
   const mapRef = useRef<MapView>(null);
   const lastSavedPlace = useRef<SavedPlace | null>(null);
 
@@ -205,6 +205,30 @@ export default function HomeScreen() {
     );
   }, [deletePlace]);
 
+  const handleDeletePlace = useCallback(async (place: SavedPlace) => {
+    await deletePlace(place.id);
+    setSnackbar({
+      visible: true,
+      title: 'Lieu enregistré supprimé',
+      subtitle: `Le lieu '${place.name}' a bien été supprimé`,
+      variant: 'error',
+      action: {
+        label: 'Annuler',
+        onPress: async () => {
+          setSnackbar((s) => ({ ...s, visible: false }));
+          await addPlace({
+            name: place.name,
+            address: place.address,
+            latitude: place.latitude,
+            longitude: place.longitude,
+            place_type: place.place_type ?? undefined,
+            icon: place.icon ?? undefined,
+          });
+        },
+      },
+    });
+  }, [deletePlace, addPlace]);
+
   const handleSaveError = useCallback(() => {
     setSnackbar({
       visible: true,
@@ -359,6 +383,7 @@ export default function HomeScreen() {
       <PlacesBottomSheet
         places={places}
         onPlacePress={handlePlacePress}
+        onDeletePlace={handleDeletePlace}
         bottomInset={0}
         onSheetChange={handleSheetChange}
         onSaveSuccess={handleSaveSuccess}

@@ -1,4 +1,5 @@
 import { Button } from '@/src/components/ui/Button';
+import { ContextMenu } from '@/src/components/ui/ContextMenu';
 import { useAddPlace } from '@/src/hooks/useAddPlace';
 import type { PlaceAutocompleteResult } from '@/src/services/placesService';
 import { colors } from '@/src/theme/colors';
@@ -7,8 +8,8 @@ import type { SavedPlace } from '@/src/types/database';
 import { ms, scaledFontSize, scaledIcon, scaledRadius } from '@/src/utils/scaling';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, {
-  BottomSheetScrollView,
   BottomSheetTextInput,
+  BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { BlurView } from 'expo-blur';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
@@ -19,6 +20,7 @@ type SheetPage = 'list' | 'addPlace';
 interface PlacesBottomSheetProps {
   places: SavedPlace[];
   onPlacePress: (place: SavedPlace) => void;
+  onDeletePlace: (place: SavedPlace) => void;
   bottomInset: number;
   onSheetChange?: (index: number) => void;
   onSaveSuccess?: (place: SavedPlace) => void;
@@ -29,6 +31,7 @@ interface PlacesBottomSheetProps {
 export function PlacesBottomSheet({
   places,
   onPlacePress,
+  onDeletePlace,
   bottomInset,
   onSheetChange,
   onSaveSuccess,
@@ -71,7 +74,7 @@ export function PlacesBottomSheet({
   }, [onSheetChange, page, reset]);
 
   const snapPoints = useMemo(
-    () => [ms(32, 0.4), '35%', '45%'],
+    () => ['4%', '45%'],
     [],
   );
 
@@ -101,7 +104,6 @@ export function PlacesBottomSheet({
 
   const handleOpenAddPlace = useCallback(() => {
     setPage('addPlace');
-    bottomSheetRef.current?.snapToIndex(2);
   }, []);
 
   const handleBack = useCallback(() => {
@@ -138,9 +140,27 @@ export function PlacesBottomSheet({
     }
   }, [handleSave, onSaveSuccess, onSaveError, reset]);
 
+  const getMenuItems = useCallback((place: SavedPlace) => {
+    return [
+      {
+        label: 'Modifier',
+        icon: 'pencil' as keyof typeof Ionicons.glyphMap,
+        onPress: () => {
+          // TODO: navigate to edit place
+        },
+      },
+      {
+        label: 'Supprimer',
+        icon: 'trash' as keyof typeof Ionicons.glyphMap,
+        onPress: () => onDeletePlace(place),
+        destructive: true,
+      },
+    ];
+  }, [onDeletePlace]);
+
   const showAutocomplete = searchResults.length > 0 && !selectedPlace;
 
-  // --- Render: saved place row (bookmark icon + name + dots) ---
+  // --- Render: saved place row (bookmark icon + name + context menu) ---
   const renderSavedPlace = useCallback(
     (place: SavedPlace, isLast: boolean) => (
       <Pressable
@@ -164,17 +184,19 @@ export function PlacesBottomSheet({
             </Text>
           </View>
         </View>
-        <Ionicons
-          name="ellipsis-vertical"
-          size={scaledIcon(24)}
-          color={colors.gray[50]}
-        />
+        <ContextMenu items={getMenuItems(place)}>
+          <Ionicons
+            name="ellipsis-vertical"
+            size={scaledIcon(24)}
+            color={colors.gray[50]}
+          />
+        </ContextMenu>
       </Pressable>
     ),
-    [onPlacePress],
+    [onPlacePress, getMenuItems],
   );
 
-  // --- Render: recent place row (clock icon + name + address + dots) ---
+  // --- Render: recent place row (clock icon + name + address + context menu) ---
   const renderRecentPlace = useCallback(
     (place: SavedPlace, isLast: boolean) => (
       <Pressable
@@ -201,14 +223,16 @@ export function PlacesBottomSheet({
             </Text>
           </View>
         </View>
-        <Ionicons
-          name="ellipsis-vertical"
-          size={scaledIcon(24)}
-          color={colors.gray[50]}
-        />
+        <ContextMenu items={getMenuItems(place)}>
+          <Ionicons
+            name="ellipsis-vertical"
+            size={scaledIcon(24)}
+            color={colors.gray[50]}
+          />
+        </ContextMenu>
       </Pressable>
     ),
-    [onPlacePress],
+    [onPlacePress, getMenuItems],
   );
 
   return (
@@ -243,10 +267,7 @@ export function PlacesBottomSheet({
       keyboardBlurBehavior="restore"
     >
       {page === 'list' ? (
-        <BottomSheetScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <BottomSheetView style={styles.scrollContent}>
           {/* Section: Lieux enregistrés */}
           <View style={styles.sectionGroup}>
             <View style={styles.sectionHeader}>
@@ -296,17 +317,15 @@ export function PlacesBottomSheet({
               </View>
             ) : (
               <Text style={styles.emptyText}>
-                Aucun trajets récents pour le moment.{'\n'}
-                Tu pourras retrouvés tes trajets récents et enregistrés ici !
+                Aucun trajet récent pour le moment.{'\n'}
+                Tu pourras retrouver tes trajets récents et enregistrés ici !
               </Text>
             )}
           </View>
-        </BottomSheetScrollView>
+        </BottomSheetView>
       ) : (
-        <BottomSheetScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <BottomSheetView
+          style={styles.scrollContent}
         >
           {/* Header with back button */}
           <View style={styles.formHeader}>
@@ -424,7 +443,7 @@ export function PlacesBottomSheet({
               loading={isSaving}
             />
           </View>
-        </BottomSheetScrollView>
+        </BottomSheetView>
       )}
     </BottomSheet>
   );
