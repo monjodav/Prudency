@@ -14,15 +14,15 @@ import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius, shadows } from '@/src/theme/spacing';
+import { spacing, shadows } from '@/src/theme/spacing';
 import { ms, scaledIcon, scaledRadius } from '@/src/utils/scaling';
+import { UserLocationDot } from '@/src/components/icons/UserLocationDot';
 import { useTripStore } from '@/src/stores/tripStore';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import { AlertButton } from '@/src/components/alert/AlertButton';
 import { PlacesBottomSheet } from '@/src/components/places/PlacesBottomSheet';
 import { Snackbar } from '@/src/components/ui/Snackbar';
 import { formatDuration } from '@/src/utils/formatters';
-import { TRIP_STATUS } from '@/src/utils/constants';
 import type { SavedPlace } from '@/src/types/database';
 
 const DEFAULT_REGION: Region = {
@@ -33,6 +33,7 @@ const DEFAULT_REGION: Region = {
 };
 
 const FAB_SIZE = ms(48, 0.4);
+const DOT_SIZE = ms(32, 0.4);
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -42,10 +43,9 @@ export default function HomeScreen() {
   const mapRef = useRef<MapView>(null);
   const lastSavedPlace = useRef<SavedPlace | null>(null);
 
-  const [showRecenter, setShowRecenter] = useState(false);
-  const [dotVisible, setDotVisible] = useState(false);
-  const dotX = useRef(new Animated.Value(0)).current;
-  const dotY = useRef(new Animated.Value(0)).current;
+  const [dotPosition, setDotPosition] = useState<{ x: number; y: number } | null>(null);
+  const currentRegion = useRef<Region>(DEFAULT_REGION);
+  const userCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const isFollowingUser = useRef(true);
   const [snackbar, setSnackbar] = useState<{
     visible: boolean;
@@ -56,6 +56,15 @@ export default function HomeScreen() {
   }>({ visible: false, title: '', variant: 'success' });
   const footerOpacity = useRef(new Animated.Value(1)).current;
   const overlayOpacity = useRef(new Animated.Value(1)).current;
+
+
+  const syncDot = useCallback(async () => {
+    const coords = userCoordsRef.current;
+    if (!coords) return;
+    const point = await mapRef.current?.pointForCoordinate(coords);
+    if (!point) return;
+    setDotPosition({ x: point.x - DOT_SIZE / 2, y: point.y - DOT_SIZE / 2 });
+  }, []);
 
   const handleSheetChange = useCallback((index: number) => {
     const hidden = index > 0 ? 0 : 1;
@@ -87,21 +96,11 @@ export default function HomeScreen() {
       if (lastKnown) {
         const { latitude, longitude } = lastKnown.coords;
         updateLocation(latitude, longitude);
-        mapRef.current?.animateToRegion(
-          { latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-          500,
-        );
-        // Init dot position after animation
-        setTimeout(() => {
-          mapRef.current?.pointForCoordinate({ latitude, longitude })
-            .then((point) => {
-              if (cancelled) return;
-              dotX.setValue(point.x - ms(16, 0.4));
-              dotY.setValue(point.y - ms(16, 0.4));
-              setDotVisible(true);
-            })
-            .catch(() => {});
-        }, 550);
+        userCoordsRef.current = { latitude, longitude };
+        const region = { latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+        currentRegion.current = region;
+        mapRef.current?.animateToRegion(region, 500);
+        syncDot();
       }
 
       // Watch position in real time
@@ -115,15 +114,8 @@ export default function HomeScreen() {
           if (cancelled) return;
           const { latitude, longitude } = location.coords;
           updateLocation(latitude, longitude);
-          // Sync dot pixel position
-          mapRef.current?.pointForCoordinate({ latitude, longitude })
-            .then((point) => {
-              if (cancelled) return;
-              dotX.setValue(point.x - ms(16, 0.4));
-              dotY.setValue(point.y - ms(16, 0.4));
-              setDotVisible(true);
-            })
-            .catch(() => {});
+          userCoordsRef.current = { latitude, longitude };
+          syncDot();
           if (isFollowingUser.current) {
             mapRef.current?.animateToRegion(
               { latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 },
@@ -140,7 +132,7 @@ export default function HomeScreen() {
       cancelled = true;
       subscription?.remove();
     };
-  }, [updateLocation]);
+  }, [updateLocation, syncDot]);
 
   const userLocation =
     lastKnownLat != null && lastKnownLng != null
@@ -170,17 +162,6 @@ export default function HomeScreen() {
     [],
   );
 
-  const syncDotPosition = useCallback(() => {
-    if (!userLocation || !mapRef.current) return;
-    mapRef.current.pointForCoordinate(userLocation)
-      .then((point) => {
-        dotX.setValue(point.x - ms(16, 0.4));
-        dotY.setValue(point.y - ms(16, 0.4));
-        setDotVisible(true);
-      })
-      .catch(() => {});
-  }, [userLocation, dotX, dotY]);
-
   const handleRecenter = useCallback(() => {
     if (!userLocation) return;
     isFollowingUser.current = true;
@@ -188,20 +169,17 @@ export default function HomeScreen() {
       { ...userLocation, latitudeDelta: 0.01, longitudeDelta: 0.01 },
       500,
     );
-    setShowRecenter(false);
   }, [userLocation]);
 
   const handleRegionChange = useCallback(() => {
-    syncDotPosition();
-  }, [syncDotPosition]);
+    syncDot();
+  }, [syncDot]);
 
-  const handleRegionChangeComplete = useCallback(() => {
-    syncDotPosition();
-    if (userLocation && !isFollowingUser.current) {
-      setShowRecenter(true);
-    }
+  const handleRegionChangeComplete = useCallback((region: Region) => {
+    currentRegion.current = region;
+    syncDot();
     isFollowingUser.current = false;
-  }, [userLocation, syncDotPosition]);
+  }, [syncDot]);
 
   const handleSaveSuccess = useCallback((place: SavedPlace) => {
     lastSavedPlace.current = place;
@@ -264,6 +242,15 @@ export default function HomeScreen() {
         onRegionChange={handleRegionChange}
         onRegionChangeComplete={handleRegionChangeComplete}
       >
+        {userLocation && (
+          <Marker
+            coordinate={userLocation}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
+          >
+            <UserLocationDot size={DOT_SIZE} />
+          </Marker>
+        )}
         {places.map((place) => (
           <Marker
             key={place.id}
@@ -277,18 +264,16 @@ export default function HomeScreen() {
       {/* Dark overlay on light map */}
       <View style={styles.mapOverlay} pointerEvents="none" />
 
-      {/* User location dot — above overlay, follows map position */}
-      {dotVisible && (
+      {/* User location SVG — above overlay, below bottom sheet */}
+      {dotPosition && (
         <Animated.View
           style={[
             styles.userDotAbsolute,
-            { left: dotX, top: dotY, opacity: overlayOpacity },
+            { left: dotPosition.x, top: dotPosition.y, opacity: overlayOpacity },
           ]}
           pointerEvents="none"
         >
-          <View style={styles.userDotOuter}>
-            <View style={styles.userDotInner} />
-          </View>
+          <UserLocationDot size={DOT_SIZE} />
         </Animated.View>
       )}
 
@@ -320,16 +305,13 @@ export default function HomeScreen() {
       </Animated.View>
 
       {/* Recenter button — bottom left */}
-      {showRecenter && (
-        <Animated.View style={{ opacity: overlayOpacity }}>
-          <Pressable
-            style={[styles.recenterButton, { bottom: fabBottom }]}
-            onPress={handleRecenter}
-          >
-            <Ionicons name="locate" size={scaledIcon(22)} color={colors.white} />
-          </Pressable>
-        </Animated.View>
-      )}
+      <Animated.View
+        style={[styles.recenterButtonContainer, { bottom: fabBottom, opacity: overlayOpacity }]}
+      >
+        <Pressable style={styles.recenterButton} onPress={handleRecenter}>
+          <Ionicons name="locate" size={scaledIcon(22)} color={colors.white} />
+        </Pressable>
+      </Animated.View>
 
       {/* Active trip card — bottom */}
       {activeTripId && (
@@ -435,9 +417,11 @@ const styles = StyleSheet.create({
     shadowRadius: ms(25, 0.4),
     elevation: 8,
   },
-  recenterButton: {
+  recenterButtonContainer: {
     position: 'absolute',
     left: spacing[4],
+  },
+  recenterButton: {
     width: FAB_SIZE,
     height: FAB_SIZE,
     borderRadius: FAB_SIZE / 2,
@@ -522,26 +506,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brandPosition[50],
     borderWidth: 2,
     borderColor: 'rgba(204, 99, 249, 0.4)',
-  },
-  userDotOuter: {
-    width: ms(32, 0.4),
-    height: ms(32, 0.4),
-    borderRadius: ms(16, 0.4),
-    backgroundColor: 'rgba(220, 120, 255, 0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  userDotInner: {
-    width: ms(18, 0.4),
-    height: ms(18, 0.4),
-    borderRadius: ms(9, 0.4),
-    backgroundColor: '#e08fff',
-    borderWidth: 2.5,
-    borderColor: colors.white,
-    shadowColor: '#dd80ff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: ms(6, 0.4),
-    elevation: 8,
   },
 });
