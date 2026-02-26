@@ -52,7 +52,7 @@ export function BottomInfoPanel({
       <View style={styles.timerSection}>
         <View style={styles.timerRow}>
           <View style={styles.timerItem}>
-            <Text style={styles.timerLabel}>Temps ecoule</Text>
+            <Text style={styles.timerLabel}>Temps écoulé</Text>
             <Text style={styles.timerValue}>{elapsed}</Text>
           </View>
           <View style={styles.timerItem}>

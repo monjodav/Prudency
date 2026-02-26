@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,69 +7,63 @@ import {
   Dimensions,
   ViewToken,
   Pressable,
+  LayoutChangeEvent,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
-import { useAuthStore } from '@/src/stores/authStore';
-import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
-import { SplashLogo } from '@/src/components/splash/SplashLogo';
-import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, scaledIcon, ms } from '@/src/utils/scaling';
+import Svg, { Path, Ellipse } from 'react-native-svg';
+import { useAuth } from '@/src/hooks/useAuth';
+import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledIcon, ms } from '@/src/utils/scaling';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface OnboardingStep {
   id: string;
-  icon: keyof typeof Ionicons.glyphMap;
   title: string;
   description: string;
+  titleBold?: boolean;
   isWelcome?: boolean;
   isFinal?: boolean;
 }
 
-// Onboarding steps from Figma design
 const STEPS: OnboardingStep[] = [
   {
     id: 'welcome',
-    icon: 'heart',
-    title: 'Bienvenue sur Prudency, {name} \u{1F499}',
+    title: 'Bienvenue sur\nPrudency, {name} \u{1F499}',
     description:
       'Tu n\'es plus seule pendant tes déplacements. Prudency veille sur toi, à chaque trajet.',
+    titleBold: true,
     isWelcome: true,
   },
   {
     id: 'contacts',
-    icon: 'people',
     title: 'Un cercle de confiance',
     description:
       'Choisis une personne de confiance. Elle sera prévenue uniquement si un problème survient durant ton trajet.',
   },
   {
     id: 'privacy',
-    icon: 'eye-off',
     title: 'Garde tes trajets privés',
     description:
       'Tu es la seule personne à voir ton trajet, si tu le souhaites. Une alerte est envoyée uniquement si quelque chose ne se passe pas comme prévu.',
   },
   {
     id: 'notes',
-    icon: 'document-text',
     title: 'Des trajets plus sereins',
     description:
       'Ce carnet de bord te permet de noter tout ce qui te semble important pendant tes trajets.',
   },
   {
     id: 'security',
-    icon: 'shield-checkmark',
     title: 'Une sécurité discrète',
     description:
       'Une validation te sera demandée à la fin ou à l\'annulation d\'un trajet, uniquement pour ta sécurité.',
   },
   {
     id: 'ready',
-    icon: 'checkmark-circle',
     title: 'C\'est parti !',
     description:
       'Tu peux maintenant utiliser Prudency en toute sérénité.',
@@ -77,14 +71,75 @@ const STEPS: OnboardingStep[] = [
   },
 ];
 
+// 4 segments in progress bar (welcome = start, 4 content slides, ready = end)
+const NUM_SEGMENTS = 4;
+
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const insets = useSafeAreaInsets();
+  const { profile } = useAuth();
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Get user's first name for welcome screen
-  const userName = user?.user_metadata?.first_name || 'toi';
+  const userName = profile?.first_name || 'toi';
+  const [segmentLayouts, setSegmentLayouts] = useState<{ x: number; width: number }[]>([]);
+
+  const onSegmentLayout = useCallback((index: number, e: LayoutChangeEvent) => {
+    const { x, width } = e.nativeEvent.layout;
+    setSegmentLayouts((prev) => {
+      const next = [...prev];
+      next[index] = { x, width };
+      return next;
+    });
+  }, []);
+
+  // Halo position from Figma:
+  // Slide 0 (Bienvenue)  → left edge of segment 0
+  // Slide 1 (Contacts)   → right edge of segment 0
+  // Slide 2 (Privés)     → left edge of segment 1
+  // Slide 3 (Sereins)    → left edge of segment 2
+  // Slide 4 (Sécurité)   → left edge of segment 3
+  // Slide 5 (C'est parti)→ right edge of segment 3
+  const getHaloLeft = (): number => {
+    if (segmentLayouts.length < NUM_SEGMENTS) return 0;
+    if (currentIndex === 0) {
+      const seg = segmentLayouts[0];
+      return seg ? seg.x : 0;
+    }
+    if (currentIndex === 1) {
+      const seg = segmentLayouts[0];
+      return seg ? seg.x + seg.width : 0;
+    }
+    if (currentIndex <= NUM_SEGMENTS) {
+      // Slides 2-4 → left edge of segment (currentIndex - 1)
+      const seg = segmentLayouts[currentIndex - 1];
+      return seg ? seg.x : 0;
+    }
+    // Slide 5 (final) → right edge of last segment
+    const seg = segmentLayouts[NUM_SEGMENTS - 1];
+    return seg ? seg.x + seg.width : 0;
+  };
+
+  // Segment coloring from Figma:
+  // The segment the dot is ON = white
+  // Segments before = blue (active)
+  // Segments after = gray (inactive)
+  const getSegmentStyle = (i: number) => {
+    // Which segment is the dot currently on?
+    // Slide 0-1: dot on segment 0
+    // Slide 2: dot on segment 1
+    // Slide 3: dot on segment 2
+    // Slide 4: dot on segment 3
+    // Slide 5: dot past all segments (all blue)
+    const dotSegment = currentIndex <= 1 ? 0 : currentIndex - 1;
+    if (currentIndex === STEPS.length - 1) {
+      // Final slide: all segments blue
+      return styles.segmentActive;
+    }
+    if (i < dotSegment) return styles.segmentActive;
+    if (i === dotSegment) return styles.segmentCurrent;
+    return styles.segmentInactive;
+  };
 
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -106,18 +161,11 @@ export default function OnboardingScreen() {
   };
 
   const handleComplete = () => {
-    // Navigate to add trusted contact as per Figma flow
     router.replace('/(auth)/add-contact');
   };
 
   const handleSkip = () => {
-    // Skip to final slide
     flatListRef.current?.scrollToIndex({ index: STEPS.length - 1 });
-  };
-
-  const handleStartDemo = () => {
-    // Start from first content slide (after welcome)
-    flatListRef.current?.scrollToIndex({ index: 1 });
   };
 
   const renderStep = ({ item }: { item: OnboardingStep }) => {
@@ -125,45 +173,55 @@ export default function OnboardingScreen() {
 
     return (
       <View style={styles.step}>
-        <View style={styles.stepContent}>
-          <View style={styles.iconContainer}>
-            <Ionicons name={item.icon} size={scaledIcon(64)} color={colors.primary[50]} />
-          </View>
-          <Text style={styles.stepTitle}>{title}</Text>
-          <Text style={styles.stepDescription}>{item.description}</Text>
-        </View>
-
-        {/* Step-specific buttons */}
-        {item.isWelcome && (
-          <View style={styles.welcomeButtons}>
-            <Button
-              title="Commencer la démo"
-              onPress={handleStartDemo}
-              fullWidth
-            />
-            <Pressable onPress={handleComplete} style={styles.skipLink}>
-              <Text style={styles.skipLinkText}>Passer la démo</Text>
-            </Pressable>
-          </View>
-        )}
+        <Text style={[styles.stepTitle, item.titleBold && styles.stepTitleBold]}>
+          {title}
+        </Text>
+        <Text style={styles.stepDescription}>{item.description}</Text>
       </View>
     );
   };
 
   const currentStep = STEPS[currentIndex];
-  const isWelcome = currentStep?.isWelcome;
   const isFinal = currentStep?.isFinal;
+  const isWelcome = currentStep?.isWelcome;
+
+  const getButtonTitle = () => {
+    if (isWelcome) return 'Commencer la démo';
+    if (isFinal) return 'Commencer';
+    return 'Suivant';
+  };
 
   return (
     <OnboardingBackground>
-      {/* Skip button (not on welcome or final) */}
-      {!isWelcome && !isFinal && (
-        <View style={styles.skipContainer}>
-          <Pressable onPress={handleSkip}>
-            <Text style={styles.skipText}>Passer la démo</Text>
-          </Pressable>
+      {/* Progress bar — 4 segmented bars with halo cursor */}
+      <View style={{ paddingHorizontal: scaledSpacing(16), paddingTop: insets.top + scaledSpacing(8) }}>
+        <View style={styles.barWrapper}>
+          {/* Segments */}
+          {Array.from({ length: NUM_SEGMENTS }).map((_, i) => (
+            <View
+              key={i}
+              onLayout={(e) => onSegmentLayout(i, e)}
+              style={[styles.segment, getSegmentStyle(i)]}
+            />
+          ))}
+          {/* Halo cursor — placed at segment boundaries using measured positions */}
+          {segmentLayouts.length === NUM_SEGMENTS && (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.haloDot,
+                { left: getHaloLeft() - HALO_SIZE / 2 },
+              ]}
+            >
+              <Svg width={HALO_SIZE} height={HALO_SIZE} viewBox="0 0 30 30" fill="none">
+                <Ellipse cx="15" cy="15" rx="15" ry="15" fill="#5A356B" opacity={0.6} />
+                <Ellipse cx="15" cy="15" rx="12" ry="12" fill="#9B59B6" opacity={0.7} />
+                <Ellipse cx="15" cy="15" rx="9" ry="9" fill="#CC63F9" />
+              </Svg>
+            </View>
+          )}
         </View>
-      )}
+      </View>
 
       <FlatList
         ref={flatListRef}
@@ -179,87 +237,72 @@ export default function OnboardingScreen() {
         scrollEnabled={!isWelcome}
       />
 
-      {/* Progress bar (not on welcome) */}
-      {!isWelcome && (
-        <View style={styles.progressContainer}>
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${(currentIndex / (STEPS.length - 1)) * 100}%` },
-              ]}
-            />
-          </View>
-          <View
-            style={[
-              styles.progressPicto,
-              { left: `${(currentIndex / (STEPS.length - 1)) * 100}%` },
-            ]}
-          >
-            <SplashLogo size={scaledIcon(24)} />
-          </View>
-        </View>
-      )}
-
-      {/* Bottom button (not on welcome) */}
-      {!isWelcome && (
-        <View style={styles.buttonContainer}>
-          <Button
-            title={isFinal ? 'Commencer' : 'Suivant'}
-            onPress={handleNext}
-            fullWidth
-          />
-        </View>
-      )}
-
+      {/* Bottom buttons */}
+      <View style={styles.buttonContainer}>
+        <Button
+          title={getButtonTitle()}
+          onPress={handleNext}
+          fullWidth
+        />
+        {!isFinal && (
+          <Pressable onPress={isFinal ? handleComplete : handleSkip} style={styles.skipLink}>
+            <Text style={styles.skipLinkText}>Passer la démo</Text>
+          </Pressable>
+        )}
+      </View>
     </OnboardingBackground>
   );
 }
 
+const HALO_SIZE = ms(26, 0.5);
+const BAR_HEIGHT = ms(6, 0.5);
+
 const styles = StyleSheet.create({
-  skipContainer: {
-    position: 'absolute',
-    top: scaledSpacing(60),
-    right: scaledSpacing(24),
-    zIndex: 10,
+  barWrapper: {
+    flexDirection: 'row',
+    gap: scaledSpacing(9),
+    alignItems: 'center',
+    height: HALO_SIZE,
   },
-  skipText: {
-    fontSize: scaledFontSize(14),
-    fontWeight: '400',
-    fontFamily: 'Inter_400Regular',
-    color: colors.primary[50],
-    opacity: 0.8,
+  segment: {
+    flex: 1,
+    height: BAR_HEIGHT,
+    borderRadius: BAR_HEIGHT / 2,
+  },
+  segmentActive: {
+    backgroundColor: colors.primary[400],
+  },
+  segmentCurrent: {
+    backgroundColor: 'rgba(232, 234, 248, 0.6)',
+  },
+  segmentInactive: {
+    backgroundColor: 'rgba(232, 234, 248, 0.15)',
+  },
+  haloDot: {
+    position: 'absolute',
+    width: HALO_SIZE,
+    height: HALO_SIZE,
+    top: 0,
   },
   flatList: {
     flex: 1,
   },
   step: {
     width: SCREEN_WIDTH,
-    paddingHorizontal: scaledSpacing(40),
+    paddingHorizontal: scaledSpacing(50),
     paddingTop: scaledSpacing(100),
-    flex: 1,
-  },
-  stepContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconContainer: {
-    width: ms(120, 0.5),
-    height: ms(120, 0.5),
-    borderRadius: scaledRadius(60),
-    backgroundColor: 'rgba(232, 234, 248, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: scaledSpacing(32),
   },
   stepTitle: {
     fontSize: scaledFontSize(24),
     fontWeight: '400',
     fontFamily: 'Inter_400Regular',
-    color: colors.primary[50],
+    color: colors.gray[50],
     textAlign: 'center',
-    marginBottom: scaledSpacing(16),
+    marginBottom: scaledSpacing(8),
+  },
+  stepTitleBold: {
+    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
   },
   stepDescription: {
     fontSize: scaledFontSize(16),
@@ -268,47 +311,20 @@ const styles = StyleSheet.create({
     color: colors.primary[50],
     textAlign: 'center',
     lineHeight: scaledLineHeight(24),
-    opacity: 0.9,
-  },
-  welcomeButtons: {
-    width: '100%',
-    gap: scaledSpacing(16),
-    marginBottom: scaledSpacing(40),
-  },
-  skipLink: {
-    alignItems: 'center',
-    padding: scaledSpacing(8),
-  },
-  skipLinkText: {
-    fontSize: scaledFontSize(14),
-    fontWeight: '400',
-    fontFamily: 'Inter_400Regular',
-    color: colors.primary[50],
-    opacity: 0.8,
-  },
-  progressContainer: {
-    paddingHorizontal: scaledSpacing(40),
-    paddingBottom: scaledSpacing(24),
-    position: 'relative',
-  },
-  progressTrack: {
-    height: ms(4, 0.5),
-    backgroundColor: 'rgba(232, 234, 248, 0.2)',
-    borderRadius: scaledRadius(2),
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary[50],
-    borderRadius: scaledRadius(2),
-  },
-  progressPicto: {
-    position: 'absolute',
-    top: -ms(10, 0.5),
-    marginLeft: -ms(12, 0.5),
   },
   buttonContainer: {
-    paddingHorizontal: scaledSpacing(64),
-    paddingBottom: scaledSpacing(16),
+    paddingHorizontal: scaledSpacing(50),
+    paddingBottom: scaledSpacing(24),
+    gap: scaledSpacing(8),
+    alignItems: 'center',
+  },
+  skipLink: {
+    paddingVertical: scaledSpacing(8),
+  },
+  skipLinkText: {
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.white,
   },
 });

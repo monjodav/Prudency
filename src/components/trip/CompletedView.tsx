@@ -19,9 +19,9 @@ export function CompletedView({ onGoHome }: CompletedViewProps) {
           <Ionicons name="checkmark-circle" size={scaledIcon(80)} color={colors.success[400]} />
         </View>
 
-        <Text style={styles.completedTitle}>Trajet termine</Text>
+        <Text style={styles.completedTitle}>Trajet terminé</Text>
         <Text style={styles.completedSubtitle}>
-          Trajet fini avec succes. Tes contacts ont ete prevenus de ton arrivee.
+          Trajet fini avec succès. Tes contacts ont été prévenus de ton arrivée.
         </Text>
 
         <Button

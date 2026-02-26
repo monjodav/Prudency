@@ -43,7 +43,7 @@ export default function ContactsScreen() {
     () =>
       [
         { title: 'Favoris', data: favorites },
-        { title: 'Contacts enregistres', data: regular },
+        { title: 'Contacts enregistrés', data: regular },
       ].filter((s) => s.data.length > 0),
     [favorites, regular],
   );
@@ -74,7 +74,7 @@ export default function ContactsScreen() {
         await deleteContact(contact.id);
         setSnackbar({
           visible: true,
-          title: 'Personne de confiance supprimee',
+          title: 'Personne de confiance supprimée',
           variant: 'error',
         });
       } catch {
@@ -133,7 +133,7 @@ export default function ContactsScreen() {
       </View>
 
       <Text style={styles.helperText}>
-        En cas de probleme, une alerte est automatiquement envoyee a tes contacts favoris.
+        En cas de problème, une alerte est automatiquement envoyée à tes contacts favoris.
       </Text>
 
       {tabIndex === 0 ? (

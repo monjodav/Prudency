@@ -71,6 +71,17 @@ export async function verifyPassword(password: string): Promise<boolean> {
   return true;
 }
 
+export async function deleteAccount(): Promise<void> {
+  const { error } = await supabase.functions.invoke('delete-account', {
+    method: 'POST',
+    body: {},
+  });
+
+  if (error) {
+    throw new Error('delete_account_failed');
+  }
+}
+
 export async function resetPassword(email: string) {
   const { error } = await supabase.auth.resetPasswordForEmail(email);
 

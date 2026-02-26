@@ -5,19 +5,22 @@ import {
   StyleSheet,
   Pressable,
   Animated,
+  Vibration,
   GestureResponderEvent,
 } from 'react-native';
+
+const MESSAGE_FADE_DELAY = 10000;
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
-import { scaledFontSize, scaledSpacing, scaledIcon, ms } from '@/src/utils/scaling';
+import { scaledSpacing, ms } from '@/src/utils/scaling';
 
-const LONG_PRESS_DURATION_MS = 3000;
-const CANCEL_WINDOW_MS = 3000;
+const ACTIVATE_DURATION_MS = 2000;
+const CANCEL_DURATION_MS = 3000;
 
-type ButtonState = 'idle' | 'cancel_window' | 'confirmed';
+type ButtonState = 'idle' | 'message' | 'active';
 
 interface AlertButtonProps {
   onTrigger: () => void;
@@ -30,174 +33,294 @@ export function AlertButton({
   onTrigger,
   onCancel,
   disabled = false,
-  size = ms(120, 0.5),
+  size = ms(59, 0.4),
 }: AlertButtonProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hintOpacity = useRef(new Animated.Value(0)).current;
+  const activateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [buttonState, setButtonState] = useState<ButtonState>('idle');
-  const [countdown, setCountdown] = useState(3);
+  const buttonStateRef = useRef<ButtonState>('idle');
+  const updateState = useCallback((state: ButtonState) => {
+    buttonStateRef.current = state;
+    setButtonState(state);
+  }, []);
 
+  // Fade in hint when message/active, fade out after 10s
   useEffect(() => {
-    if (buttonState !== 'cancel_window') return;
+    if (fadeTimer.current) {
+      clearTimeout(fadeTimer.current);
+      fadeTimer.current = null;
+    }
 
-    setCountdown(3);
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    if (buttonState === 'message' || buttonState === 'active') {
+      Animated.timing(hintOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
 
-    cancelTimer.current = setTimeout(() => {
-      setButtonState('confirmed');
-      onTrigger();
-    }, CANCEL_WINDOW_MS);
+      if (buttonState === 'message') {
+        fadeTimer.current = setTimeout(() => {
+          Animated.timing(hintOpacity, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }).start(() => updateState('idle'));
+        }, MESSAGE_FADE_DELAY);
+      }
+    } else {
+      hintOpacity.setValue(0);
+    }
 
     return () => {
-      clearInterval(interval);
-      if (cancelTimer.current) {
-        clearTimeout(cancelTimer.current);
-        cancelTimer.current = null;
+      if (fadeTimer.current) {
+        clearTimeout(fadeTimer.current);
+        fadeTimer.current = null;
       }
     };
-  }, [buttonState, onTrigger]);
+  }, [buttonState, hintOpacity]);
 
-  const startPulse = useCallback(() => {
-    Animated.loop(
+  // Continuous pulse when active
+  useEffect(() => {
+    if (buttonState !== 'active') return;
+
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 600,
+          duration: 800,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 0,
-          duration: 600,
+          duration: 800,
           useNativeDriver: true,
         }),
       ])
-    ).start();
-  }, [pulseAnim]);
+    );
+    loop.start();
 
-  const stopPulse = useCallback(() => {
-    pulseAnim.stopAnimation();
-    pulseAnim.setValue(0);
-  }, [pulseAnim]);
+    return () => {
+      loop.stop();
+      pulseAnim.setValue(0);
+    };
+  }, [buttonState, pulseAnim]);
 
+  const clearTimers = useCallback(() => {
+    if (activateTimer.current) {
+      clearTimeout(activateTimer.current);
+      activateTimer.current = null;
+    }
+    if (cancelTimer.current) {
+      clearTimeout(cancelTimer.current);
+      cancelTimer.current = null;
+    }
+  }, []);
+
+  // Single press handler — routes based on current state via ref
   const handlePressIn = useCallback(
     (_e: GestureResponderEvent) => {
-      if (disabled || buttonState !== 'idle') return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      startPulse();
+      if (disabled) return;
+      const state = buttonStateRef.current;
+
+      if (state === 'active') {
+        // Start cancel flow
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        Animated.spring(scaleAnim, {
+          toValue: 0.92,
+          useNativeDriver: true,
+        }).start();
+
+        cancelTimer.current = setTimeout(() => {
+          Vibration.vibrate(200);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          updateState('idle');
+          onCancel?.();
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+          }).start();
+        }, CANCEL_DURATION_MS);
+        return;
+      }
+
+      // Idle or message — show hint then start activate timer
+      if (state === 'idle') {
+        updateState('message');
+      }
+
       Animated.spring(scaleAnim, {
         toValue: 0.92,
         useNativeDriver: true,
       }).start();
 
-      longPressTimer.current = setTimeout(() => {
+      activateTimer.current = setTimeout(() => {
+        Vibration.vibrate([0, 300, 100, 300]);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setButtonState('cancel_window');
-        stopPulse();
+        updateState('active');
+        onTrigger();
         Animated.spring(scaleAnim, {
           toValue: 1,
           useNativeDriver: true,
         }).start();
-      }, LONG_PRESS_DURATION_MS);
+      }, ACTIVATE_DURATION_MS);
     },
-    [disabled, buttonState, scaleAnim, startPulse, stopPulse]
+    [disabled, scaleAnim, onTrigger, onCancel, updateState],
   );
 
   const handlePressOut = useCallback(() => {
-    if (buttonState !== 'idle') return;
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    const state = buttonStateRef.current;
+
+    if (state === 'active') {
+      // Cancel the cancel timer
+      if (cancelTimer.current) {
+        clearTimeout(cancelTimer.current);
+        cancelTimer.current = null;
+      }
+    } else {
+      // Cancel the activate timer
+      if (activateTimer.current) {
+        clearTimeout(activateTimer.current);
+        activateTimer.current = null;
+      }
     }
-    stopPulse();
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
     }).start();
-  }, [buttonState, scaleAnim, stopPulse]);
+  }, [scaleAnim]);
 
-  const handleCancelPress = useCallback(() => {
-    if (buttonState !== 'cancel_window') return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (cancelTimer.current) {
-      clearTimeout(cancelTimer.current);
-      cancelTimer.current = null;
-    }
-    setButtonState('idle');
-    onCancel?.();
-  }, [buttonState, onCancel]);
+  useEffect(() => {
+    return clearTimers;
+  }, [clearTimers]);
 
   const pulseScale = pulseAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.15],
+    outputRange: [1, 1.2],
   });
 
   const pulseOpacity = pulseAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.3, 0],
+    outputRange: [0.4, 0],
   });
 
-  const isCancelWindow = buttonState === 'cancel_window';
+  const isActive = buttonState === 'active';
+
+  // Ring sizes — concentric circles
+  const outerSize = size;
+  const ring1Size = size * 0.85;
+  const ring2Size = size * 0.7;
+  const coreSize = size * 0.55;
+  const iconSize = size * 0.3;
+
+  const pulseSize = outerSize + scaledSpacing(16);
+  const pulseOffset = (pulseSize - outerSize) / 2;
 
   return (
     <View style={styles.wrapper}>
-      <Animated.View
-        style={[
-          styles.pulseRing,
-          {
-            width: size + scaledSpacing(30),
-            height: size + scaledSpacing(30),
-            borderRadius: (size + scaledSpacing(30)) / 2,
-            transform: [{ scale: pulseScale }],
-            opacity: pulseOpacity,
-          },
-        ]}
-      />
-      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <View style={{ width: outerSize, height: outerSize }}>
+        {/* Pulse ring — centered behind button */}
+        {isActive && (
+          <Animated.View
+            style={[
+              styles.pulseRing,
+              {
+                width: pulseSize,
+                height: pulseSize,
+                borderRadius: pulseSize / 2,
+                top: -pulseOffset,
+                left: -pulseOffset,
+                transform: [{ scale: pulseScale }],
+                opacity: pulseOpacity,
+              },
+            ]}
+          />
+        )}
+        <Animated.View style={[styles.buttonLayer, { transform: [{ scale: scaleAnim }] }]}>
         <Pressable
-          onPressIn={isCancelWindow ? undefined : handlePressIn}
-          onPressOut={isCancelWindow ? undefined : handlePressOut}
-          onPress={isCancelWindow ? handleCancelPress : undefined}
-          disabled={disabled || buttonState === 'confirmed'}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          disabled={disabled}
           style={[
-            styles.button,
+            styles.outerRing,
             {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
+              width: outerSize,
+              height: outerSize,
+              borderRadius: outerSize / 2,
             },
-            isCancelWindow && styles.cancelWindowButton,
+            isActive && styles.outerRingActive,
             disabled && styles.disabled,
           ]}
         >
-          {isCancelWindow ? (
-            <>
-              <Text style={styles.cancelCountdown}>{countdown}</Text>
-              <Text style={styles.cancelLabel}>Annuler</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="shield-checkmark" size={scaledIcon(40)} color={colors.alert.text} />
-              <Text style={styles.label}>ALERTE</Text>
-            </>
-          )}
+          {/* Ring 1 — dark blue / dark red */}
+          <View
+            style={[
+              styles.ring1,
+              {
+                width: ring1Size,
+                height: ring1Size,
+                borderRadius: ring1Size / 2,
+              },
+              isActive && styles.ring1Active,
+            ]}
+          />
+          {/* Ring 2 — medium blue / medium red */}
+          <View
+            style={[
+              styles.ring2,
+              {
+                width: ring2Size,
+                height: ring2Size,
+                borderRadius: ring2Size / 2,
+              },
+              isActive && styles.ring2Active,
+            ]}
+          />
+          {/* Core — primary blue / bright red with icon */}
+          <View
+            style={[
+              styles.core,
+              {
+                width: coreSize,
+                height: coreSize,
+                borderRadius: coreSize / 2,
+              },
+              isActive && styles.coreActive,
+            ]}
+          >
+            <View style={styles.iconStack}>
+              <Ionicons
+                name="shield"
+                size={iconSize}
+                color={colors.white}
+              />
+              <Text style={[styles.exclamation, isActive && styles.exclamationActive, { fontSize: iconSize * 0.5 }]}>!</Text>
+            </View>
+          </View>
         </Pressable>
+        </Animated.View>
+      </View>
+      {/* Hint text */}
+      <Animated.View style={[styles.hintContainer, { opacity: hintOpacity }]}>
+        {isActive ? (
+          <>
+            <Text style={styles.hint}>
+              Une alerte a été envoyée à ta personne de confiance.
+            </Text>
+            <Text style={styles.hintLight}>
+              Reste appuyé sur le bouton pour désactiver l'alerte.
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.hint}>
+            Appuie 3s pour alerter en urgence ta personne de confiance
+          </Text>
+        )}
       </Animated.View>
-      <Text style={styles.hint}>
-        {isCancelWindow
-          ? 'Appuyez pour annuler'
-          : 'Appuie 3s pour alerter en urgence'}
-      </Text>
     </View>
   );
 }
@@ -207,46 +330,92 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  buttonLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
   pulseRing: {
     position: 'absolute',
-    backgroundColor: colors.alert.background,
+    backgroundColor: '#cc63f9',
   },
-  button: {
-    backgroundColor: colors.alert.background,
+  outerRing: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.alert.background,
-    shadowOffset: { width: 0, height: scaledSpacing(6) },
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
-    shadowRadius: scaledSpacing(12),
+    shadowRadius: ms(25, 0.4),
     elevation: 8,
   },
-  cancelWindowButton: {
-    backgroundColor: colors.warning[600],
-    shadowColor: colors.warning[600],
+  outerRingActive: {
+    backgroundColor: 'rgba(180, 60, 120, 0.2)',
+    borderColor: '#cc63f9',
+  },
+  ring1: {
+    position: 'absolute',
+    backgroundColor: colors.primary[800],
+  },
+  ring1Active: {
+    backgroundColor: '#6a2070',
+  },
+  ring2: {
+    position: 'absolute',
+    backgroundColor: colors.primary[600],
+  },
+  ring2Active: {
+    backgroundColor: '#9a30a0',
+  },
+  core: {
+    position: 'absolute',
+    backgroundColor: colors.primary[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  coreActive: {
+    backgroundColor: '#cc63f9',
   },
   disabled: {
     opacity: 0.4,
   },
-  label: {
-    ...typography.buttonSmall,
-    color: colors.alert.text,
-    marginTop: spacing[1],
-    letterSpacing: scaledFontSize(2),
+  iconStack: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  cancelCountdown: {
-    fontSize: scaledFontSize(36),
-    fontWeight: '800',
-    color: colors.white,
+  exclamation: {
+    position: 'absolute',
+    color: colors.primary[500],
+    fontWeight: '900',
+    fontFamily: 'Inter_700Bold',
+    marginTop: 1,
   },
-  cancelLabel: {
-    ...typography.buttonSmall,
-    color: colors.white,
-    marginTop: spacing[1],
+  exclamationActive: {
+    color: '#cc63f9',
+  },
+  hintContainer: {
+    marginTop: spacing[2],
+    alignItems: 'center',
+    maxWidth: ms(260, 0.4),
   },
   hint: {
-    ...typography.caption,
-    color: colors.gray[500],
-    marginTop: spacing[3],
+    fontSize: ms(13, 0.3),
+    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
+    color: colors.white,
+    textAlign: 'center',
+  },
+  hintLight: {
+    fontSize: ms(13, 0.3),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.white,
+    textAlign: 'center',
+    marginTop: spacing[1],
   },
 });

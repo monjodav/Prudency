@@ -41,7 +41,7 @@ export default function PersonalInfoScreen() {
       if (error) throw error;
 
       setIsEditing(false);
-      Alert.alert('Succes', 'Tes informations ont ete mises a jour.');
+      Alert.alert('Succès', 'Tes informations ont été mises à jour.');
     } catch {
       Alert.alert('Erreur', 'Une erreur est survenue.');
     } finally {
@@ -75,11 +75,11 @@ export default function PersonalInfoScreen() {
 
       <View style={styles.form}>
         <Input
-          label="Prenom"
+          label="Prénom"
           value={formData.firstName}
           onChangeText={(value) => setFormData((prev) => ({ ...prev, firstName: value }))}
           editable={isEditing}
-          placeholder="Ton prenom"
+          placeholder="Ton prénom"
         />
 
         <Input
@@ -102,7 +102,7 @@ export default function PersonalInfoScreen() {
 
         <View style={styles.phoneSection}>
           <Input
-            label="Telephone"
+            label="Téléphone"
             value={formData.phone}
             onChangeText={(value) => setFormData((prev) => ({ ...prev, phone: value }))}
             editable={false}
@@ -111,7 +111,7 @@ export default function PersonalInfoScreen() {
           />
           {isEditing && (
             <Pressable style={styles.changePhoneButton}>
-              <Text style={styles.changePhoneText}>Modifier le numero</Text>
+              <Text style={styles.changePhoneText}>Modifier le numéro</Text>
             </Pressable>
           )}
         </View>

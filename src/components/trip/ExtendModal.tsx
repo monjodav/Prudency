@@ -4,7 +4,7 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
-import { Modal } from '@/src/components/ui/Modal';
+import { Dialog } from '@/src/components/ui/Dialog';
 
 const EXTEND_OPTIONS = [15, 30, 45, 60] as const;
 
@@ -24,11 +24,12 @@ export function ExtendModal({
   const [selected, setSelected] = useState<number>(15);
 
   return (
-    <Modal visible={visible} onClose={onClose} title="Prolonger mon trajet">
-      <Text style={styles.extendSubtitle}>
-        De combien de temps souhaites-tu prolonger ton trajet ?
-      </Text>
-
+    <Dialog
+      visible={visible}
+      onClose={onClose}
+      title="Prolonger mon trajet"
+      description="De combien de temps souhaites-tu prolonger ton trajet ?"
+    >
       <View style={styles.extendOptions}>
         {EXTEND_OPTIONS.map((minutes) => (
           <Pressable
@@ -63,16 +64,11 @@ export function ExtendModal({
           style={styles.extendButton}
         />
       </View>
-    </Modal>
+    </Dialog>
   );
 }
 
 const styles = StyleSheet.create({
-  extendSubtitle: {
-    ...typography.body,
-    color: colors.gray[600],
-    marginBottom: spacing[6],
-  },
   extendOptions: {
     flexDirection: 'row',
     gap: spacing[3],
@@ -83,20 +79,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3],
     borderRadius: borderRadius.lg,
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
   },
   extendOptionSelected: {
-    borderColor: colors.primary[500],
-    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[400],
+    backgroundColor: 'rgba(44, 65, 188, 0.25)',
   },
   extendOptionText: {
     ...typography.bodySmall,
     fontWeight: '600',
-    color: colors.gray[600],
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   extendOptionTextSelected: {
-    color: colors.primary[600],
+    color: colors.white,
   },
   extendActions: {
     flexDirection: 'row',

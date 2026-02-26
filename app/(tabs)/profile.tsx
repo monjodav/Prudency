@@ -11,6 +11,7 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { appVersion } from '@/src/config/env';
 import { figmaScale, scaledIcon, ms, scaledSpacing } from '@/src/utils/scaling';
 import { LogoutDialog } from '@/src/components/profile/LogoutDialog';
+import * as authService from '@/src/services/authService';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -51,17 +52,25 @@ export default function ProfileScreen() {
     await signOut();
   };
 
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleDeleteAccount = () => {
     Alert.alert(
       'Supprimer mon compte',
-      'Cette action est irreversible. Toutes vos donnees seront supprimees.',
+      'Cette action est irréversible. Toutes tes données seront supprimées.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Supprimer',
           style: 'destructive',
-          onPress: () => {
-            // Will call delete account service
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await authService.deleteAccount();
+            } catch {
+              // Account may already be deleted server-side — continue to sign out
+            }
+            await signOut();
           },
         },
       ]
@@ -96,7 +105,7 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>{initials}</Text>
           </View>
           <Text style={styles.displayName}>{displayName}</Text>
-          <Text style={styles.email}>{user?.email ?? 'Non connecte'}</Text>
+          <Text style={styles.email}>{user?.email ?? 'Non connecté'}</Text>
         </View>
 
         {/* Account section */}
@@ -110,12 +119,12 @@ export default function ProfileScreen() {
             />
             <MenuItem
               icon="settings-outline"
-              label="Preferences"
+              label="Préférences"
               onPress={() => router.push('/(profile)/preferences')}
             />
             <MenuItem
               icon="lock-closed-outline"
-              label="Securite et confidentialite"
+              label="Sécurité et confidentialité"
               onPress={() => router.push('/(profile)/security')}
             />
             <MenuItem
@@ -134,7 +143,7 @@ export default function ProfileScreen() {
             <MenuItem icon="mail-outline" label="Nous contacter" />
             <MenuItem
               icon="information-circle-outline"
-              label="A propos"
+              label="À propos"
               onPress={() => router.push('/(profile)/about')}
             />
           </View>
@@ -155,7 +164,7 @@ export default function ProfileScreen() {
               color={colors.error[400]}
               style={styles.signOutIcon}
             />
-            <Text style={styles.signOutText}>Se deconnecter</Text>
+            <Text style={styles.signOutText}>Se déconnecter</Text>
           </Pressable>
 
           <Pressable

@@ -36,7 +36,7 @@ function getStatusConfig(status: string): StatusConfig {
       };
     case TRIP_STATUS.TIMEOUT:
       return {
-        label: 'Temps depasse',
+        label: 'Temps dépassé',
         color: colors.warning[800],
         backgroundColor: colors.warning[50],
         dotColor: colors.warning[500],

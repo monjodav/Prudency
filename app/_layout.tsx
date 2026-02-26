@@ -5,6 +5,8 @@ import { Slot } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import 'react-native-reanimated';
 
 import {
@@ -83,21 +85,25 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <View style={styles.container}>
-          <AuthGate>
-            <Slot />
-          </AuthGate>
-          {showSplash && (
-            <AnimatedSplashScreen
-              isLoading={!appReady}
-              onAnimationComplete={handleSplashComplete}
-            />
-          )}
-        </View>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={styles.container}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <BottomSheetModalProvider>
+          <View style={styles.container}>
+            <AuthGate>
+              <Slot />
+            </AuthGate>
+            {showSplash && (
+              <AnimatedSplashScreen
+                isLoading={!appReady}
+                onAnimationComplete={handleSplashComplete}
+              />
+            )}
+          </View>
+          </BottomSheetModalProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 

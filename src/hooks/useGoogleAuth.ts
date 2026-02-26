@@ -61,7 +61,7 @@ export function useGoogleAuth() {
       const idToken = params.get('id_token');
 
       if (!idToken) {
-        throw new Error("Aucun token d'identite recu de Google");
+        throw new Error("Aucun token d'identité reçu de Google");
       }
 
       const { data, error } = await supabase.auth.signInWithIdToken({

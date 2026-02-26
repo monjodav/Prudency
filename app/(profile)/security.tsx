@@ -19,6 +19,8 @@ import { Button } from '@/src/components/ui/Button';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { ms, scaledIcon } from '@/src/utils/scaling';
 import { useBiometric } from '@/src/hooks/useBiometric';
+import { useAuth } from '@/src/hooks/useAuth';
+import * as authService from '@/src/services/authService';
 
 type PermissionStatus = 'granted' | 'denied' | 'undetermined';
 
@@ -93,7 +95,7 @@ function PermissionToggle({
   icon: React.ComponentProps<typeof FontAwesome>['name'];
 }) {
   const isGranted = status === 'granted';
-  const statusLabel = isGranted ? 'Actif' : 'Desactive';
+  const statusLabel = isGranted ? 'Actif' : 'Désactivé';
 
   return (
     <SettingRow
@@ -115,18 +117,19 @@ function PermissionToggle({
 
 export default function SecurityScreen() {
   const { isAvailable, isEnabled: biometricEnabled, setEnabled: setBiometricEnabled } = useBiometric();
+  const { signOut } = useAuth();
   const permissions = usePermissionStatuses();
 
   const handleChangePassword = () => {
     Alert.alert(
       'Changer le mot de passe',
-      'Un email te sera envoye pour reinitialiser ton mot de passe.',
+      'Un email te sera envoyé pour réinitialiser ton mot de passe.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Envoyer',
           onPress: () => {
-            Alert.alert('Email envoye', 'Verifie ta boite mail.');
+            Alert.alert('Email envoye', 'Vérifie ta boîte mail.');
           },
         },
       ]
@@ -135,8 +138,26 @@ export default function SecurityScreen() {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Fonctionnalite en cours',
-      'La suppression de compte sera disponible prochainement.'
+      'Supprimer mon compte',
+      'Cette action est irréversible. Toutes tes données seront supprimées.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authService.deleteAccount();
+              await signOut();
+            } catch {
+              Alert.alert(
+                'Erreur',
+                'La suppression du compte a échoué. Réessaie.',
+              );
+            }
+          },
+        },
+      ]
     );
   };
 
@@ -174,17 +195,17 @@ export default function SecurityScreen() {
         />
       </Section>
 
-      <Section title="Informations legales">
-        <SettingRow icon="file-text-o" title="Mentions legales" onPress={showComingSoon} />
+      <Section title="Informations légales">
+        <SettingRow icon="file-text-o" title="Mentions légales" onPress={showComingSoon} />
         <SettingRow icon="file-text-o" title="CGU" onPress={showComingSoon} />
-        <SettingRow icon="shield" title="Politique de confidentialite" onPress={showComingSoon} />
+        <SettingRow icon="shield" title="Politique de confidentialité" onPress={showComingSoon} />
         <SettingRow icon="file-text-o" title="CGV" onPress={showComingSoon} />
       </Section>
 
       <Section title="Zone de danger">
         <View style={styles.dangerContent}>
           <Text style={styles.dangerDescription}>
-            La suppression de ton compte est irreversible. Toutes tes donnees, trajets et contacts seront supprimes.
+            La suppression de ton compte est irréversible. Toutes tes données, trajets et contacts seront supprimés.
           </Text>
           <Button
             title="Supprimer mon compte"

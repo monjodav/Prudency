@@ -48,7 +48,7 @@ export default function PreferencesScreen() {
 
   const [questionCancelTrip, setQuestionCancelTrip] = useState(true);
   const [questionEndTrip, setQuestionEndTrip] = useState(true);
-  const [securityQuestion, setSecurityQuestion] = useState('Quel est le prenom de ton pere ?');
+  const [securityQuestion, setSecurityQuestion] = useState('Quel est le prénom de ton père ?');
   const [securityAnswer, setSecurityAnswer] = useState('');
 
   const [passwordCancelTrip, setPasswordCancelTrip] = useState(false);
@@ -78,7 +78,7 @@ export default function PreferencesScreen() {
         />
 
         <View style={styles.warningBanner}>
-          <Text style={styles.warningText}>Fonctionnalite a venir</Text>
+          <Text style={styles.warningText}>Fonctionnalité à venir</Text>
         </View>
         <Slider
           label="Distance avant envoi d'alerte"
@@ -104,7 +104,7 @@ export default function PreferencesScreen() {
 
       <SectionHeader title="Confirmations intelligentes" />
       <View style={styles.card}>
-        <Text style={styles.sublabel}>Question de securite a double sens</Text>
+        <Text style={styles.sublabel}>Question de sécurité à double sens</Text>
         <ToggleRow
           label="Annuler le trajet"
           value={questionCancelTrip}
@@ -119,13 +119,13 @@ export default function PreferencesScreen() {
           label="Question actuelle"
           value={securityQuestion}
           onChangeText={setSecurityQuestion}
-          placeholder="Ta question de securite"
+          placeholder="Ta question de sécurité"
         />
         <Input
-          label="Reponse actuelle validee"
+          label="Réponse actuelle validée"
           value={securityAnswer}
           onChangeText={setSecurityAnswer}
-          placeholder="Ta reponse"
+          placeholder="Ta réponse"
         />
       </View>
 

@@ -9,7 +9,7 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
 import { colors } from '@/src/theme/colors';
@@ -41,7 +41,7 @@ export default function AddContactProfileScreen() {
     const newErrors: Record<string, string> = {};
 
     if (!firstName.trim()) {
-      newErrors.firstName = 'Prenom requis';
+      newErrors.firstName = 'Prénom requis';
     }
 
     if (!lastName.trim()) {
@@ -49,9 +49,9 @@ export default function AddContactProfileScreen() {
     }
 
     if (!phone.trim()) {
-      newErrors.phone = 'Numero de telephone requis';
+      newErrors.phone = 'Numéro de téléphone requis';
     } else if (!/^(\+33|0)[1-9](\d{8})$/.test(phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Numero de telephone invalide';
+      newErrors.phone = 'Numéro de téléphone invalide';
     }
 
     setErrors(newErrors);
@@ -65,7 +65,7 @@ export default function AddContactProfileScreen() {
       if (status !== 'granted') {
         Alert.alert(
           'Permission requise',
-          "Autorise l'acces aux contacts pour importer facilement.",
+          "Autorise l'accès aux contacts pour importer facilement.",
         );
         return;
       }
@@ -85,7 +85,7 @@ export default function AddContactProfileScreen() {
     } catch {
       Alert.alert(
         'Erreur',
-        'Impossible d\'importer le contact. Veuillez reessayer ou saisir manuellement.',
+        'Impossible d\'importer le contact. Veuillez réessayer ou saisir manuellement.',
       );
     }
   };
@@ -116,6 +116,15 @@ export default function AddContactProfileScreen() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()} hitSlop={16}>
+              <Ionicons name="chevron-back" size={scaledIcon(24)} color={colors.white} />
+            </Pressable>
+          ),
+        }}
+      />
       <View style={styles.ellipseContainer}>
         <View style={styles.ellipse} />
       </View>
@@ -139,7 +148,7 @@ export default function AddContactProfileScreen() {
             </View>
             <Text style={styles.title}>Ajouter une personne de confiance</Text>
             <Text style={styles.subtitle}>
-              Cette personne sera prevenue si quelque chose ne va pas pendant ton
+              Cette personne sera prévenue si quelque chose ne va pas pendant ton
               trajet.
             </Text>
           </View>
@@ -163,7 +172,7 @@ export default function AddContactProfileScreen() {
 
           <View style={styles.form}>
             <Input
-              label="Prenom *"
+              label="Prénom *"
               placeholder="Marie"
               value={firstName}
               onChangeText={(text) => {
@@ -191,7 +200,7 @@ export default function AddContactProfileScreen() {
             />
 
             <Input
-              label="Telephone *"
+              label="Téléphone *"
               placeholder="+33 6 12 34 56 78"
               value={phone}
               onChangeText={(text) => {

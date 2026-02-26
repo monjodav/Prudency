@@ -21,6 +21,9 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useSocialAuth } from '@/src/hooks/useSocialAuth';
 import { AuthError } from '@supabase/supabase-js';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
+import { GoogleLogo } from '@/src/components/icons/GoogleLogo';
+import { AppleLogo } from '@/src/components/icons/AppleLogo';
+import { FacebookLogo } from '@/src/components/icons/FacebookLogo';
 import { scaledSpacing, scaledIcon } from '@/src/utils/scaling';
 
 const CGU_URL = 'https://prudency.app/cgu';
@@ -207,10 +210,10 @@ export default function RegisterScreen() {
             <View style={styles.loginLinkContainer}>
               <Text style={styles.loginLinkText}>
                 Tu as déjà un compte ?{' '}
-                <Link href="/(auth)/login" asChild>
-                  <Text style={styles.loginLinkAction}>Connecte-toi !</Text>
-                </Link>
               </Text>
+              <Link href="/(auth)/login" asChild>
+                <Text style={styles.loginLinkAction}>Connecte-toi !</Text>
+              </Link>
             </View>
 
             {/* Divider */}
@@ -228,9 +231,7 @@ export default function RegisterScreen() {
               loading={isGoogleLoading}
               disabled={isSocialLoading}
               fullWidth
-              icon={
-                <Ionicons name="logo-google" size={scaledIcon(20)} color={colors.gray[950]} />
-              }
+              icon={<GoogleLogo size={20} />}
             />
 
             {/* Apple Sign In (iOS only) */}
@@ -242,9 +243,7 @@ export default function RegisterScreen() {
                 loading={isAppleLoading}
                 disabled={isSocialLoading}
                 fullWidth
-                icon={
-                  <Ionicons name="logo-apple" size={scaledIcon(20)} color={colors.gray[950]} />
-                }
+                icon={<AppleLogo size={20} />}
               />
             )}
 
@@ -256,9 +255,7 @@ export default function RegisterScreen() {
                 onPress={() => {}}
                 disabled
                 fullWidth
-                icon={
-                  <Ionicons name="logo-facebook" size={scaledIcon(20)} color={colors.gray[400]} />
-                }
+                icon={<FacebookLogo size={20} color={colors.gray[400]} />}
               />
               <Text style={styles.comingSoonText}>Bientôt disponible</Text>
             </View>
@@ -277,13 +274,13 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: scaledSpacing(64),
-    paddingTop: scaledSpacing(100),
-    paddingBottom: scaledSpacing(40),
+    paddingTop: scaledSpacing(60),
+    paddingBottom: scaledSpacing(24),
     justifyContent: 'space-between',
   },
   header: {
     alignItems: 'center',
-    marginBottom: scaledSpacing(24),
+    marginBottom: scaledSpacing(16),
   },
   title: {
     ...typography.h2,
@@ -298,14 +295,13 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
-    gap: scaledSpacing(24),
+    gap: scaledSpacing(16),
   },
   inputsContainer: {
-    gap: scaledSpacing(16),
+    gap: 0,
   },
   forgotPasswordContainer: {
     alignItems: 'center',
-    marginTop: scaledSpacing(8),
   },
   forgotPassword: {
     ...typography.link,
@@ -318,21 +314,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loginLinkContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: scaledSpacing(8),
   },
   loginLinkText: {
-    ...typography.handwritten,
+    ...typography.bodySmall,
     color: colors.primary[50],
-    textAlign: 'center',
+    letterSpacing: -0.32,
   },
   loginLinkAction: {
+    ...typography.bodySmall,
+    color: colors.primary[50],
+    fontFamily: typography.link.fontFamily,
+    fontWeight: '600',
     textDecorationLine: 'underline',
+    letterSpacing: -0.32,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: scaledSpacing(8),
   },
   dividerLine: {
     flex: 1,
@@ -347,7 +349,7 @@ const styles = StyleSheet.create({
   },
   logoTopContainer: {
     alignItems: 'center',
-    marginBottom: scaledSpacing(24),
+    marginBottom: scaledSpacing(16),
   },
   cguRow: {
     flexDirection: 'row',

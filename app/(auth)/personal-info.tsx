@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
@@ -16,15 +17,25 @@ import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
 import { useAuth } from '@/src/hooks/useAuth';
+// TODO: réactiver quand le service OVH SMS standard sera prêt
+// import { sendOtp } from '@/src/services/otpService';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
-import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, scaledIcon, ms } from '@/src/utils/scaling';
+import { scaledSpacing, scaledFontSize, scaledRadius, scaledIcon, ms } from '@/src/utils/scaling';
 
-/**
- * Inscription/Demande des infos - Personal information form
- * Collects: Prénom*, Nom, Téléphone*
- * With CGU acceptance checkbox
- * Uses native autofill for better UX (as per Figma notes)
- */
+const COUNTRY_PREFIX = '+33';
+
+/** Format digits as "X XX XX XX XX" for display */
+function formatPhoneDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 9);
+  const parts: string[] = [];
+  if (digits.length > 0) parts.push(digits.slice(0, 1));
+  if (digits.length > 1) parts.push(digits.slice(1, 3));
+  if (digits.length > 3) parts.push(digits.slice(3, 5));
+  if (digits.length > 5) parts.push(digits.slice(5, 7));
+  if (digits.length > 7) parts.push(digits.slice(7, 9));
+  return parts.join(' ');
+}
+
 export default function PersonalInfoScreen() {
   const router = useRouter();
   const { updateProfile } = useAuth();
@@ -42,9 +53,10 @@ export default function PersonalInfoScreen() {
       newErrors.firstName = 'Ajoute ton prénom';
     }
 
-    if (!phone.trim()) {
+    const digits = phone.replace(/[\s.\-()]/g, '');
+    if (!digits) {
       newErrors.phone = 'Ajoute ton numéro pour sécuriser ton compte.';
-    } else if (!/^(\+33|0)[1-9](\d{8})$/.test(phone.replace(/\s/g, ''))) {
+    } else if (!/^0?[1-9]\d{8}$/.test(digits)) {
       newErrors.phone = 'Ce numéro ne semble pas valide.';
     }
 
@@ -61,21 +73,26 @@ export default function PersonalInfoScreen() {
 
     setLoading(true);
     try {
-      const cleanPhone = phone.replace(/\s/g, '');
+      const digits = phone.replace(/[\s.\-()]/g, '').replace(/^0/, '');
+      const e164Phone = `${COUNTRY_PREFIX}${digits}`;
       await updateProfile({
         first_name: firstName.trim(),
         last_name: lastName.trim() || null,
-        phone: cleanPhone,
+        phone: e164Phone,
+        phone_verified: true,
       });
 
-      router.push({
-        pathname: '/(auth)/verify-phone',
-        params: { phone: cleanPhone },
-      });
+      // TODO: réactiver sendOtp quand le service OVH SMS standard sera prêt
+      // await sendOtp(e164Phone);
+      // router.push({ pathname: '/(auth)/verify-phone', params: { phone: e164Phone } });
+
+      router.replace('/(auth)/permissions-location');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '';
       if (message.includes('phone_already_exists') || message.includes('duplicate')) {
         setErrors({ phone: 'Ce numéro est déjà associé à un compte.' });
+      } else if (message.includes('too_many_requests')) {
+        setErrors({ submit: 'Trop de tentatives. Réessaie dans quelques minutes.' });
       } else {
         setErrors({ submit: 'Une erreur est survenue lors de la sauvegarde' });
       }
@@ -84,7 +101,7 @@ export default function PersonalInfoScreen() {
     }
   };
 
-  const isFormValid = firstName.trim() !== '' && phone.trim() !== '' && acceptedTerms;
+  const isFormValid = firstName.trim() !== '' && phone.replace(/[\s.\-()]/g, '').length > 0 && acceptedTerms;
 
   return (
     <OnboardingBackground>
@@ -97,10 +114,13 @@ export default function PersonalInfoScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo */}
+          {/* Logo — positioned at top with spacing */}
           <View style={styles.logoTopContainer}>
             <PrudencyLogo size="md" />
           </View>
+
+          {/* Spacer pushes content to bottom */}
+          <View style={styles.spacer} />
 
           {/* Header */}
           <View style={styles.header}>
@@ -120,36 +140,55 @@ export default function PersonalInfoScreen() {
               }}
               error={errors.firstName}
               autoCapitalize="words"
+              autoCorrect={false}
               autoComplete="given-name"
               textContentType="givenName"
               variant="dark"
+              containerStyle={styles.inputNoMargin}
             />
 
             <Input
               label="Nom"
-              placeholder="Nom"
+              placeholder="Dupont"
               value={lastName}
               onChangeText={setLastName}
               autoCapitalize="words"
+              autoCorrect={false}
               autoComplete="family-name"
               textContentType="familyName"
               variant="dark"
+              containerStyle={styles.inputNoMargin}
             />
 
-            <Input
-              label="Téléphone *"
-              placeholder="0651872510"
-              value={phone}
-              onChangeText={(text) => {
-                setPhone(text);
-                if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
-              }}
-              error={errors.phone}
-              keyboardType="phone-pad"
-              autoComplete="tel"
-              textContentType="telephoneNumber"
-              variant="dark"
-            />
+            <View style={styles.phoneFieldContainer}>
+              <Text style={styles.phoneLabel}>Téléphone *</Text>
+              <View style={[
+                styles.phoneRow,
+                errors.phone ? styles.phoneRowError : undefined,
+              ]}>
+                <View style={styles.phonePrefix}>
+                  <Text style={styles.phonePrefixFlag}>🇫🇷</Text>
+                  <Text style={styles.phonePrefixCode}>{COUNTRY_PREFIX}</Text>
+                </View>
+                <View style={styles.phoneSeparator} />
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="6 87 68 94 11"
+                  placeholderTextColor={colors.gray[500]}
+                  value={phone}
+                  onChangeText={(text) => {
+                    setPhone(formatPhoneDisplay(text));
+                    if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+                  }}
+                  keyboardType="phone-pad"
+                  autoCorrect={false}
+                  autoComplete="tel"
+                  textContentType="telephoneNumber"
+                  maxLength={13}
+                />
+              </View>
+              {errors.phone && <Text style={styles.phoneError}>{errors.phone}</Text>}
+            </View>
 
             {/* Terms checkbox */}
             <Pressable
@@ -208,13 +247,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: scaledSpacing(64),
-    paddingTop: scaledSpacing(100),
-    paddingBottom: scaledSpacing(40),
+    paddingHorizontal: 64,
+    paddingTop: scaledSpacing(110),
+    paddingBottom: scaledSpacing(71),
+  },
+  spacer: {
+    flex: 0.5,
   },
   header: {
     alignItems: 'center',
-    marginBottom: scaledSpacing(24),
+    marginBottom: scaledSpacing(16),
   },
   title: {
     fontSize: scaledFontSize(24),
@@ -232,24 +274,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   form: {
-    flex: 1,
     gap: scaledSpacing(16),
+  },
+  inputNoMargin: {
+    marginBottom: 0,
   },
   termsContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: scaledSpacing(12),
-    marginTop: scaledSpacing(8),
+    alignItems: 'center',
+    gap: 10,
   },
   checkbox: {
-    width: ms(24, 0.5),
-    height: ms(24, 0.5),
+    width: 24,
+    height: 24,
     borderWidth: 1,
-    borderColor: colors.primary[50],
-    borderRadius: scaledRadius(4),
+    borderColor: colors.primary[200],
+    borderRadius: 2,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: scaledSpacing(2),
   },
   checkboxChecked: {
     backgroundColor: colors.primary[500],
@@ -257,22 +299,76 @@ const styles = StyleSheet.create({
   },
   termsText: {
     flex: 1,
-    fontSize: scaledFontSize(14),
+    fontSize: 12,
     fontWeight: '400',
     fontFamily: 'Inter_400Regular',
-    color: colors.primary[50],
-    lineHeight: scaledLineHeight(20),
+    color: '#f6f6f6',
+    lineHeight: 16,
   },
   termsLink: {
     textDecorationLine: 'underline',
   },
+  phoneFieldContainer: {
+    gap: scaledSpacing(8),
+  },
+  phoneLabel: {
+    fontSize: scaledFontSize(14),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.gray[50],
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary[50],
+    borderRadius: scaledRadius(8),
+    height: ms(48, 0.5),
+    paddingHorizontal: scaledSpacing(12),
+  },
+  phoneRowError: {
+    borderColor: colors.error[600],
+  },
+  phonePrefix: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaledSpacing(6),
+  },
+  phonePrefixFlag: {
+    fontSize: scaledFontSize(18),
+  },
+  phonePrefixCode: {
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.white,
+  },
+  phoneSeparator: {
+    width: 1,
+    height: ms(24, 0.5),
+    backgroundColor: colors.primary[200],
+    marginHorizontal: scaledSpacing(10),
+  },
+  phoneInput: {
+    flex: 1,
+    fontSize: scaledFontSize(16),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.white,
+    height: '100%',
+    paddingVertical: 0,
+  },
+  phoneError: {
+    fontSize: scaledFontSize(12),
+    color: colors.error[500],
+  },
   errorText: {
     fontSize: scaledFontSize(12),
     color: colors.error[400],
-    marginTop: scaledSpacing(-8),
+    marginTop: scaledSpacing(-16),
   },
   buttonContainer: {
-    marginTop: scaledSpacing(24),
+    paddingTop: scaledSpacing(24),
   },
   logoTopContainer: {
     alignItems: 'center',

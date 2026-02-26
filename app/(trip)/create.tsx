@@ -125,7 +125,7 @@ export default function CreateTripScreen() {
           {estimatedArrivalTime && (
             <View style={styles.arrivalTimeContainer}>
               <Ionicons name="flag-outline" size={scaledIcon(16)} color={colors.primary[300]} />
-              <Text style={styles.arrivalTimeLabel}>Heure d'arrivee estimee</Text>
+              <Text style={styles.arrivalTimeLabel}>Heure d'arrivée estimée</Text>
               <Text style={styles.arrivalTimeValue}>
                 {estimatedArrivalTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
               </Text>

@@ -17,8 +17,8 @@ import { ms, scaledIcon, scaledSpacing, scaledLineHeight } from '@/src/utils/sca
 const FEATURES = [
   'Garder mon trajet secret',
   'Ajout de notes',
-  'Detection d\'anomalie durant le trajet',
-  'Envoie alerte a ta/tes personne(s) de confiance',
+  'Détection d\'anomalie durant le trajet',
+  'Envoie alerte à ta/tes personne(s) de confiance',
 ] as const;
 
 export default function SubscriptionScreen() {
@@ -48,7 +48,7 @@ export default function SubscriptionScreen() {
         />
         <PlanOption
           label="Prudency Plus"
-          note="Fonctionnalites a venir"
+          note="Fonctionnalités à venir"
           selected={selectedPlan === 'plus'}
           onPress={() => {
             setSelectedPlan('plus');
@@ -74,7 +74,7 @@ export default function SubscriptionScreen() {
       </View>
 
       <Text style={styles.disclaimer}>
-        Abonnement mensuel sans engagement, resiliable a tout moment. En continuant, tu acceptes les CGU, CGV et la Politique de confidentialite.
+        Abonnement mensuel sans engagement, résiliable à tout moment. En continuant, tu acceptes les CGU, CGV et la Politique de confidentialité.
       </Text>
 
       <Button
@@ -86,7 +86,7 @@ export default function SubscriptionScreen() {
 
       <Snackbar
         visible={snackbarVisible}
-        title="Fonctionnalite a venir"
+        title="Fonctionnalité à venir"
         subtitle="Les abonnements seront disponibles prochainement."
         variant="info"
         duration={3000}

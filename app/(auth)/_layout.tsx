@@ -29,6 +29,7 @@ export default function AuthLayout() {
       {/* Onboarding */}
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="add-contact" />
+      <Stack.Screen name="add-contact-form" />
     </Stack>
   );
 }

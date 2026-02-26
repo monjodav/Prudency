@@ -125,7 +125,7 @@ export default function PausedTripScreen() {
 
               <View style={styles.timeRow}>
                 <View style={styles.timeItem}>
-                  <Text style={styles.timeLabel}>Temps ecoule</Text>
+                  <Text style={styles.timeLabel}>Temps écoulé</Text>
                   <Text style={styles.timeValue}>{formatMinSec(elapsed)}</Text>
                 </View>
                 <View style={styles.timeItem}>

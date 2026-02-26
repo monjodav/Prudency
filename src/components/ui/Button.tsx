@@ -9,11 +9,24 @@ import {
   PressableProps,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { ms, scaledSpacing, scaledFontSize } from '@/src/utils/scaling';
 
-type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'outline' | 'ghost' | 'social';
+type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'success'
+  | 'danger'
+  | 'outline'
+  | 'ghost'
+  | 'social'
+  | 'outlineViolet'
+  | 'tertiary'
+  | 'glass';
+
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends Omit<PressableProps, 'style'> {
@@ -27,38 +40,87 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   iconPosition?: 'left' | 'right';
 }
 
-const variantStyles: Record<ButtonVariant, { container: ViewStyle; text: TextStyle; disabledContainer?: ViewStyle; disabledText?: TextStyle }> = {
+const variantStyles: Record<
+  ButtonVariant,
+  {
+    container: ViewStyle;
+    text: TextStyle;
+    disabledContainer?: ViewStyle;
+    disabledText?: TextStyle;
+  }
+> = {
   primary: {
     container: { backgroundColor: colors.primary[500] },
     text: { color: colors.white },
-    disabledContainer: { backgroundColor: colors.gray[600] },
-    disabledText: { color: colors.gray[500] },
+    disabledContainer: { backgroundColor: colors.button.disabledBg },
+    disabledText: { color: colors.button.disabledText },
   },
   secondary: {
     container: { backgroundColor: colors.secondary[500] },
     text: { color: colors.white },
-    disabledContainer: { backgroundColor: colors.gray[600] },
-    disabledText: { color: colors.gray[500] },
+    disabledContainer: { backgroundColor: colors.button.disabledBg },
+    disabledText: { color: colors.button.disabledText },
+  },
+  success: {
+    container: { backgroundColor: colors.success[500] },
+    text: { color: colors.white },
+    disabledContainer: { backgroundColor: colors.button.disabledBg },
+    disabledText: { color: colors.button.disabledText },
   },
   danger: {
     container: { backgroundColor: colors.error[500] },
     text: { color: colors.white },
+    disabledContainer: { backgroundColor: colors.button.disabledBg },
+    disabledText: { color: colors.button.disabledText },
   },
   outline: {
     container: {
       backgroundColor: colors.transparent,
-      borderWidth: 1.5,
-      borderColor: colors.primary[50],
+      borderWidth: 1,
+      borderColor: colors.primary[400],
     },
-    text: { color: colors.primary[50] },
+    text: { color: colors.white },
+    disabledContainer: { backgroundColor: colors.button.disabledBg },
+    disabledText: { color: colors.button.disabledText },
   },
   ghost: {
     container: { backgroundColor: colors.transparent },
-    text: { color: colors.primary[50] },
+    text: { color: colors.white },
+    disabledContainer: { backgroundColor: colors.button.disabledBg },
+    disabledText: { color: colors.button.disabledText },
   },
   social: {
     container: { backgroundColor: colors.gray[50] },
     text: { color: colors.gray[950] },
+    disabledContainer: { backgroundColor: colors.button.disabledBg },
+    disabledText: { color: colors.button.disabledText },
+  },
+  outlineViolet: {
+    container: {
+      backgroundColor: colors.transparent,
+      borderWidth: 1,
+      borderColor: colors.brandPosition[50],
+    },
+    text: { color: colors.white },
+    disabledContainer: { backgroundColor: colors.button.disabledBg },
+    disabledText: { color: colors.button.disabledText },
+  },
+  tertiary: {
+    container: { backgroundColor: colors.transparent },
+    text: { color: colors.white },
+    disabledContainer: { backgroundColor: colors.button.disabledBg },
+    disabledText: { color: colors.button.disabledText },
+  },
+  glass: {
+    container: {
+      backgroundColor: 'rgba(246, 246, 246, 0.3)',
+      borderWidth: 0.3,
+      borderColor: colors.white,
+      overflow: 'hidden' as const,
+    },
+    text: { color: colors.white },
+    disabledContainer: { backgroundColor: colors.button.disabledBg },
+    disabledText: { color: colors.button.disabledText },
   },
 };
 
@@ -77,6 +139,13 @@ const sizeStyles: Record<ButtonSize, { container: ViewStyle; text: TextStyle }> 
   },
 };
 
+const pressedStyles: Partial<Record<ButtonVariant, ViewStyle>> = {
+  primary: { backgroundColor: colors.primary[800] },
+  secondary: { backgroundColor: colors.secondary[700] },
+};
+
+const TERTIARY_GRADIENT_COLORS = ['#0b114b', '#152dba', '#6f4287'] as const;
+
 export function Button({
   title,
   variant = 'primary',
@@ -93,24 +162,29 @@ export function Button({
   const sizeStyle = sizeStyles[size];
   const isDisabled = disabled || loading;
 
-  return (
+  const pressableContent = (
     <Pressable
       style={({ pressed }) => [
-        styles.base,
+        variant !== 'tertiary' && styles.base,
         variantStyle.container,
-        sizeStyle.container,
-        fullWidth && styles.fullWidth,
-        pressed && !isDisabled && styles.pressed,
+        variant !== 'tertiary' && sizeStyle.container,
+        variant !== 'tertiary' && fullWidth && styles.fullWidth,
+        pressed && !isDisabled && pressedStyles[variant],
+        pressed && !isDisabled && { transform: [{ scale: 0.98 }] },
         isDisabled && (variantStyle.disabledContainer || styles.disabled),
-        style,
+        variant !== 'tertiary' && style,
+        variant === 'tertiary' && styles.tertiaryPressable,
       ]}
       disabled={isDisabled}
       {...pressableProps}
     >
+      {variant === 'glass' && (
+        <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
+      )}
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variantStyle.text.color as string}
+          color={String(variantStyle.text.color ?? colors.white)}
         />
       ) : (
         <View style={styles.content}>
@@ -134,27 +208,39 @@ export function Button({
       )}
     </Pressable>
   );
+
+  if (variant === 'tertiary') {
+    return (
+      <LinearGradient
+        colors={TERTIARY_GRADIENT_COLORS}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.base, sizeStyle.container, fullWidth && styles.fullWidth, style]}
+      >
+        {pressableContent}
+      </LinearGradient>
+    );
+  }
+
+  return pressableContent;
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 9999, // Pill shape from Figma
+    borderRadius: 9999,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    overflow: 'hidden',
   },
   fullWidth: {
     width: '100%',
   },
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
-  },
   disabled: {
-    backgroundColor: colors.gray[600],
+    backgroundColor: colors.button.disabledBg,
   },
   disabledText: {
-    color: colors.gray[500],
+    color: colors.button.disabledText,
   },
   content: {
     flexDirection: 'row',
@@ -163,11 +249,18 @@ const styles = StyleSheet.create({
   },
   text: {
     textAlign: 'center',
+    letterSpacing: ms(-0.32, 0.4),
   },
   iconLeft: {
     marginRight: scaledSpacing(8),
   },
   iconRight: {
     marginLeft: scaledSpacing(8),
+  },
+  tertiaryPressable: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
   },
 });

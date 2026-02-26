@@ -13,10 +13,3 @@ export interface SendSmsOutput {
   messageId: string;
   status: string;
 }
-
-export interface OvhSmsResponse {
-  ids: number[];
-  invalidReceivers: string[];
-  totalCreditsRemoved: number;
-  validReceivers: string[];
-}

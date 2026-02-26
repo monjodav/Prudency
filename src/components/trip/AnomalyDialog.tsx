@@ -38,13 +38,13 @@ const ANOMALY_OPTIONS: AnomalyOption[] = [
   {
     reason: 'detour',
     icon: 'git-branch-outline',
-    label: 'Detour imprevu / volontaire',
+    label: 'Détour imprévu / volontaire',
     description: "J'ai change de chemin volontairement",
   },
   {
     reason: 'roadblock',
     icon: 'construct-outline',
-    label: 'Travaux / route barree',
+    label: 'Travaux / route barrée',
     description: 'La route est bloquee ou en travaux',
   },
   {
@@ -74,7 +74,7 @@ const ANOMALY_OPTIONS: AnomalyOption[] = [
   {
     reason: 'fatigue',
     icon: 'bed-outline',
-    label: "Fatigue / besoin de s'arreter",
+    label: "Fatigue / besoin de s'arrêter",
     description: "J'ai besoin de me reposer",
   },
   {
@@ -87,7 +87,7 @@ const ANOMALY_OPTIONS: AnomalyOption[] = [
     reason: 'all_good',
     icon: 'checkmark-circle-outline',
     label: 'Tout va bien',
-    description: "L'anomalie detectee est normale",
+    description: "L'anomalie détectée est normale",
   },
 ];
 
@@ -100,13 +100,13 @@ function getAnomalyTitleConfig(anomalyType: AnomalyType): AnomalyTitleConfig {
   switch (anomalyType) {
     case 'overtime':
       return {
-        title: 'Retard detecte',
-        subtitle: 'Tu as depasse ton heure d\'arrivee estimee. Que se passe-t-il ?',
+        title: 'Retard détecté',
+        subtitle: 'Tu as dépassé ton heure d\'arrivée estimée. Que se passe-t-il ?',
       };
     case 'route_deviation':
       return {
-        title: 'Changement de trajet detecte',
-        subtitle: 'Tu sembles avoir devie de ton itineraire prevu. Tout va bien ?',
+        title: 'Changement de trajet détecté',
+        subtitle: 'Tu sembles avoir dévié de ton itinéraire prévu. Tout va bien ?',
       };
     case 'prolonged_stop':
       return {

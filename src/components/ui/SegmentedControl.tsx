@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, LayoutAnimation } from 'react-native';
+import { View, Text, StyleSheet, Pressable, LayoutAnimation, ViewStyle } from 'react-native';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
@@ -9,7 +9,7 @@ interface SegmentedControlProps {
   options: string[];
   selectedIndex: number;
   onChange: (index: number) => void;
-  style?: object;
+  style?: ViewStyle;
   variant?: 'light' | 'dark';
 }
 
@@ -34,6 +34,7 @@ export function SegmentedControl({
           key={index}
           style={[
             styles.segment,
+            isDark && styles.segmentDark,
             index === selectedIndex && styles.segmentSelected,
             index === selectedIndex && isDark && styles.segmentSelectedDark,
           ]}
@@ -63,7 +64,11 @@ const styles = StyleSheet.create({
     padding: scaledSpacing(4),
   },
   containerDark: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: colors.secondary[200],
+    borderRadius: borderRadius.segmentTrack,
+    paddingHorizontal: scaledSpacing(10),
+    paddingVertical: scaledSpacing(8),
+    gap: scaledSpacing(8),
   },
   segment: {
     flex: 1,
@@ -71,6 +76,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
     alignItems: 'center',
     borderRadius: borderRadius.md,
+  },
+  segmentDark: {
+    borderRadius: borderRadius.segment,
+    paddingVertical: spacing[2],
+    paddingHorizontal: scaledSpacing(24),
   },
   segmentSelected: {
     backgroundColor: colors.white,
@@ -83,14 +93,16 @@ const styles = StyleSheet.create({
     }),
   },
   segmentSelectedDark: {
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.secondary[800],
+    borderRadius: borderRadius.segment,
   },
   segmentText: {
     ...typography.body,
     color: colors.gray[600],
   },
   segmentTextDark: {
-    color: colors.primary[200],
+    ...typography.bodySmall,
+    color: colors.white,
   },
   segmentTextSelected: {
     color: colors.gray[900],
@@ -98,5 +110,6 @@ const styles = StyleSheet.create({
   },
   segmentTextSelectedDark: {
     color: colors.white,
+    fontWeight: '400',
   },
 });

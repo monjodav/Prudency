@@ -68,7 +68,7 @@ export function DestinationSection({
   return (
     <View>
       <Input
-        label="Lieu d'arrivee"
+        label="Lieu d'arrivée"
         placeholder="Ou vas-tu ?"
         value={address}
         onChangeText={onChangeAddress}
@@ -289,7 +289,7 @@ export function TogglesSection({
 export function FooterWarning() {
   return (
     <Text style={styles.footerWarning}>
-      Tu disposes de 15 minutes pour finaliser ton trajet. Passe ce delai, une alerte sera envoyee a ta personne de confiance.
+      Tu disposes de 15 minutes pour finaliser ton trajet. Passé ce délai, une alerte sera envoyée à ta personne de confiance.
     </Text>
   );
 }

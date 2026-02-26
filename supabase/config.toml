@@ -65,3 +65,15 @@ verify_jwt = true
 
 [functions.notify-contacts]
 verify_jwt = true
+
+[functions.send-contact-invitation]
+verify_jwt = true
+
+[functions.send-otp]
+verify_jwt = true
+
+[functions.verify-otp]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true

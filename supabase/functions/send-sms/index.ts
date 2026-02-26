@@ -1,33 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {
-  SendSmsInputSchema,
-  type OvhSmsResponse,
-  type SendSmsOutput,
-} from "./types.ts";
+import { SendSmsInputSchema, type SendSmsOutput } from "./types.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-
-const OVH_APPLICATION_KEY = Deno.env.get("OVH_APPLICATION_KEY");
-const OVH_APPLICATION_SECRET = Deno.env.get("OVH_APPLICATION_SECRET");
-const OVH_CONSUMER_KEY = Deno.env.get("OVH_CONSUMER_KEY");
-const OVH_SMS_SERVICE_NAME = Deno.env.get("OVH_SMS_SERVICE_NAME");
-const OVH_SMS_SENDER = Deno.env.get("OVH_SMS_SENDER") ?? "Prudency";
-
-async function computeOvhSignature(
-  applicationSecret: string,
-  consumerKey: string,
-  method: string,
-  url: string,
-  body: string,
-  timestamp: number,
-): Promise<string> {
-  const toSign = `${applicationSecret}+${consumerKey}+${method}+${url}+${body}+${timestamp}`;
-  const encoder = new TextEncoder();
-  const data = encoder.encode(toSign);
-  const hashBuffer = await crypto.subtle.digest("SHA-1", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  return `$1$${hashHex}`;
-}
+import { sendSmsViaOvh, isOvhConfigured } from "../_shared/ovhSms.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -55,7 +29,6 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // Allow both user-level and service-level calls
     const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
@@ -78,13 +51,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Validate OVH configuration
-    if (
-      !OVH_APPLICATION_KEY ||
-      !OVH_APPLICATION_SECRET ||
-      !OVH_CONSUMER_KEY ||
-      !OVH_SMS_SERVICE_NAME
-    ) {
+    // Check OVH config
+    if (!isOvhConfigured()) {
       return new Response(
         JSON.stringify({ error: "SMS service not configured" }),
         {
@@ -111,67 +79,10 @@ Deno.serve(async (req) => {
     }
 
     const { to, message } = parseResult.data;
-
-    // Build OVH SMS API request
-    const ovhUrl = `https://eu.api.ovh.com/1.0/sms/${OVH_SMS_SERVICE_NAME}/jobs`;
-    const ovhBody = JSON.stringify({
-      charset: "UTF-8",
-      coding: "7bit",
-      message,
-      noStopClause: true,
-      priority: "high",
-      receivers: [to],
-      sender: OVH_SMS_SENDER,
-      validityPeriod: 2880,
-    });
-
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signature = await computeOvhSignature(
-      OVH_APPLICATION_SECRET,
-      OVH_CONSUMER_KEY,
-      "POST",
-      ovhUrl,
-      ovhBody,
-      timestamp,
-    );
-
-    const ovhResponse = await fetch(ovhUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Ovh-Application": OVH_APPLICATION_KEY,
-        "X-Ovh-Timestamp": String(timestamp),
-        "X-Ovh-Signature": signature,
-        "X-Ovh-Consumer": OVH_CONSUMER_KEY,
-      },
-      body: ovhBody,
-    });
-
-    if (!ovhResponse.ok) {
-      console.error("OVH SMS API error: status", ovhResponse.status);
-      return new Response(
-        JSON.stringify({ error: "Failed to send SMS" }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    const ovhData: OvhSmsResponse = await ovhResponse.json();
-
-    if (ovhData.invalidReceivers.length > 0) {
-      return new Response(
-        JSON.stringify({ error: "Invalid phone number" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
+    const result = await sendSmsViaOvh(to, message);
 
     const output: SendSmsOutput = {
-      messageId: String(ovhData.ids[0]),
+      messageId: result.messageId,
       status: "sent",
     };
 
@@ -181,6 +92,18 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("send-sms error:", error instanceof Error ? error.message : "Unknown");
+
+    const message = error instanceof Error ? error.message : "";
+    if (message === "Invalid phone number") {
+      return new Response(
+        JSON.stringify({ error: "Invalid phone number" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       {

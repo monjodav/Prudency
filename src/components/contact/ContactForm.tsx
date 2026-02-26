@@ -63,7 +63,7 @@ export function ContactForm({
     if (!form.phone.trim()) {
       newErrors.phone = 'Le numero de telephone est requis';
     } else if (!/^\+?[0-9\s-]{8,}$/.test(form.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Numero de telephone invalide';
+      newErrors.phone = 'Numéro de téléphone invalide';
     }
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       newErrors.email = 'Email invalide';
@@ -90,7 +90,7 @@ export function ContactForm({
       />
 
       <Input
-        label="Telephone"
+        label="Téléphone"
         placeholder="+33 6 12 34 56 78"
         value={form.phone}
         onChangeText={(text) => updateField('phone', text)}

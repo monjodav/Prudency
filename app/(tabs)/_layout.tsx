@@ -1,70 +1,71 @@
 import React from 'react';
+import { Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 
 import { colors } from '@/src/theme/colors';
-import { scaledIcon, scaledSpacing, scaledFontSize, ms } from '@/src/utils/scaling';
+import { scaledIcon } from '@/src/utils/scaling';
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
-
-function TabBarIcon({ name, color }: { name: IoniconsName; color: string }) {
-  return <Ionicons size={scaledIcon(24)} style={{ marginBottom: scaledSpacing(-3) }} name={name} color={color} />;
+function BackButton() {
+  const router = useRouter();
+  return (
+    <Pressable onPress={() => router.back()} hitSlop={12}>
+      <Ionicons name="chevron-back" size={scaledIcon(24)} color={colors.white} />
+    </Pressable>
+  );
 }
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary[300],
-        tabBarInactiveTintColor: colors.gray[500],
-        tabBarStyle: {
-          backgroundColor: colors.primary[950],
-          borderTopColor: colors.primary[900],
-          borderTopWidth: 1,
-          height: ms(88, 0.5),
-          paddingBottom: scaledSpacing(28),
-          paddingTop: scaledSpacing(8),
-        },
-        tabBarLabelStyle: {
-          fontSize: scaledFontSize(11),
-          fontFamily: 'Inter_500Medium',
-        },
+        tabBarStyle: { display: 'none' },
         headerShown: false,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Accueil',
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Accueil' }} />
       <Tabs.Screen
         name="places"
         options={{
           title: 'Lieux',
-          tabBarIcon: ({ color }) => <TabBarIcon name="location" color={color} />,
+          headerShown: true,
+          headerTransparent: true,
+          headerTitle: '',
+          headerLeft: () => <BackButton />,
+          headerStyle: { backgroundColor: 'transparent' },
         }}
       />
       <Tabs.Screen
         name="contacts"
         options={{
           title: 'Contacts',
-          tabBarIcon: ({ color }) => <TabBarIcon name="people" color={color} />,
+          headerShown: true,
+          headerTransparent: true,
+          headerTitle: '',
+          headerLeft: () => <BackButton />,
+          headerStyle: { backgroundColor: 'transparent' },
         }}
       />
       <Tabs.Screen
         name="guardian"
         options={{
           title: 'Proteges',
-          tabBarIcon: ({ color }) => <TabBarIcon name="shield-checkmark" color={color} />,
+          headerShown: true,
+          headerTransparent: true,
+          headerTitle: '',
+          headerLeft: () => <BackButton />,
+          headerStyle: { backgroundColor: 'transparent' },
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color }) => <TabBarIcon name="person" color={color} />,
+          headerShown: true,
+          headerTransparent: true,
+          headerTitle: '',
+          headerLeft: () => <BackButton />,
+          headerStyle: { backgroundColor: 'transparent' },
         }}
       />
     </Tabs>

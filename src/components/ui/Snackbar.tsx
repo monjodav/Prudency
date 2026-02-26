@@ -22,9 +22,9 @@ interface SnackbarProps {
 }
 
 const VARIANT_CONFIG: Record<SnackbarVariant, { bgColor: string; iconName: string }> = {
-  success: { bgColor: colors.success[500], iconName: 'check-circle' },
-  error: { bgColor: colors.error[500], iconName: 'exclamation-circle' },
-  info: { bgColor: colors.info[500], iconName: 'info-circle' },
+  success: { bgColor: colors.success[900], iconName: 'check-circle' },
+  error: { bgColor: colors.error[900], iconName: 'exclamation-circle' },
+  info: { bgColor: colors.secondary[700], iconName: 'info-circle' },
 };
 
 export function Snackbar({
@@ -90,7 +90,7 @@ export function Snackbar({
     >
       <FontAwesome
         name={config.iconName as React.ComponentProps<typeof FontAwesome>['name']}
-        size={scaledIcon(20)}
+        size={scaledIcon(24)}
         color={colors.white}
         style={styles.icon}
       />
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing[4],
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.md,
     ...scaledShadow({
       shadowColor: colors.black,
       shadowOffset: { width: 0, height: -2 },
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.bodySmall,
     color: colors.white,
-    fontWeight: '600',
+    fontWeight: '400',
   },
   subtitle: {
     ...typography.caption,

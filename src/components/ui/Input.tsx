@@ -33,6 +33,7 @@ export function Input({
   ...textInputProps
 }: InputProps) {
   const [isSecure, setIsSecure] = useState(secureTextEntry ?? true);
+  const [isFocused, setIsFocused] = useState(false);
   const hasError = Boolean(error);
 
   const isDark = variant === 'dark';
@@ -49,16 +50,27 @@ export function Input({
           styles.inputContainer,
           isDark ? styles.inputContainerDark : styles.inputContainerLight,
           hasError && styles.inputError,
+          isFocused && !hasError && styles.inputFocused,
+          textInputProps.editable === false && styles.inputDisabled,
         ]}
       >
         <TextInput
           style={[
             styles.input,
             isDark ? styles.inputTextDark : styles.inputTextLight,
+            textInputProps.editable === false && styles.inputTextDisabled,
           ]}
           placeholderTextColor={colors.gray[500]}
           secureTextEntry={secureToggle ? isSecure : secureTextEntry}
           {...textInputProps}
+          onFocus={(e) => {
+            setIsFocused(true);
+            textInputProps.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            textInputProps.onBlur?.(e);
+          }}
         />
         {secureToggle && (
           <Pressable
@@ -111,19 +123,29 @@ const styles = StyleSheet.create({
     borderColor: colors.gray[300],
   },
   inputError: {
-    borderColor: colors.error[500],
+    borderColor: colors.error[600],
+  },
+  inputFocused: {
+    borderColor: colors.white,
+  },
+  inputDisabled: {
+    borderColor: colors.button.disabledText,
   },
   input: {
     flex: 1,
     ...typography.inputText,
     height: '100%',
     paddingVertical: scaledSpacing(12),
+    letterSpacing: ms(-0.32, 0.4),
   },
   inputTextDark: {
     color: colors.white,
   },
   inputTextLight: {
     color: colors.gray[900],
+  },
+  inputTextDisabled: {
+    color: colors.button.disabledText,
   },
   toggleButton: {
     padding: scaledSpacing(4),

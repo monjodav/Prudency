@@ -143,7 +143,7 @@ export default function ScheduledTripScreen() {
 
               <View style={styles.timeRow}>
                 <View style={styles.timeItem}>
-                  <Text style={styles.timeLabel}>Temps ecoule</Text>
+                  <Text style={styles.timeLabel}>Temps écoulé</Text>
                   <Text style={styles.timeValue}>00m 00s</Text>
                 </View>
                 <View style={styles.timeItem}>

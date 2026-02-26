@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Modal } from '@/src/components/ui/Modal';
+import { Dialog } from '@/src/components/ui/Dialog';
 import { Button } from '@/src/components/ui/Button';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
@@ -75,7 +75,7 @@ export function NoResponseDialog({
   const isUrgent = remaining <= 60;
 
   return (
-    <Modal visible={visible} onClose={onAllGood} title="Es-tu en securite ?">
+    <Dialog visible={visible} onClose={onAllGood} title="Es-tu en sécurité ?">
       <View style={styles.content}>
         <View style={styles.iconRow}>
           <Ionicons
@@ -86,8 +86,8 @@ export function NoResponseDialog({
         </View>
 
         <Text style={styles.message}>
-          Aucune reponse depuis un moment. Si tu ne reponds pas, une alerte sera
-          envoyee automatiquement a tes contacts de confiance.
+          Aucune réponse depuis un moment. Si tu ne réponds pas, une alerte sera
+          envoyée automatiquement à tes contacts de confiance.
         </Text>
 
         <View style={styles.timerContainer}>
@@ -118,12 +118,13 @@ export function NoResponseDialog({
           />
           <Button
             title="Declencher une alerte maintenant"
+            variant="danger"
             onPress={onTriggerAlert}
             style={styles.alertButton}
           />
         </View>
       </View>
-    </Modal>
+    </Dialog>
   );
 }
 
@@ -136,10 +137,11 @@ const styles = StyleSheet.create({
   },
   message: {
     ...typography.bodySmall,
-    color: colors.gray[600],
+    color: colors.white,
     textAlign: 'center',
     marginBottom: spacing[6],
     lineHeight: ms(20, 0.4),
+    opacity: 0.85,
   },
   timerContainer: {
     width: '100%',
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
   progressBarBackground: {
     width: '100%',
     height: ms(6, 0.5),
-    backgroundColor: colors.gray[100],
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: borderRadius.full,
     overflow: 'hidden',
   },
@@ -161,7 +163,7 @@ const styles = StyleSheet.create({
   timerText: {
     fontSize: scaledFontSize(32),
     fontWeight: '700',
-    color: colors.warning[600],
+    color: colors.warning[500],
     fontVariant: ['tabular-nums'],
   },
   timerTextUrgent: {
@@ -176,6 +178,5 @@ const styles = StyleSheet.create({
   },
   alertButton: {
     width: '100%',
-    backgroundColor: colors.error[500],
   },
 });

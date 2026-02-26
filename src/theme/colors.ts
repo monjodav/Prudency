@@ -18,7 +18,7 @@ export const colors = {
   secondary: {
     50: '#f1ecf3',
     100: '#e2d9e7',
-    200: '#c6b3cf',
+    200: '#523360',
     300: '#a98eb6',
     400: '#8d689e',
     500: '#7e5592', // Main secondary
@@ -52,10 +52,10 @@ export const colors = {
     300: '#75d799',
     400: '#47ca77',
     500: '#30c466', // Main success
-    600: '#16aa4d',
+    600: '#149744',
     700: '#149744',
     800: '#0f7133',
-    900: '#0a4c22',
+    900: '#166534',
     950: '#052611',
   },
 
@@ -82,10 +82,10 @@ export const colors = {
     300: '#df7878',
     400: '#d44b4b',
     500: '#ca1f1f', // Main error
-    600: '#b51b1b',
+    600: '#dc2626',
     700: '#a11818',
     800: '#791212',
-    900: '#510c0c',
+    900: '#7f1d1d',
     950: '#280606',
   },
 
@@ -115,6 +115,17 @@ export const colors = {
   overlay: {
     light: 'rgba(0, 0, 0, 0.4)',
     medium: 'rgba(0, 0, 0, 0.6)',
+  },
+
+  // Brand position (violet accent for tags/outlines)
+  brandPosition: {
+    50: '#cc63f9',
+  },
+
+  // Button-specific semantic tokens
+  button: {
+    disabledBg: '#4f4f4f',
+    disabledText: '#888888',
   },
 
   // Base colors

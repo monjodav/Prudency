@@ -17,6 +17,7 @@ import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { scaledIcon, ms, scaledSpacing } from '@/src/utils/scaling';
 import * as authService from '@/src/services/authService';
+import { useAuthStore } from '@/src/stores/authStore';
 
 interface LogoutDialogProps {
   visible: boolean;
@@ -25,10 +26,10 @@ interface LogoutDialogProps {
 }
 
 const CONSEQUENCES = [
-  'La deconnexion entraine la desactivation de ton compte.',
-  "Tu n'auras plus acces aux trajets, alertes ni personnes de confiance.",
-  'Tes personnes de confiance seront informees que ton compte est inactif.',
-  'Tes donnees seront conservees 30 jours. Passe ce delai, elles seront supprimees definitivement.',
+  'La déconnexion entraîne la désactivation de ton compte.',
+  "Tu n'auras plus accès aux trajets, alertes ni personnes de confiance.",
+  'Tes personnes de confiance seront informées que ton compte est inactif.',
+  'Tes données seront conservées 30 jours. Passé ce délai, elles seront supprimées définitivement.',
 ] as const;
 
 export function LogoutDialog({
@@ -36,11 +37,19 @@ export function LogoutDialog({
   onConfirm,
   onCancel,
 }: LogoutDialogProps) {
+  const { user } = useAuthStore();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
+  const isOAuthUser = user?.app_metadata?.provider !== 'email';
+
   const handleConfirm = async () => {
+    if (isOAuthUser) {
+      onConfirm();
+      return;
+    }
+
     if (!password.trim()) {
       setError('Saisis ton mot de passe pour confirmer.');
       return;
@@ -59,7 +68,7 @@ export function LogoutDialog({
 
       onConfirm();
     } catch {
-      setError('Une erreur est survenue. Reessaie.');
+      setError('Une erreur est survenue. Réessaie.');
     } finally {
       setIsVerifying(false);
     }
@@ -74,14 +83,14 @@ export function LogoutDialog({
   const handleForgotPassword = () => {
     handleCancel();
     Alert.alert(
-      'Mot de passe oublie',
-      'Un email de reinitialisation te sera envoye.',
+      'Mot de passe oublié',
+      'Un email de réinitialisation te sera envoyé.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Envoyer',
           onPress: () => {
-            Alert.alert('Email envoye', 'Verifie ta boite mail.');
+            Alert.alert('Email envoyé', 'Vérifie ta boîte mail.');
           },
         },
       ]
@@ -109,7 +118,7 @@ export function LogoutDialog({
                 color={colors.error[400]}
               />
             </View>
-            <Text style={styles.title}>Deconnexion</Text>
+            <Text style={styles.title}>Déconnexion</Text>
           </View>
 
           <View style={styles.consequencesList}>
@@ -121,33 +130,37 @@ export function LogoutDialog({
             ))}
           </View>
 
-          <Input
-            label="Mot de passe"
-            placeholder="Confirme ton mot de passe"
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              if (error) setError('');
-            }}
-            secureTextEntry
-            secureToggle
-            error={error}
-            autoCapitalize="none"
-            autoCorrect={false}
-            containerStyle={styles.inputContainer}
-          />
+          {!isOAuthUser && (
+            <>
+              <Input
+                label="Mot de passe"
+                placeholder="Confirme ton mot de passe"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (error) setError('');
+                }}
+                secureTextEntry
+                secureToggle
+                error={error}
+                autoCapitalize="none"
+                autoCorrect={false}
+                containerStyle={styles.inputContainer}
+              />
 
-          <Pressable onPress={handleForgotPassword} style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Mot de passe oublie ?</Text>
-          </Pressable>
+              <Pressable onPress={handleForgotPassword} style={styles.forgotPassword}>
+                <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
+              </Pressable>
+            </>
+          )}
 
           <View style={styles.actions}>
             <Button
-              title="Je me deconnecte"
+              title="Je me déconnecte"
               variant="danger"
               onPress={handleConfirm}
               loading={isVerifying}
-              disabled={!password.trim()}
+              disabled={!isOAuthUser && !password.trim()}
               fullWidth
             />
             <Button

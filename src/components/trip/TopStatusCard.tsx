@@ -25,7 +25,7 @@ export function TopStatusCard({ isOvertime }: TopStatusCardProps) {
           </Text>
           <Text style={styles.topCardSubtitle}>
             {isOvertime
-              ? 'Tu as depasse ton heure d\'arrivee'
+              ? 'Tu as dépassé ton heure d\'arrivée'
               : 'Ton trajet a demarre'}
           </Text>
         </View>

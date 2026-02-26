@@ -10,7 +10,6 @@ import {
   Alert,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { Input } from '@/src/components/ui/Input';
@@ -21,7 +20,10 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useSocialAuth } from '@/src/hooks/useSocialAuth';
 import { AuthError } from '@supabase/supabase-js';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
-import { scaledSpacing, scaledIcon } from '@/src/utils/scaling';
+import { GoogleLogo } from '@/src/components/icons/GoogleLogo';
+import { AppleLogo } from '@/src/components/icons/AppleLogo';
+import { FacebookLogo } from '@/src/components/icons/FacebookLogo';
+import { scaledSpacing } from '@/src/utils/scaling';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -175,10 +177,10 @@ export default function LoginScreen() {
             <View style={styles.registerLinkContainer}>
               <Text style={styles.registerLinkText}>
                 Tu n'as pas encore de compte ?{' '}
-                <Link href="/(auth)/register" asChild>
-                  <Text style={styles.registerLinkAction}>Inscris-toi !</Text>
-                </Link>
               </Text>
+              <Link href="/(auth)/register" asChild>
+                <Text style={styles.registerLinkAction}>Inscris-toi !</Text>
+              </Link>
             </View>
 
             {/* Divider */}
@@ -196,9 +198,7 @@ export default function LoginScreen() {
               loading={isGoogleLoading}
               disabled={isSocialLoading}
               fullWidth
-              icon={
-                <Ionicons name="logo-google" size={scaledIcon(20)} color={colors.gray[950]} />
-              }
+              icon={<GoogleLogo size={20} />}
             />
 
             {/* Apple Sign In (iOS only) */}
@@ -210,9 +210,7 @@ export default function LoginScreen() {
                 loading={isAppleLoading}
                 disabled={isSocialLoading}
                 fullWidth
-                icon={
-                  <Ionicons name="logo-apple" size={scaledIcon(20)} color={colors.gray[950]} />
-                }
+                icon={<AppleLogo size={20} />}
               />
             )}
 
@@ -224,9 +222,7 @@ export default function LoginScreen() {
                 onPress={() => {}}
                 disabled
                 fullWidth
-                icon={
-                  <Ionicons name="logo-facebook" size={scaledIcon(20)} color={colors.gray[400]} />
-                }
+                icon={<FacebookLogo size={20} color={colors.gray[400]} />}
               />
               <Text style={styles.comingSoonText}>Bientôt disponible</Text>
             </View>
@@ -260,13 +256,13 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: scaledSpacing(64),
-    paddingTop: scaledSpacing(100),
-    paddingBottom: scaledSpacing(40),
+    paddingTop: scaledSpacing(60),
+    paddingBottom: scaledSpacing(24),
     justifyContent: 'space-between',
   },
   header: {
     alignItems: 'center',
-    marginBottom: scaledSpacing(24),
+    marginBottom: scaledSpacing(16),
   },
   title: {
     ...typography.h2,
@@ -281,14 +277,13 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
-    gap: scaledSpacing(24),
+    gap: scaledSpacing(16),
   },
   inputsContainer: {
-    gap: scaledSpacing(16),
+    gap: 0,
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
-    marginTop: scaledSpacing(8),
   },
   forgotPassword: {
     ...typography.link,
@@ -301,21 +296,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   registerLinkContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: scaledSpacing(8),
   },
   registerLinkText: {
-    ...typography.handwritten,
+    ...typography.bodySmall,
     color: colors.primary[50],
-    textAlign: 'center',
+    letterSpacing: -0.32,
   },
   registerLinkAction: {
+    ...typography.bodySmall,
+    color: colors.primary[50],
+    fontFamily: typography.link.fontFamily,
+    fontWeight: '600',
     textDecorationLine: 'underline',
+    letterSpacing: -0.32,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: scaledSpacing(8),
   },
   dividerLine: {
     flex: 1,
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
   },
   logoTopContainer: {
     alignItems: 'center',
-    marginBottom: scaledSpacing(24),
+    marginBottom: scaledSpacing(16),
   },
   modalText: {
     ...typography.body,

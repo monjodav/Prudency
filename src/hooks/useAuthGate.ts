@@ -35,7 +35,7 @@ export function useAuthGate() {
     if (!session && !inAuthGroup) {
       profileCheckDone.current = false;
       router.replace('/(auth)/login');
-    } else if (session && inAuthGroup && !profileCheckDone.current) {
+    } else if (session && !profileCheckDone.current) {
       profileCheckDone.current = true;
       void (async () => {
         try {
@@ -46,13 +46,20 @@ export function useAuthGate() {
 
           if (!profile?.first_name || !profile?.phone) {
             router.replace('/(auth)/personal-info');
+          } else if (!profile.phone_verified) {
+            router.replace({
+              pathname: '/(auth)/verify-phone',
+              params: { phone: profile.phone },
+            });
           } else if (!profile.onboarding_completed) {
             router.replace('/(auth)/permissions-location');
-          } else {
+          } else if (inAuthGroup) {
             router.replace('/(tabs)');
           }
         } catch {
-          router.replace('/(tabs)');
+          if (inAuthGroup) {
+            router.replace('/(tabs)');
+          }
         }
       })();
     }

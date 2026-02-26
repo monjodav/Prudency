@@ -97,7 +97,7 @@ export default function AcceptContactScreen() {
 
       setState('accepted');
     } catch {
-      setErrorMessage('Une erreur est survenue. Veuillez reessayer.');
+      setErrorMessage('Une erreur est survenue. Veuillez réessayer.');
       setState('error');
     } finally {
       setProcessing(false);
@@ -116,7 +116,7 @@ export default function AcceptContactScreen() {
 
       setState('refused');
     } catch {
-      setErrorMessage('Une erreur est survenue. Veuillez reessayer.');
+      setErrorMessage('Une erreur est survenue. Veuillez réessayer.');
       setState('error');
     } finally {
       setProcessing(false);

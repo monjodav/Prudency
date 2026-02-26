@@ -52,7 +52,7 @@ export function PasswordValidationView({
       }
       await onPasswordValidation();
     } catch {
-      setError('Erreur de verification. Veuillez reessayer.');
+      setError('Erreur de vérification. Veuillez réessayer.');
     } finally {
       setIsVerifying(false);
     }

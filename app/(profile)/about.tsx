@@ -67,26 +67,26 @@ export default function AboutScreen() {
         <Text style={styles.sectionTitle}>Notre mission</Text>
         <View style={styles.card}>
           <Text style={styles.missionText}>
-            Prudency est une application de securite personnelle concue pour proteger
-            les femmes lors de leurs deplacements. Notre mission est de te permettre de
-            te deplacer en toute serenite, en partageant ta position avec tes proches
-            et en declenchant des alertes en cas de besoin.
+            Prudency est une application de sécurité personnelle conçue pour protéger
+            les femmes lors de leurs déplacements. Notre mission est de te permettre de
+            te déplacer en toute sérénité, en partageant ta position avec tes proches
+            et en déclenchant des alertes en cas de besoin.
           </Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Comment ca marche</Text>
+        <Text style={styles.sectionTitle}>Comment ça marche</Text>
         <View style={styles.card}>
           <StepItem
             number={1}
-            title="Cree un trajet"
-            description="Definis ton point de depart, ta destination et ton heure d'arrivee estimee."
+            title="Crée un trajet"
+            description="Définis ton point de départ, ta destination et ton heure d'arrivée estimée."
           />
           <StepItem
             number={2}
             title="Choisis ton cercle"
-            description="Selectionne les personnes de confiance qui seront alertees en cas de probleme."
+            description="Sélectionne les personnes de confiance qui seront alertées en cas de problème."
           />
         </View>
       </View>
@@ -117,7 +117,7 @@ export default function AboutScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.copyright}>
-          {new Date().getFullYear()} Prudency. Tous droits reserves.
+          {new Date().getFullYear()} Prudency. Tous droits réservés.
         </Text>
         <Text style={styles.madeWith}>
           Fait avec amour en France
@@ -126,7 +126,7 @@ export default function AboutScreen() {
 
       <Snackbar
         visible={snackbarVisible}
-        title="Fonctionnalite a venir"
+        title="Fonctionnalité à venir"
         subtitle="La demo sera disponible prochainement."
         variant="info"
         duration={3000}

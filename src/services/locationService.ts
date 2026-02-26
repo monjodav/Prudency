@@ -83,7 +83,7 @@ export async function startBackgroundTracking(): Promise<void> {
     showsBackgroundLocationIndicator: true,
     foregroundService: {
       notificationTitle: 'Prudency - Trajet en cours',
-      notificationBody: 'Votre position est suivie pour votre securite',
+      notificationBody: 'Votre position est suivie pour votre sécurité',
       notificationColor: '#2c41bc',
     },
   });

@@ -107,9 +107,9 @@ export const typography = {
     lineHeight: scaledLineHeight(19),
   },
   buttonSmall: {
-    fontFamily: fontFamilies.inter.semibold,
+    fontFamily: fontFamilies.inter.regular,
     fontSize: fontSizes.sm, // 14px
-    fontWeight: fontWeights.semibold,
+    fontWeight: fontWeights.regular,
     lineHeight: scaledLineHeight(17),
   },
 

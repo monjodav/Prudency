@@ -62,7 +62,7 @@ export function ArrivalConfirmationView({
           </View>
 
           <Text style={styles.arrivalTitle}>
-            Es-tu bien arrivee a destination ?
+            Es-tu bien arrivée à destination ?
           </Text>
 
           {alertSent ? (
@@ -73,7 +73,7 @@ export function ArrivalConfirmationView({
                 color={colors.error[400]}
               />
               <Text style={styles.alertSentText}>
-                Le delai est ecoule. Une alerte a ete envoyee a ta personne de confiance.
+                Le délai est écoulé. Une alerte a été envoyée à ta personne de confiance.
               </Text>
             </View>
           ) : (
@@ -88,7 +88,7 @@ export function ArrivalConfirmationView({
                   Tu disposes de{' '}
                   <Text style={styles.timerText}>{formattedTime}</Text>
                   {' '}pour finaliser ton trajet.
-                  Passe ce delai, une alerte sera envoyee a ta personne de confiance.
+                  Passé ce délai, une alerte sera envoyée à ta personne de confiance.
                 </Text>
               </View>
             </View>

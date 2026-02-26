@@ -120,7 +120,7 @@ export default function CompleteTripScreen() {
       router.replace('/(trip)/active');
     } catch (err) {
       if (__DEV__) console.warn('Trip extend failed:', err);
-      setError('Erreur lors du prolongement. Veuillez reessayer.');
+      setError('Erreur lors du prolongement. Veuillez réessayer.');
     }
   };
 
@@ -147,7 +147,7 @@ export default function CompleteTripScreen() {
       setPhase('completed');
     } catch (err) {
       if (__DEV__) console.warn('Trip complete failed:', err);
-      setError('Erreur lors de la confirmation. Veuillez reessayer.');
+      setError('Erreur lors de la confirmation. Veuillez réessayer.');
     }
   };
 

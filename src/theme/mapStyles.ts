@@ -29,3 +29,51 @@ export const DARK_MAP_STYLE = [
     stylers: [{ visibility: 'off' }],
   },
 ];
+
+/**
+ * Dimmed light map — mix between light and dark mode.
+ * Uses lightness/saturation adjustments on the default light map
+ * so the original structure (roads, buildings, parks) stays visible.
+ */
+export const DIMMED_LIGHT_MAP_STYLE = [
+  // Darken everything globally
+  { elementType: 'geometry', stylers: [{ lightness: -45 }, { saturation: -20 }] },
+  // Keep labels readable
+  { elementType: 'labels.text.fill', stylers: [{ lightness: -20 }] },
+  { elementType: 'labels.text.stroke', stylers: [{ lightness: -50 }] },
+  // Roads — less darkened so they stand out
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ lightness: -30 }, { saturation: -15 }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ lightness: -10 }],
+  },
+  // Highways — even more visible
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ lightness: -25 }, { saturation: -10 }],
+  },
+  // Water — darker but keep blue tint
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ lightness: -55 }, { saturation: -10 }],
+  },
+  // POI — hidden labels
+  {
+    featureType: 'poi',
+    elementType: 'labels',
+    stylers: [{ visibility: 'off' }],
+  },
+  // Parks — keep green tint
+  {
+    featureType: 'poi.park',
+    elementType: 'geometry',
+    stylers: [{ lightness: -40 }, { saturation: -10 }],
+  },
+];

@@ -14,20 +14,18 @@ import { colors } from '@/src/theme/colors';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
+import { sendOtp, verifyOtp } from '@/src/services/otpService';
+import { toE164 } from '@/src/utils/phoneUtils';
+import { useAuth } from '@/src/hooks/useAuth';
 import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, ms } from '@/src/utils/scaling';
 
 const CODE_LENGTH = 6;
 
-// TODO: SECURITY - Replace with server-side OTP verification via Edge Function
-// This is a development placeholder only. In production:
-// 1. Generate OTP server-side and store with expiry
-// 2. Send via Plivo SMS
-// 3. Verify server-side, not client-side
-const DEV_BYPASS_OTP = __DEV__ ? '123456' : null;
-
 export default function VerifyPhoneScreen() {
   const router = useRouter();
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const { updateProfile } = useAuth();
+  const { phone: rawPhone } = useLocalSearchParams<{ phone: string }>();
+  const phone = rawPhone ? toE164(rawPhone) : undefined;
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,13 +71,9 @@ export default function VerifyPhoneScreen() {
     setError(null);
 
     try {
-      // TODO: Replace with server-side verification call
-      // const { verified } = await verifyOTP(phone, fullCode);
+      const verified = await verifyOtp(phone!, fullCode);
 
-      // Development bypass - only works in __DEV__ mode
-      const isValidCode = DEV_BYPASS_OTP && fullCode === DEV_BYPASS_OTP;
-
-      if (!isValidCode) {
+      if (!verified) {
         setError('Le code saisi est incorrect. Vérifie-le et réessaie.');
         setCode(Array(CODE_LENGTH).fill(''));
         inputRefs.current[0]?.focus();
@@ -89,12 +83,12 @@ export default function VerifyPhoneScreen() {
       router.replace('/(auth)/permissions-location');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '';
-      if (message.includes('expired') || message.includes('code_expired')) {
+      if (message.includes('code_expired')) {
         setError('Ce code a expiré. Demande-en un nouveau.');
-      } else if (message.includes('too_many_attempts') || message.includes('rate_limit')) {
+      } else if (message.includes('too_many_attempts')) {
         setError('Trop de tentatives. Réessaie dans quelques minutes.');
       } else {
-        setError("Un souci est survenu lors de l'envoi du code. Réessaie dans un instant.");
+        setError("Un souci est survenu lors de la vérification. Réessaie dans un instant.");
       }
     } finally {
       setIsLoading(false);
@@ -102,17 +96,22 @@ export default function VerifyPhoneScreen() {
   };
 
   const handleResend = async () => {
-    if (resendTimer > 0) return;
+    if (resendTimer > 0 || !phone) return;
     setResendTimer(60);
     setError(null);
     try {
-      // Placeholder: resend OTP via Edge Function + Plivo
-    } catch {
-      setError("Un souci est survenu lors de l'envoi du code. Réessaie dans un instant.");
+      await sendOtp(phone);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('too_many_requests')) {
+        setError('Trop de demandes. Réessaie dans quelques minutes.');
+      } else {
+        setError("Un souci est survenu lors de l'envoi du code. Réessaie dans un instant.");
+      }
     }
   };
 
-  const displayPhone = phone || '+33 6 51 87 25 10';
+  const displayPhone = phone || '';
   const isCodeComplete = code.every((c) => c !== '');
 
   return (
@@ -190,6 +189,17 @@ export default function VerifyPhoneScreen() {
             disabled={!isCodeComplete || isLoading}
             fullWidth
           />
+
+          {/* TODO: retirer quand le service OVH SMS standard sera prêt */}
+          <Pressable
+            style={styles.skipButton}
+            onPress={async () => {
+              await updateProfile({ phone_verified: true });
+              router.replace('/(auth)/permissions-location');
+            }}
+          >
+            <Text style={styles.skipText}>Passer cette étape</Text>
+          </Pressable>
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -275,5 +285,16 @@ const styles = StyleSheet.create({
   logoTopContainer: {
     alignItems: 'center',
     marginBottom: scaledSpacing(24),
+  },
+  skipButton: {
+    marginTop: scaledSpacing(16),
+    alignItems: 'center',
+  },
+  skipText: {
+    fontSize: scaledFontSize(14),
+    fontWeight: '400',
+    fontFamily: 'Inter_400Regular',
+    color: colors.gray[400],
+    textDecorationLine: 'underline',
   },
 });

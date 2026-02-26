@@ -53,7 +53,7 @@ export default function PlacesListScreen() {
         await deletePlace(placeId);
         setSnackbar({
           visible: true,
-          title: `Le lieu "${placeName}" a bien ete supprime`,
+          title: `Le lieu "${placeName}" a bien été supprimé`,
           variant: 'error',
         });
       } catch {

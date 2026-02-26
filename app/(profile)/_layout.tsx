@@ -21,13 +21,13 @@ export default function ProfileLayout() {
       <Stack.Screen
         name="preferences"
         options={{
-          title: 'Preferences',
+          title: 'Préférences',
         }}
       />
       <Stack.Screen
         name="security"
         options={{
-          title: 'Securite et confidentialite',
+          title: 'Sécurité et confidentialité',
         }}
       />
       <Stack.Screen
@@ -39,7 +39,7 @@ export default function ProfileLayout() {
       <Stack.Screen
         name="about"
         options={{
-          title: 'A propos',
+          title: 'À propos',
         }}
       />
       <Stack.Screen

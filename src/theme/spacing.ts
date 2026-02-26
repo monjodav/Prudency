@@ -19,10 +19,14 @@ export const spacing = {
 export const borderRadius = {
   none: 0,
   sm: scaledRadius(4),
+  tag: scaledRadius(5),
   md: scaledRadius(8),
   lg: scaledRadius(12),
+  dialog: scaledRadius(15),
   xl: scaledRadius(16),
   '2xl': scaledRadius(24),
+  segment: scaledRadius(67),
+  segmentTrack: scaledRadius(184),
   full: 9999, // Pill shape — not scaled
 };
 

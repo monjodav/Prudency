@@ -72,6 +72,47 @@ export type Database = {
           },
         ]
       }
+      phone_verifications: {
+        Row: {
+          id: string
+          user_id: string
+          phone: string
+          code: string
+          expires_at: string
+          attempts: number
+          verified_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          phone: string
+          code: string
+          expires_at: string
+          attempts?: number
+          verified_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          phone?: string
+          code?: string
+          expires_at?: string
+          attempts?: number
+          verified_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'phone_verifications_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       profiles: {
         Row: {
           auth_provider: string | null
@@ -443,6 +484,7 @@ export type Trip = Tables<'trips'>
 export type TripLocation = Tables<'trip_locations'>
 export type TripNote = Tables<'trip_notes'>
 export type Alert = Tables<'alerts'>
+export type PhoneVerification = Tables<'phone_verifications'>
 
 export type ProfileInsert = TablesInsert<'profiles'>
 export type TrustedContactInsert = TablesInsert<'trusted_contacts'>
@@ -451,6 +493,7 @@ export type TripInsert = TablesInsert<'trips'>
 export type TripLocationInsert = TablesInsert<'trip_locations'>
 export type TripNoteInsert = TablesInsert<'trip_notes'>
 export type AlertInsert = TablesInsert<'alerts'>
+export type PhoneVerificationInsert = TablesInsert<'phone_verifications'>
 
 export type ProfileUpdate = TablesUpdate<'profiles'>
 export type TrustedContactUpdate = TablesUpdate<'trusted_contacts'>
@@ -459,3 +502,4 @@ export type TripUpdate = TablesUpdate<'trips'>
 export type TripLocationUpdate = TablesUpdate<'trip_locations'>
 export type TripNoteUpdate = TablesUpdate<'trip_notes'>
 export type AlertUpdate = TablesUpdate<'alerts'>
+export type PhoneVerificationUpdate = TablesUpdate<'phone_verifications'>

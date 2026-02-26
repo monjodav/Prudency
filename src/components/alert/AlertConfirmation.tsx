@@ -24,10 +24,10 @@ export function AlertConfirmation({
         <FontAwesome name="check-circle" size={scaledIcon(64)} color={colors.success[500]} />
       </View>
 
-      <Text style={styles.title}>Alerte envoyee</Text>
+      <Text style={styles.title}>Alerte envoyée</Text>
       <Text style={styles.description}>
         {contactCount > 0
-          ? `Vos ${contactCount} contact${contactCount > 1 ? 's' : ''} de confiance ${contactCount > 1 ? 'ont' : 'a'} ete prevenu${contactCount > 1 ? 's' : ''}.`
+          ? `Vos ${contactCount} contact${contactCount > 1 ? 's' : ''} de confiance ${contactCount > 1 ? 'ont' : 'a'} été prévenu${contactCount > 1 ? 's' : ''}.`
           : 'Aucun contact de confiance configure. Ajoutez des contacts dans vos parametres.'}
       </Text>
 
@@ -39,7 +39,7 @@ export function AlertConfirmation({
           style={styles.infoIcon}
         />
         <Text style={styles.infoText}>
-          Votre position a ete partagee avec vos contacts.
+          Votre position a été partagée avec vos contacts.
         </Text>
       </View>
 

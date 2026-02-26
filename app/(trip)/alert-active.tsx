@@ -159,7 +159,7 @@ export default function AlertActiveScreen() {
           icon={<Ionicons name="shield-checkmark-outline" size={scaledIcon(20)} color={colors.primary[50]} />}
         />
         <Text style={styles.cancelHint}>
-          Annulez uniquement si vous etes en securite
+          Annulez uniquement si vous êtes en sécurité
         </Text>
       </View>
     </View>
