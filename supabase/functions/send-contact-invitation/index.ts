@@ -8,7 +8,7 @@ import {
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 function generateInvitationToken(): string {
-  const array = new Uint8Array(32);
+  const array = new Uint8Array(16);
   crypto.getRandomValues(array);
   return Array.from(array)
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -151,10 +151,10 @@ Deno.serve(async (req) => {
       .filter(Boolean)
       .join(" ") || "Un utilisateur";
 
-    // Construct invitation message in French
-    const appLink = "https://prudency.app/accept-contact";
+    // Construct invitation message in French (GSM 7bit, ≤160 chars = 1 SMS credit)
+    const appLink = `https://prudency.app/i?t=${invitationToken}`;
     const message =
-      `Bonjour ${recipientName}, ${senderName} souhaite t'ajouter comme personne de confiance sur Prudency. Accepte la demande ici : ${appLink}?token=${invitationToken}`;
+      `Bonjour, ${senderName} vous a choisi(e) comme contact de confiance Prudency. Acceptez ici : ${appLink}`;
 
     // Update the contact record with invitation info
     const { error: updateError } = await supabaseAdmin

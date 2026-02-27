@@ -17,8 +17,7 @@ import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
 import { useAuth } from '@/src/hooks/useAuth';
-// TODO: réactiver quand le service OVH SMS standard sera prêt
-// import { sendOtp } from '@/src/services/otpService';
+import { sendOtp } from '@/src/services/otpService';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { scaledSpacing, scaledFontSize, scaledRadius, scaledIcon, ms } from '@/src/utils/scaling';
 
@@ -79,14 +78,21 @@ export default function PersonalInfoScreen() {
         first_name: firstName.trim(),
         last_name: lastName.trim() || null,
         phone: e164Phone,
-        phone_verified: true,
       });
 
-      // TODO: réactiver sendOtp quand le service OVH SMS standard sera prêt
-      // await sendOtp(e164Phone);
-      // router.push({ pathname: '/(auth)/verify-phone', params: { phone: e164Phone } });
+      try {
+        await sendOtp(e164Phone);
+      } catch (otpErr: unknown) {
+        if (__DEV__) console.warn('sendOtp failed:', otpErr);
+        const otpMsg = otpErr instanceof Error ? otpErr.message : '';
+        if (otpMsg.includes('too_many_requests')) {
+          setErrors({ submit: 'Trop de demandes de code. Réessaie dans quelques minutes.' });
+          return;
+        }
+        // SMS failed but profile saved — continue to verify-phone where user can resend
+      }
 
-      router.replace('/(auth)/permissions-location');
+      router.push({ pathname: '/(auth)/verify-phone', params: { phone: e164Phone } });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '';
       if (message.includes('phone_already_exists') || message.includes('duplicate')) {

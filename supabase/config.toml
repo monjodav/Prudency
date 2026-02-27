@@ -43,9 +43,12 @@ enable_confirmations = true
 
 [auth.external.apple]
 enabled = true
+client_id = "env(APPLE_CLIENT_ID)"
 
 [auth.external.google]
 enabled = true
+client_id = "env(EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
 
 [analytics]
 enabled = false

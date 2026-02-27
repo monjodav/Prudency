@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     // Send SMS first — only persist if delivery succeeds
     await sendSmsViaOvh(
       phone,
-      `${code} est ton code de verification Prudency. Ne le partage avec personne.`,
+      `Ton code Prudency est le ${code}. Ne le partage avec personne.`,
     );
 
     // Hash code before storage

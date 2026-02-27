@@ -117,7 +117,12 @@ export default function ContactsScreen() {
       </View>
 
       <View style={[styles.header, { paddingTop: insets.top + spacing[4] }]}>
-        <Text style={styles.title}>Personnes de confiance</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Personnes de confiance</Text>
+          <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
+            <Ionicons name="settings-outline" size={scaledIcon(22)} color={colors.gray[400]} />
+          </Pressable>
+        </View>
         <Text style={styles.subtitle}>
           {contacts.length}/{APP_CONFIG.MAX_TRUSTED_CONTACTS} contacts configures
         </Text>
@@ -209,6 +214,11 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '3deg' }],
   },
   header: { paddingHorizontal: spacing[6], paddingBottom: spacing[4] },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   title: {
     ...typography.h2,
     color: colors.white,

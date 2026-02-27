@@ -1,16 +1,11 @@
 import { useState, useCallback } from 'react';
-import * as AuthSession from 'expo-auth-session';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '@/src/services/supabaseClient';
-import { env } from '@/src/config/env';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const GOOGLE_DISCOVERY: AuthSession.DiscoveryDocument = {
-  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-  tokenEndpoint: 'https://oauth2.googleapis.com/token',
-  revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
-};
+const REDIRECT_URI = 'prudency://google-auth';
 
 interface GoogleAuthState {
   isLoading: boolean;
@@ -23,29 +18,25 @@ export function useGoogleAuth() {
     error: null,
   });
 
-  const redirectUri = AuthSession.makeRedirectUri();
-
   const signInWithGoogle = useCallback(async () => {
-    if (!env.googleWebClientId) {
-      const error = new Error('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID non configure');
-      setState({ isLoading: false, error });
-      throw error;
-    }
-
     setState({ isLoading: true, error: null });
 
     try {
-      const authUrl =
-        `${GOOGLE_DISCOVERY.authorizationEndpoint}?` +
-        `client_id=${encodeURIComponent(env.googleWebClientId)}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&response_type=id_token` +
-        `&scope=${encodeURIComponent('openid email profile')}` +
-        `&nonce=${Math.random().toString(36).substring(2)}`;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: REDIRECT_URI,
+          queryParams: { prompt: 'consent' },
+        },
+      });
+
+      if (error || !data.url) {
+        throw error ?? new Error('Impossible de lancer la connexion Google');
+      }
 
       const result = await WebBrowser.openAuthSessionAsync(
-        authUrl,
-        redirectUri
+        data.url,
+        REDIRECT_URI,
       );
 
       if (result.type !== 'success' || !result.url) {
@@ -53,27 +44,25 @@ export function useGoogleAuth() {
         return null;
       }
 
-      const url = new URL(result.url);
-      const params = new URLSearchParams(
-        url.hash ? url.hash.substring(1) : url.search.substring(1)
-      );
+      const params = QueryParams.getQueryParams(result.url);
+      const accessToken = params.params['access_token'];
+      const refreshToken = params.params['refresh_token'];
 
-      const idToken = params.get('id_token');
-
-      if (!idToken) {
-        throw new Error("Aucun token d'identité reçu de Google");
+      if (!accessToken || !refreshToken) {
+        throw new Error("Aucun token reçu de Google");
       }
 
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: idToken,
-      });
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
 
-      if (error) {
-        throw error;
+      if (sessionError) {
+        throw sessionError;
       }
 
-      return data;
+      return sessionData;
     } catch (err: unknown) {
       const error =
         err instanceof Error ? err : new Error('Erreur lors de la connexion Google');
@@ -82,7 +71,7 @@ export function useGoogleAuth() {
     } finally {
       setState((prev) => ({ ...prev, isLoading: false }));
     }
-  }, [redirectUri]);
+  }, []);
 
   return {
     signInWithGoogle,

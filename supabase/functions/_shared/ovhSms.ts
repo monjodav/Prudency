@@ -65,7 +65,7 @@ export async function sendSmsViaOvh(
     noStopClause: true,
     priority: "high",
     receivers: [to],
-    sender: cfg.sender,
+    senderForResponse: true,
     validityPeriod: 2880,
   });
 
@@ -92,8 +92,9 @@ export async function sendSmsViaOvh(
   });
 
   if (!ovhResponse.ok) {
-    console.error("OVH SMS API error: status", ovhResponse.status);
-    throw new Error("Failed to send SMS");
+    const errorBody = await ovhResponse.text();
+    console.error("OVH SMS API error: status", ovhResponse.status, "body:", errorBody);
+    throw new Error(`Failed to send SMS: ${ovhResponse.status} ${errorBody}`);
   }
 
   const ovhData: OvhSmsResponse = await ovhResponse.json();

@@ -40,16 +40,26 @@ export default function VerifyPhoneScreen() {
   }, [resendTimer]);
 
   const handleCodeChange = (index: number, value: string) => {
-    if (value.length > 1) {
-      value = value.slice(-1);
+    // Handle autofill / paste of full code
+    const digits = value.replace(/\D/g, '');
+    if (digits.length > 1) {
+      const newCode = [...code];
+      for (let i = 0; i < CODE_LENGTH; i++) {
+        newCode[i] = digits[i] ?? '';
+      }
+      setCode(newCode);
+      setError(null);
+      const focusIndex = Math.min(digits.length, CODE_LENGTH) - 1;
+      inputRefs.current[focusIndex]?.focus();
+      return;
     }
 
     const newCode = [...code];
-    newCode[index] = value;
+    newCode[index] = digits;
     setCode(newCode);
     setError(null);
 
-    if (value && index < CODE_LENGTH - 1) {
+    if (digits && index < CODE_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   };
