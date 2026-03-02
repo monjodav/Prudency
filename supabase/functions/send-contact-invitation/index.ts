@@ -6,6 +6,7 @@ import {
   INVITATION_DELAYS_MS,
 } from "./types.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { sendSmsViaOvh, isOvhConfigured } from "../_shared/ovhSms.ts";
 
 function generateInvitationToken(): string {
   const array = new Uint8Array(16);
@@ -152,9 +153,8 @@ Deno.serve(async (req) => {
       .join(" ") || "Un utilisateur";
 
     // Construct invitation message in French (GSM 7bit, ≤160 chars = 1 SMS credit)
-    const appLink = `https://prudency.app/i?t=${invitationToken}`;
     const message =
-      `Bonjour, ${senderName} vous a choisi(e) comme contact de confiance Prudency. Acceptez ici : ${appLink}`;
+      `Bonjour, ${senderName} vous a choisi(e) comme contact de confiance sur Prudency. Téléchargez l'app pour accepter.`;
 
     // Update the contact record with invitation info
     const { error: updateError } = await supabaseAdmin
@@ -177,34 +177,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Send SMS via the send-sms Edge Function
-    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
-    const smsResponse = await fetch(
-      `${supabaseUrl}/functions/v1/send-sms`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: authHeader,
-          "Content-Type": "application/json",
-          ...(internalSecret ? { "X-Internal-Secret": internalSecret } : {}),
-        },
-        body: JSON.stringify({
-          to: recipientPhone,
-          message,
-        }),
-      },
-    );
-
-    if (!smsResponse.ok) {
-      console.error("SMS send failed: status", smsResponse.status);
+    // Send SMS directly via OVH (recipient is not a Prudency user yet)
+    if (!isOvhConfigured()) {
       return new Response(
-        JSON.stringify({ error: "Failed to send invitation SMS" }),
+        JSON.stringify({ error: "SMS service not configured" }),
         {
-          status: 502,
+          status: 503,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
     }
+
+    await sendSmsViaOvh(recipientPhone, message);
 
     const output: SendContactInvitationOutput = {
       invitationToken,

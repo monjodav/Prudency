@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { typography } from '@/src/theme/typography';
 import { spacing, shadows } from '@/src/theme/spacing';
 import { ms, scaledIcon, scaledRadius } from '@/src/utils/scaling';
 import { UserLocationDot } from '@/src/components/icons/UserLocationDot';
+import { DARK_MAP_STYLE } from '@/src/theme/mapStyles';
 import { useTripStore } from '@/src/stores/tripStore';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import { AlertButton } from '@/src/components/alert/AlertButton';
@@ -25,6 +26,17 @@ import { CreateTripSheet } from '@/src/components/trip/CreateTripSheet';
 import { Snackbar } from '@/src/components/ui/Snackbar';
 import { formatDuration } from '@/src/utils/formatters';
 import type { SavedPlace } from '@/src/types/database';
+
+/** Returns true when it's night-time in France (18:00–05:59 Europe/Paris). */
+function isFranceNight(): boolean {
+  const hour = new Date().toLocaleString('en-US', {
+    hour: 'numeric',
+    hour12: false,
+    timeZone: 'Europe/Paris',
+  });
+  const h = Number(hour);
+  return h >= 18 || h < 6;
+}
 
 const DEFAULT_REGION: Region = {
   latitude: 48.8566,
@@ -44,9 +56,7 @@ export default function HomeScreen() {
   const mapRef = useRef<MapView>(null);
   const lastSavedPlace = useRef<SavedPlace | null>(null);
 
-  const [dotPosition, setDotPosition] = useState<{ x: number; y: number } | null>(null);
   const currentRegion = useRef<Region>(DEFAULT_REGION);
-  const userCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const isFollowingUser = useRef(true);
   const [snackbar, setSnackbar] = useState<{
     visible: boolean;
@@ -57,16 +67,9 @@ export default function HomeScreen() {
   }>({ visible: false, title: '', variant: 'success' });
   const [showCreateTrip, setShowCreateTrip] = useState(false);
   const footerOpacity = useRef(new Animated.Value(1)).current;
-  const overlayOpacity = useRef(new Animated.Value(1)).current;
+  const mapStyle = useMemo(() => (isFranceNight() ? DARK_MAP_STYLE : []), []);
 
 
-  const syncDot = useCallback(async () => {
-    const coords = userCoordsRef.current;
-    if (!coords) return;
-    const point = await mapRef.current?.pointForCoordinate(coords);
-    if (!point) return;
-    setDotPosition({ x: point.x - DOT_SIZE / 2, y: point.y - DOT_SIZE / 2 });
-  }, []);
 
   const handleSheetChange = useCallback((index: number) => {
     const hidden = index > 0 ? 0 : 1;
@@ -75,12 +78,7 @@ export default function HomeScreen() {
       duration: 150,
       useNativeDriver: true,
     }).start();
-    Animated.timing(overlayOpacity, {
-      toValue: hidden,
-      duration: 150,
-      useNativeDriver: true,
-    }).start();
-  }, [footerOpacity, overlayOpacity]);
+  }, [footerOpacity]);
 
   // Center map on user at launch, then watch position in real time
   useEffect(() => {
@@ -98,11 +96,9 @@ export default function HomeScreen() {
       if (lastKnown) {
         const { latitude, longitude } = lastKnown.coords;
         updateLocation(latitude, longitude);
-        userCoordsRef.current = { latitude, longitude };
         const region = { latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
         currentRegion.current = region;
         mapRef.current?.animateToRegion(region, 500);
-        syncDot();
       }
 
       // Watch position in real time
@@ -116,9 +112,7 @@ export default function HomeScreen() {
           if (cancelled) return;
           const { latitude, longitude } = location.coords;
           updateLocation(latitude, longitude);
-          userCoordsRef.current = { latitude, longitude };
-          syncDot();
-          if (isFollowingUser.current) {
+            if (isFollowingUser.current) {
             mapRef.current?.animateToRegion(
               { latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 },
               300,
@@ -134,7 +128,7 @@ export default function HomeScreen() {
       cancelled = true;
       subscription?.remove();
     };
-  }, [updateLocation, syncDot]);
+  }, [updateLocation]);
 
   const userLocation =
     lastKnownLat != null && lastKnownLng != null
@@ -173,15 +167,10 @@ export default function HomeScreen() {
     );
   }, [userLocation]);
 
-  const handleRegionChange = useCallback(() => {
-    syncDot();
-  }, [syncDot]);
-
   const handleRegionChangeComplete = useCallback((region: Region) => {
     currentRegion.current = region;
-    syncDot();
     isFollowingUser.current = false;
-  }, [syncDot]);
+  }, []);
 
   const handleSaveSuccess = useCallback((place: SavedPlace) => {
     lastSavedPlace.current = place;
@@ -271,12 +260,12 @@ export default function HomeScreen() {
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFillObject}
+        customMapStyle={mapStyle}
         initialRegion={initialRegion}
         showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={false}
         mapPadding={{ top: 0, right: 0, bottom: 0, left: 0 }}
-        onRegionChange={handleRegionChange}
         onRegionChangeComplete={handleRegionChangeComplete}
       >
         {userLocation && (
@@ -298,21 +287,6 @@ export default function HomeScreen() {
         ))}
       </MapView>
 
-      {/* Dark overlay on light map */}
-      <View style={styles.mapOverlay} pointerEvents="none" />
-
-      {/* User location SVG — above overlay, below bottom sheet */}
-      {dotPosition && (
-        <Animated.View
-          style={[
-            styles.userDotAbsolute,
-            { left: dotPosition.x, top: dotPosition.y, opacity: overlayOpacity },
-          ]}
-          pointerEvents="none"
-        >
-          <UserLocationDot size={DOT_SIZE} />
-        </Animated.View>
-      )}
 
       {/* Alert button — top center */}
       <View style={[styles.alertContainer, { top: insets.top + spacing[2] }]}>
@@ -320,7 +294,7 @@ export default function HomeScreen() {
       </View>
 
       {/* Right-side floating action buttons — bottom right */}
-      <Animated.View style={[styles.fabColumn, { bottom: fabBottom, opacity: overlayOpacity }]}>
+      <Animated.View style={[styles.fabColumn, { bottom: fabBottom, opacity: footerOpacity }]}>
         <Pressable
           style={styles.fab}
           onPress={() => Alert.alert('Notifications', 'Bientot disponible')}
@@ -343,7 +317,7 @@ export default function HomeScreen() {
 
       {/* Recenter button — bottom left */}
       <Animated.View
-        style={[styles.recenterButtonContainer, { bottom: fabBottom, opacity: overlayOpacity }]}
+        style={[styles.recenterButtonContainer, { bottom: fabBottom, opacity: footerOpacity }]}
       >
         <Pressable style={styles.recenterButton} onPress={handleRecenter}>
           <Ionicons name="locate" size={scaledIcon(22)} color={colors.white} />
@@ -426,14 +400,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.primary[950],
-  },
-  mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 10, 30, 0.55)',
-  },
-  userDotAbsolute: {
-    position: 'absolute',
-    zIndex: 2,
   },
   alertContainer: {
     position: 'absolute',
