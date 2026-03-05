@@ -170,7 +170,6 @@ Deno.serve(async (req) => {
               {
                 method: "POST",
                 headers: {
-                  Authorization: authHeader,
                   "Content-Type": "application/json",
                   ...(internalSecret
                     ? { "X-Internal-Secret": internalSecret }

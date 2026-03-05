@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
 
     // Verify code (constant-time comparison on hashed values)
     const hashedInput = await sha256(code);
-    if (!timingSafeEqual(otpRecord.code, hashedInput)) {
+    if (!(await timingSafeEqual(otpRecord.code, hashedInput))) {
       const output: VerifyOtpOutput = { verified: false };
       return new Response(JSON.stringify(output), {
         status: 200,

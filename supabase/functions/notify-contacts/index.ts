@@ -8,6 +8,7 @@ import {
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
 import { fetchWithRetry } from "../_shared/retry.ts";
+import { timingSafeEqual } from "../_shared/hashUtils.ts";
 
 const NOTIFY_RATE_LIMIT_MS = 60_000; // 1 notification batch per 60 seconds per alert
 
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
 
     // Check if this is a service-level call (from check-trip-timeout or other internal function)
     const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
-    const isServiceCall = !!(internalSecret && req.headers.get("X-Internal-Secret") === internalSecret);
+    const isServiceCall = !!(internalSecret && await timingSafeEqual(internalSecret, req.headers.get("X-Internal-Secret") ?? ""));
 
     let userId: string | null = null;
 

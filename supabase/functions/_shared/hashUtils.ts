@@ -12,7 +12,7 @@ export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
 
   if (bufA.byteLength !== bufB.byteLength) {
     // Compare with self to maintain constant time even on length mismatch
-    crypto.subtle.timingSafeEqual(bufA, bufA);
+    await crypto.subtle.timingSafeEqual(bufA, bufA);
     return false;
   }
 

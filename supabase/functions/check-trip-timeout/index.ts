@@ -24,7 +24,6 @@ Deno.serve(async (req) => {
 
   try {
     // Verify caller is authorized (cron job or internal service call)
-    const authHeader = req.headers.get("Authorization");
     const cronSecret = Deno.env.get("CRON_SECRET");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
