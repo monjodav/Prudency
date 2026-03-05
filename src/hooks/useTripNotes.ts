@@ -35,6 +35,20 @@ export function useTripNotes(tripId: string | null) {
     },
   });
 
+  const deleteNoteMutation = useMutation({
+    mutationFn: (noteId: string) => tripNotesService.deleteTripNote(noteId),
+    onSuccess: () => {
+      if (tripId) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.tripNotes(tripId) });
+      }
+    },
+  });
+
+  const cleanupMutation = useMutation({
+    mutationFn: (retentionDays?: number) =>
+      tripNotesService.cleanupOldNotes(retentionDays),
+  });
+
   return {
     notes: notesQuery.data ?? [],
     isLoading: notesQuery.isLoading,
@@ -44,5 +58,9 @@ export function useTripNotes(tripId: string | null) {
     isCreating: createNoteMutation.isPending,
     updateNote: updateNoteMutation.mutateAsync,
     isUpdating: updateNoteMutation.isPending,
+    deleteNote: deleteNoteMutation.mutateAsync,
+    isDeleting: deleteNoteMutation.isPending,
+    cleanupOldNotes: cleanupMutation.mutateAsync,
+    isCleaning: cleanupMutation.isPending,
   };
 }

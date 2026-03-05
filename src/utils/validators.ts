@@ -6,9 +6,10 @@ export const emailSchema = z.string().email('Cette adresse email ne semble pas v
 export const passwordSchema = z
   .string()
   .min(8, 'Ton mot de passe doit contenir au moins 8 caractères.')
-  .regex(/[A-Z]/, "Ton mot de passe n'est pas assez robuste. Ajoute des chiffres ou des caractères spéciaux.")
-  .regex(/[a-z]/, "Ton mot de passe n'est pas assez robuste. Ajoute des chiffres ou des caractères spéciaux.")
-  .regex(/[0-9]/, "Ton mot de passe n'est pas assez robuste. Ajoute des chiffres ou des caractères spéciaux.");
+  .regex(/[A-Z]/, 'Ton mot de passe doit contenir au moins une majuscule.')
+  .regex(/[a-z]/, 'Ton mot de passe doit contenir au moins une minuscule.')
+  .regex(/[0-9]/, 'Ton mot de passe doit contenir au moins un chiffre.')
+  .regex(/[^A-Za-z0-9]/, 'Ton mot de passe doit contenir au moins un caractère spécial.');
 
 export const phoneSchema = z
   .string()

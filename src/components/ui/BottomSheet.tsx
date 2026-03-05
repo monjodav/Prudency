@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing[4],
   },
   sheetDark: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
   },
   handleDark: {
     backgroundColor: colors.gray[600],

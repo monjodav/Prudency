@@ -18,6 +18,7 @@ interface InputProps extends Omit<TextInputProps, 'style'> {
   error?: string;
   hint?: string;
   secureToggle?: boolean;
+  iconRight?: React.ReactNode;
   containerStyle?: ViewStyle;
   variant?: 'light' | 'dark';
 }
@@ -27,6 +28,7 @@ export function Input({
   error,
   hint,
   secureToggle = false,
+  iconRight,
   secureTextEntry,
   containerStyle,
   variant = 'dark',
@@ -85,6 +87,7 @@ export function Input({
             />
           </Pressable>
         )}
+        {iconRight}
       </View>
       {error && <Text style={styles.errorText}>{error}</Text>}
       {!error && hint && <Text style={styles.hintText}>{hint}</Text>}

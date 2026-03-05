@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,33 +13,45 @@ import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
-import { useAuthStore } from '@/src/stores/authStore';
-import { supabase } from '@/src/services/supabaseClient';
+import { getProfile, updateProfile } from '@/src/services/authService';
 import { ms, scaledFontSize, scaledIcon } from '@/src/utils/scaling';
+import { SplashLogo } from '@/src/components/splash/SplashLogo';
 
 export default function PersonalInfoScreen() {
-  const { user } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: user?.user_metadata?.first_name ?? '',
-    lastName: user?.user_metadata?.last_name ?? '',
-    email: user?.email ?? '',
-    phone: user?.user_metadata?.phone ?? '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
   });
+  const [originalData, setOriginalData] = useState(formData);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    getProfile().then((profile) => {
+      const data = {
+        firstName: profile.first_name ?? '',
+        lastName: profile.last_name ?? '',
+        email: profile.email ?? '',
+        phone: profile.phone ?? '',
+      };
+      setFormData(data);
+      setOriginalData(data);
+    }).catch(() => {
+      // silently fail — fields stay empty
+    });
+  }, []);
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-        },
+      await updateProfile({
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim() || null,
       });
 
-      if (error) throw error;
-
+      setOriginalData(formData);
       setIsEditing(false);
       Alert.alert('Succès', 'Tes informations ont été mises à jour.');
     } catch {
@@ -50,22 +62,15 @@ export default function PersonalInfoScreen() {
   };
 
   const handleCancel = () => {
-    setFormData({
-      firstName: user?.user_metadata?.first_name ?? '',
-      lastName: user?.user_metadata?.last_name ?? '',
-      email: user?.email ?? '',
-      phone: user?.user_metadata?.phone ?? '',
-    });
+    setFormData(originalData);
     setIsEditing(false);
   };
 
   return (
-    <DarkScreen scrollable avoidKeyboard>
+    <DarkScreen scrollable avoidKeyboard headerTitle="Infos personnelles">
       <View style={styles.avatarSection}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {formData.firstName?.charAt(0).toUpperCase() ?? '?'}
-          </Text>
+          <SplashLogo size={ms(56, 0.5)} />
         </View>
         <Pressable style={styles.changeAvatarButton}>
           <FontAwesome name="camera" size={scaledIcon(14)} color={colors.primary[300]} />

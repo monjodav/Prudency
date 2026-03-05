@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Vibration,
   Linking,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -13,38 +14,38 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
+import { useGuardianAlertDetail, useAcknowledgeAlert } from '@/src/hooks/useGuardianAlert';
+import { useRealtimeLocation } from '@/src/hooks/useRealtimeLocation';
 import { ms, scaledSpacing, scaledIcon } from '@/src/utils/scaling';
 
 export default function AlertReceivedScreen() {
   const { alertId } = useLocalSearchParams<{ alertId: string }>();
   const router = useRouter();
-  const [isAcknowledged, setIsAcknowledged] = useState(false);
+  const { data, isLoading, error } = useGuardianAlertDetail(alertId ?? null);
+  const { acknowledge, isAcknowledging } = useAcknowledgeAlert();
 
-  const [alertData] = useState({
-    personName: 'Marie Dupont',
-    personPhone: '+33612345678',
-    type: 'manual' as 'manual' | 'timeout',
-    triggeredAt: new Date().toISOString(),
-    reason: 'Je me sens en danger',
-    location: {
-      lat: 48.8566,
-      lng: 2.3522,
-      address: 'Proche de Place de la Republique, Paris',
-    },
-    batteryLevel: 45,
+  const isAcknowledged = data?.alert.status === 'acknowledged' || data?.alert.status === 'resolved';
+
+  const { location: realtimeLocation } = useRealtimeLocation({
+    tripId: data?.trip.id ?? null,
+    enabled: !!data?.trip.id,
   });
 
-  useEffect(() => {
-    // Vibrate on alert
-    Vibration.vibrate([0, 500, 200, 500, 200, 500]);
+  const currentLat = realtimeLocation?.lat ?? data?.alert.triggered_lat;
+  const currentLng = realtimeLocation?.lng ?? data?.alert.triggered_lng;
+  const currentBattery = realtimeLocation?.batteryLevel ?? data?.alert.battery_level;
 
+  useEffect(() => {
+    Vibration.vibrate([0, 500, 200, 500, 200, 500]);
     return () => {
       Vibration.cancel();
     };
   }, []);
 
   const handleCall = () => {
-    Linking.openURL(`tel:${alertData.personPhone}`);
+    if (data?.person.phone) {
+      Linking.openURL(`tel:${data.person.phone}`);
+    }
   };
 
   const handleCallEmergency = () => {
@@ -52,22 +53,65 @@ export default function AlertReceivedScreen() {
   };
 
   const handleOpenMaps = () => {
-    const url = `https://maps.google.com/?q=${alertData.location.lat},${alertData.location.lng}`;
-    Linking.openURL(url);
+    if (currentLat != null && currentLng != null) {
+      Linking.openURL(`https://maps.google.com/?q=${currentLat},${currentLng}`);
+    }
   };
 
   const handleAcknowledge = async () => {
-    setIsAcknowledged(true);
-    // Placeholder: notify the system that we're handling this
+    if (!alertId) return;
+    await acknowledge(alertId);
   };
 
-  const formatTime = (isoString: string) => {
+  const formatTime = (isoString: string | null) => {
+    if (!isoString) return '--:--';
     const date = new Date(isoString);
     return date.toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
     });
   };
+
+  const getAlertTypeLabel = (type: string): string => {
+    switch (type) {
+      case 'manual':
+        return 'Alerte manuelle';
+      case 'timeout':
+        return 'Non-arrivee a destination';
+      case 'inactivity':
+        return 'Inactivite detectee';
+      case 'deviation':
+        return 'Deviation de trajet';
+      default:
+        return 'Alerte';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centeredContent]}>
+        <ActivityIndicator size="large" color={colors.white} />
+      </View>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <View style={[styles.container, styles.centeredContent]}>
+        <FontAwesome name="exclamation-circle" size={scaledIcon(48)} color={colors.white} />
+        <Text style={styles.errorText}>Impossible de charger l'alerte</Text>
+        <Button
+          title="Fermer"
+          variant="outline"
+          onPress={() => router.back()}
+          style={styles.errorButton}
+        />
+      </View>
+    );
+  }
+
+  const { alert, person } = data;
+  const firstName = person.firstName ?? person.name.split(' ')[0];
 
   return (
     <View style={styles.container}>
@@ -77,8 +121,9 @@ export default function AlertReceivedScreen() {
         </View>
         <Text style={styles.alertTitle}>ALERTE</Text>
         <Text style={styles.alertSubtitle}>
-          {alertData.personName} a besoin d'aide
+          {person.name} a besoin d'aide
         </Text>
+        <Text style={styles.alertType}>{getAlertTypeLabel(alert.type)}</Text>
       </View>
 
       <View style={styles.content}>
@@ -86,40 +131,59 @@ export default function AlertReceivedScreen() {
           <View style={styles.infoRow}>
             <FontAwesome name="clock-o" size={scaledIcon(18)} color={colors.gray[500]} />
             <Text style={styles.infoText}>
-              Declenchee a {formatTime(alertData.triggeredAt)}
+              Declenchee a {formatTime(alert.triggered_at)}
             </Text>
           </View>
 
-          {alertData.reason && (
+          {alert.reason && (
             <View style={styles.infoRow}>
               <FontAwesome name="comment" size={scaledIcon(18)} color={colors.gray[500]} />
-              <Text style={styles.infoText}>{alertData.reason}</Text>
+              <Text style={styles.infoText}>{alert.reason}</Text>
             </View>
           )}
 
-          <Pressable style={styles.locationRow} onPress={handleOpenMaps}>
-            <FontAwesome name="map-marker" size={scaledIcon(18)} color={colors.primary[500]} />
-            <Text style={styles.locationText}>{alertData.location.address}</Text>
-            <FontAwesome name="external-link" size={scaledIcon(14)} color={colors.primary[500]} />
-          </Pressable>
+          {currentLat != null && currentLng != null && (
+            <Pressable style={styles.locationRow} onPress={handleOpenMaps}>
+              <FontAwesome name="map-marker" size={scaledIcon(18)} color={colors.primary[500]} />
+              <Text style={styles.locationText}>
+                Voir la position ({currentLat.toFixed(4)}, {currentLng.toFixed(4)})
+              </Text>
+              <FontAwesome name="external-link" size={scaledIcon(14)} color={colors.primary[500]} />
+            </Pressable>
+          )}
 
-          <View style={styles.infoRow}>
-            <FontAwesome
-              name={alertData.batteryLevel > 20 ? 'battery-three-quarters' : 'battery-quarter'}
-              size={scaledIcon(18)}
-              color={alertData.batteryLevel > 20 ? colors.success[500] : colors.error[500]}
-            />
-            <Text style={styles.infoText}>
-              Batterie : {alertData.batteryLevel}%
-            </Text>
-          </View>
+          {currentBattery != null && (
+            <View style={styles.infoRow}>
+              <FontAwesome
+                name={currentBattery > 20 ? 'battery-three-quarters' : 'battery-quarter'}
+                size={scaledIcon(18)}
+                color={currentBattery > 20 ? colors.success[500] : colors.error[500]}
+              />
+              <Text style={styles.infoText}>
+                Batterie : {currentBattery}%
+              </Text>
+            </View>
+          )}
+
+          {realtimeLocation && (
+            <View style={styles.liveBadgeRow}>
+              <View style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveBadgeText}>EN DIRECT</Text>
+              </View>
+              <Text style={styles.liveTimestamp}>
+                Mis a jour a {formatTime(realtimeLocation.recordedAt)}
+              </Text>
+            </View>
+          )}
         </View>
 
         {!isAcknowledged ? (
           <Button
-            title="Je prends en charge"
+            title={isAcknowledging ? 'Prise en charge...' : 'Je prends en charge'}
             onPress={handleAcknowledge}
             fullWidth
+            disabled={isAcknowledging}
             style={styles.acknowledgeButton}
           />
         ) : (
@@ -136,24 +200,32 @@ export default function AlertReceivedScreen() {
             <View style={[styles.actionIcon, { backgroundColor: colors.primary[50] }]}>
               <FontAwesome name="phone" size={scaledIcon(24)} color={colors.primary[500]} />
             </View>
-            <Text style={styles.actionTitle}>Appeler {alertData.personName.split(' ')[0]}</Text>
-            <Text style={styles.actionSubtitle}>Verifier son etat</Text>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Appeler {firstName}</Text>
+              <Text style={styles.actionSubtitle}>Verifier son etat</Text>
+            </View>
           </Pressable>
 
-          <Pressable style={styles.actionCard} onPress={handleOpenMaps}>
-            <View style={[styles.actionIcon, { backgroundColor: colors.info[50] }]}>
-              <FontAwesome name="map" size={scaledIcon(24)} color={colors.info[500]} />
-            </View>
-            <Text style={styles.actionTitle}>Voir la position</Text>
-            <Text style={styles.actionSubtitle}>Ouvrir dans Maps</Text>
-          </Pressable>
+          {currentLat != null && currentLng != null && (
+            <Pressable style={styles.actionCard} onPress={handleOpenMaps}>
+              <View style={[styles.actionIcon, { backgroundColor: colors.info[50] }]}>
+                <FontAwesome name="map" size={scaledIcon(24)} color={colors.info[500]} />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Voir la position</Text>
+                <Text style={styles.actionSubtitle}>Ouvrir dans Maps</Text>
+              </View>
+            </Pressable>
+          )}
 
           <Pressable style={styles.actionCard} onPress={handleCallEmergency}>
             <View style={[styles.actionIcon, { backgroundColor: colors.error[50] }]}>
               <FontAwesome name="ambulance" size={scaledIcon(24)} color={colors.error[500]} />
             </View>
-            <Text style={styles.actionTitle}>Appeler les secours</Text>
-            <Text style={styles.actionSubtitle}>112</Text>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Appeler les secours</Text>
+              <Text style={styles.actionSubtitle}>112</Text>
+            </View>
           </Pressable>
         </View>
 
@@ -173,6 +245,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.error[500],
+  },
+  centeredContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing[6],
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.white,
+    marginTop: spacing[4],
+    marginBottom: spacing[6],
+  },
+  errorButton: {
+    borderColor: colors.white,
   },
   alertHeader: {
     alignItems: 'center',
@@ -198,6 +284,12 @@ const styles = StyleSheet.create({
     color: colors.white,
     opacity: 0.9,
     marginTop: spacing[2],
+  },
+  alertType: {
+    ...typography.bodySmall,
+    color: colors.white,
+    opacity: 0.7,
+    marginTop: spacing[1],
   },
   content: {
     flex: 1,
@@ -239,6 +331,36 @@ const styles = StyleSheet.create({
     color: colors.primary[700],
     flex: 1,
   },
+  liveBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    backgroundColor: colors.error[50],
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    borderRadius: borderRadius.full,
+  },
+  liveDot: {
+    width: ms(8, 0.5),
+    height: ms(8, 0.5),
+    borderRadius: ms(8, 0.5) / 2,
+    backgroundColor: colors.error[500],
+  },
+  liveBadgeText: {
+    ...typography.caption,
+    color: colors.error[600],
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  liveTimestamp: {
+    ...typography.caption,
+    color: colors.gray[500],
+  },
   acknowledgeButton: {
     marginBottom: spacing[4],
   },
@@ -275,6 +397,9 @@ const styles = StyleSheet.create({
     borderRadius: ms(48, 0.5) / 2,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  actionTextContainer: {
+    flex: 1,
   },
   actionTitle: {
     ...typography.body,

@@ -8,6 +8,7 @@ import {
   TogglesSection,
   TransportSection,
 } from '@/src/components/trip/CreateTripSections';
+import { RouteSuggestions } from '@/src/components/trip/RouteSuggestions';
 import { BottomSheet } from '@/src/components/ui/BottomSheet';
 import { Button } from '@/src/components/ui/Button';
 import { useTripCreation } from '@/src/hooks/useTripCreation';
@@ -16,8 +17,8 @@ import { borderRadius, spacing } from '@/src/theme/spacing';
 import { typography } from '@/src/theme/typography';
 import { mvs, scaledIcon } from '@/src/utils/scaling';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Page = 'trip' | 'addContact';
 
@@ -28,11 +29,14 @@ interface CreateTripSheetProps {
 
 export function CreateTripSheet({ visible, onClose }: CreateTripSheetProps) {
   const [page, setPage] = useState<Page>('trip');
+  const scrollRef = useRef<ScrollView>(null);
+  const destinationY = useRef(0);
+  const timeY = useRef(0);
+  const transportY = useRef(0);
 
   const {
     destinationAddress,
     departureAddress,
-    setDepartureAddress,
     transportMode,
     setTransportMode,
     selectedContactId,
@@ -46,19 +50,41 @@ export function CreateTripSheet({ visible, onClose }: CreateTripSheetProps) {
     setDepartureTime,
     searchResults,
     isSearching,
+    departureSearchResults,
+    isDepartureSearching,
+    isGeocodingDeparture,
+    isResolvingDeparture,
     contacts,
     contactsLoading,
     isCreating,
     isCreatingContact,
     selectedPlace,
+    departureLoc,
+    route,
+    routes,
+    selectedRouteIndex,
+    isLoadingRoutes,
+    estimatedArrivalTime,
     handleUseCurrentLocation,
+    handleDepartureSearch,
+    handleSelectDeparturePlace,
+    dismissDepartureResults,
     handleDestinationSearch,
+    fetchRoute,
     handleSelectPlace,
+    dismissDestinationResults,
     handleCreateTrip,
     handleAddContact,
+    swapAddresses,
+    selectRoute,
+    clearDeparture,
+    clearDestination,
+    savedPlaces,
+    recentPlaces,
+    handleSelectRecentPlace,
   } = useTripCreation();
 
-  const canLaunch = !!selectedPlace && !!transportMode;
+  const canLaunch = !!selectedPlace && !!transportMode && routes.length > 0;
 
   const handleClose = () => {
     setPage('trip');
@@ -82,6 +108,7 @@ export function CreateTripSheet({ visible, onClose }: CreateTripSheetProps) {
     >
       {page === 'trip' ? (
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -100,27 +127,91 @@ export function CreateTripSheet({ visible, onClose }: CreateTripSheetProps) {
 
           <DepartureSection
             address={departureAddress}
-            onChangeAddress={setDepartureAddress}
+            onChangeAddress={handleDepartureSearch}
             onUseCurrentLocation={handleUseCurrentLocation}
+            onClear={clearDeparture}
+            isGeocoding={isGeocodingDeparture}
+            isResolving={isResolvingDeparture}
+            isSearching={isDepartureSearching}
+            searchResults={departureSearchResults}
+            onSelectPlace={handleSelectDeparturePlace}
+            onDismissResults={dismissDepartureResults}
           />
 
-          <DestinationSection
-            address={destinationAddress}
-            onChangeAddress={handleDestinationSearch}
-            isSearching={isSearching}
-            searchResults={searchResults}
-            onSelectPlace={handleSelectPlace}
-          />
+          <View style={styles.swapRow}>
+            <View style={styles.swapLine} />
+            <Pressable
+              onPress={swapAddresses}
+              style={styles.swapButton}
+              hitSlop={8}
+            >
+              <Ionicons name="swap-vertical" size={scaledIcon(20)} color={colors.gray[400]} />
+            </Pressable>
+            <View style={styles.swapLine} />
+          </View>
 
-          <DepartureTimeSection
+          <View onLayout={(e) => { destinationY.current = e.nativeEvent.layout.y; }}>
+            <DestinationSection
+              address={destinationAddress}
+              onChangeAddress={handleDestinationSearch}
+              onClear={clearDestination}
+              isSearching={isSearching}
+              searchResults={searchResults}
+              onSelectPlace={handleSelectPlace}
+              onDismissResults={dismissDestinationResults}
+              savedPlaces={savedPlaces.map((p) => ({
+                name: p.name,
+                onPress: () => handleSelectRecentPlace(p),
+              }))}
+              recentPlaces={recentPlaces.map((p) => ({
+                name: p.name,
+                address: p.address,
+                onPress: () => handleSelectRecentPlace(p),
+              }))}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollRef.current?.scrollTo({ y: destinationY.current, animated: true });
+                }, 300);
+              }}
+            />
+          </View>
+
+          <View onLayout={(e) => { timeY.current = e.nativeEvent.layout.y; }}>
+            <DepartureTimeSection
+              departureTime={departureTime}
+              onChangeTime={setDepartureTime}
+              onSetNow={() => setDepartureTime(new Date())}
+              onScrollTo={() => {
+                setTimeout(() => {
+                  scrollRef.current?.scrollTo({ y: timeY.current, animated: true });
+                }, 100);
+              }}
+            />
+          </View>
+
+          <View onLayout={(e) => { transportY.current = e.nativeEvent.layout.y; }}>
+            <TransportSection
+              selected={transportMode}
+              onSelect={(mode) => {
+                Keyboard.dismiss();
+                setTransportMode(mode);
+                if (departureLoc && selectedPlace) {
+                  fetchRoute(departureLoc, selectedPlace, mode);
+                }
+                setTimeout(() => {
+                  scrollRef.current?.scrollTo({ y: transportY.current, animated: true });
+                }, 100);
+              }}
+            />
+          </View>
+
+          <RouteSuggestions
+            routes={routes}
+            selectedIndex={selectedRouteIndex}
+            onSelectRoute={selectRoute}
+            isLoading={isLoadingRoutes}
+            transportMode={transportMode}
             departureTime={departureTime}
-            onChangeTime={setDepartureTime}
-            onSetNow={() => setDepartureTime(new Date())}
-          />
-
-          <TransportSection
-            selected={transportMode}
-            onSelect={setTransportMode}
           />
 
           <ContactSection
@@ -194,6 +285,19 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.error[400],
     flex: 1,
+  },
+  swapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing[1],
+  },
+  swapLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.gray[800],
+  },
+  swapButton: {
+    padding: spacing[2],
   },
   actions: {
     gap: spacing[3],

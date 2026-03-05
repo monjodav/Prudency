@@ -37,6 +37,14 @@ export function useContacts() {
     },
   });
 
+  const respondToInvitationMutation = useMutation({
+    mutationFn: ({ contactId, response }: { contactId: string; response: 'accepted' | 'refused' }) =>
+      contactService.respondToContactInvitation(contactId, response),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contacts });
+    },
+  });
+
   const toggleFavorite = async (id: string, currentValue: boolean) => {
     await updateContactMutation.mutateAsync({
       id,
@@ -57,5 +65,7 @@ export function useContacts() {
     deleteContact: deleteContactMutation.mutateAsync,
     isDeleting: deleteContactMutation.isPending,
     toggleFavorite,
+    respondToInvitation: respondToInvitationMutation.mutateAsync,
+    isRespondingToInvitation: respondToInvitationMutation.isPending,
   };
 }

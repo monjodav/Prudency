@@ -41,7 +41,13 @@ export default function TabLayout() {
           title: 'Contacts',
           headerShown: true,
           headerTransparent: true,
-          headerTitle: '',
+          headerTitle: 'Personnes de confiance',
+          headerTitleStyle: {
+            color: colors.white,
+            fontSize: 17,
+            fontWeight: '600',
+          },
+          headerTitleAlign: 'center',
           headerLeft: () => <BackButton />,
           headerStyle: { backgroundColor: 'transparent' },
         }}
@@ -61,11 +67,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profil',
-          headerShown: true,
-          headerTransparent: true,
-          headerTitle: '',
-          headerLeft: () => <BackButton />,
-          headerStyle: { backgroundColor: 'transparent' },
+          headerShown: false,
         }}
       />
     </Tabs>

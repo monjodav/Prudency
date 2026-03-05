@@ -37,6 +37,32 @@ export function useAppleAuth() {
         throw error;
       }
 
+      // Apple only provides the name on first sign-in — store it in the profile.
+      // The profile row is created by a DB trigger, which may not have run yet,
+      // so we retry the update after a short delay if the first attempt matches 0 rows.
+      const givenName = credential.fullName?.givenName;
+      const familyName = credential.fullName?.familyName;
+      if (data.user && (givenName || familyName)) {
+        const updates: Record<string, string | null> = {};
+        if (givenName) updates.first_name = givenName;
+        if (familyName) updates.last_name = familyName;
+
+        const tryUpdate = async () => {
+          const { count } = await supabase
+            .from('profiles')
+            .update(updates, { count: 'exact' })
+            .eq('id', data.user!.id);
+          return (count ?? 0) > 0;
+        };
+
+        const saved = await tryUpdate();
+        if (!saved) {
+          // Profile row not yet created — wait for trigger and retry
+          await new Promise((r) => setTimeout(r, 1000));
+          await tryUpdate();
+        }
+      }
+
       return data;
     } catch (err: unknown) {
       if (

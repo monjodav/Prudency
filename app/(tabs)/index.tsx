@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Pressable,
   Alert,
-  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,26 +16,11 @@ import { typography } from '@/src/theme/typography';
 import { spacing, shadows } from '@/src/theme/spacing';
 import { ms, scaledIcon, scaledRadius } from '@/src/utils/scaling';
 import { UserLocationDot } from '@/src/components/icons/UserLocationDot';
-import { DARK_MAP_STYLE } from '@/src/theme/mapStyles';
+import { getMapStyle } from '@/src/theme/mapStyles';
 import { useTripStore } from '@/src/stores/tripStore';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import { AlertButton } from '@/src/components/alert/AlertButton';
-import { PlacesBottomSheet } from '@/src/components/places/PlacesBottomSheet';
-import { CreateTripSheet } from '@/src/components/trip/CreateTripSheet';
-import { Snackbar } from '@/src/components/ui/Snackbar';
 import { formatDuration } from '@/src/utils/formatters';
-import type { SavedPlace } from '@/src/types/database';
-
-/** Returns true when it's night-time in France (18:00–05:59 Europe/Paris). */
-function isFranceNight(): boolean {
-  const hour = new Date().toLocaleString('en-US', {
-    hour: 'numeric',
-    hour12: false,
-    timeZone: 'Europe/Paris',
-  });
-  const h = Number(hour);
-  return h >= 18 || h < 6;
-}
 
 const DEFAULT_REGION: Region = {
   latitude: 48.8566,
@@ -52,38 +36,19 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { activeTripId, lastKnownLat, lastKnownLng, arrivalAddress, estimatedDurationMinutes, updateLocation } = useTripStore();
-  const { places, deletePlace, addPlace } = usePlaces();
+  const { places } = usePlaces();
   const mapRef = useRef<MapView>(null);
-  const lastSavedPlace = useRef<SavedPlace | null>(null);
 
   const currentRegion = useRef<Region>(DEFAULT_REGION);
   const isFollowingUser = useRef(true);
-  const [snackbar, setSnackbar] = useState<{
-    visible: boolean;
-    title: string;
-    subtitle?: string;
-    variant: 'success' | 'error';
-    action?: { label: string; onPress: () => void };
-  }>({ visible: false, title: '', variant: 'success' });
-  const [showCreateTrip, setShowCreateTrip] = useState(false);
-  const footerOpacity = useRef(new Animated.Value(1)).current;
-  const mapStyle = useMemo(() => (isFranceNight() ? DARK_MAP_STYLE : []), []);
-
-
-
-  const handleSheetChange = useCallback((index: number) => {
-    const hidden = index > 0 ? 0 : 1;
-    Animated.timing(footerOpacity, {
-      toValue: hidden,
-      duration: 150,
-      useNativeDriver: true,
-    }).start();
-  }, [footerOpacity]);
+  const [heading, setHeading] = useState<number | null>(null);
+  const mapStyle = useMemo(() => getMapStyle(), []);
 
   // Center map on user at launch, then watch position in real time
   useEffect(() => {
     let cancelled = false;
     let subscription: Location.LocationSubscription | null = null;
+    let headingSub: Location.LocationSubscription | null = null;
 
     async function initLocation() {
       const { status } = await Location.getForegroundPermissionsAsync();
@@ -112,7 +77,10 @@ export default function HomeScreen() {
           if (cancelled) return;
           const { latitude, longitude } = location.coords;
           updateLocation(latitude, longitude);
-            if (isFollowingUser.current) {
+          if (location.coords.heading != null && location.coords.heading >= 0) {
+            setHeading(location.coords.heading);
+          }
+          if (isFollowingUser.current) {
             mapRef.current?.animateToRegion(
               { latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 },
               300,
@@ -120,6 +88,12 @@ export default function HomeScreen() {
           }
         },
       );
+
+      headingSub = await Location.watchHeadingAsync((h) => {
+        if (!cancelled && h.trueHeading >= 0) {
+          setHeading(h.trueHeading);
+        }
+      });
     }
 
     initLocation();
@@ -127,6 +101,7 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
       subscription?.remove();
+      headingSub?.remove();
     };
   }, [updateLocation]);
 
@@ -143,21 +118,6 @@ export default function HomeScreen() {
     // TODO: envoyer l'alerte aux contacts de confiance via Edge Function
   };
 
-  const handlePlacePress = useCallback(
-    (place: SavedPlace) => {
-      mapRef.current?.animateToRegion(
-        {
-          latitude: place.latitude,
-          longitude: place.longitude,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
-        },
-        500,
-      );
-    },
-    [],
-  );
-
   const handleRecenter = useCallback(() => {
     if (!userLocation) return;
     isFollowingUser.current = true;
@@ -172,86 +132,10 @@ export default function HomeScreen() {
     isFollowingUser.current = false;
   }, []);
 
-  const handleSaveSuccess = useCallback((place: SavedPlace) => {
-    lastSavedPlace.current = place;
-    setSnackbar({
-      visible: true,
-      title: 'Lieu enregistré',
-      subtitle: 'Ton lieu a bien été enregistré',
-      variant: 'success',
-      action: {
-        label: 'Annuler',
-        onPress: () => {
-          if (lastSavedPlace.current) {
-            deletePlace(lastSavedPlace.current.id);
-            lastSavedPlace.current = null;
-          }
-          setSnackbar((s) => ({ ...s, visible: false }));
-        },
-      },
-    });
-    mapRef.current?.animateToRegion(
-      { latitude: place.latitude, longitude: place.longitude, latitudeDelta: 0.005, longitudeDelta: 0.005 },
-      500,
-    );
-  }, [deletePlace]);
-
-  const handleDeletePlace = useCallback(async (place: SavedPlace) => {
-    try {
-      await deletePlace(place.id);
-      setSnackbar({
-        visible: true,
-        title: 'Lieu enregistré supprimé',
-        subtitle: `Le lieu '${place.name}' a bien été supprimé`,
-        variant: 'error',
-        action: {
-          label: 'Annuler',
-          onPress: () => {
-            setSnackbar((s) => ({ ...s, visible: false }));
-            addPlace({
-              name: place.name,
-              address: place.address,
-              latitude: place.latitude,
-              longitude: place.longitude,
-              place_type: place.place_type ?? undefined,
-              icon: place.icon ?? undefined,
-            }).catch(() => {
-              // silently fail — place already deleted
-            });
-          },
-        },
-      });
-    } catch {
-      setSnackbar({
-        visible: true,
-        title: 'Erreur',
-        subtitle: 'Impossible de supprimer le lieu',
-        variant: 'error',
-      });
-    }
-  }, [deletePlace, addPlace]);
-
-  const handleSaveError = useCallback(() => {
-    setSnackbar({
-      visible: true,
-      title: 'Lieu non enregistré',
-      subtitle: 'Une erreur est survenue',
-      variant: 'error',
-    });
-  }, []);
-
-  const handlePlaceSelectedOnMap = useCallback((coords: { lat: number; lng: number }) => {
-    mapRef.current?.animateToRegion(
-      { latitude: coords.lat, longitude: coords.lng, latitudeDelta: 0.005, longitudeDelta: 0.005 },
-      500,
-    );
-  }, []);
-
   const FOOTER_HEIGHT = ms(56, 0.4);
-  const sheetFirstSnap = ms(32, 0.4);
   const gap = spacing[3];
-  const footerBottom = insets.bottom + sheetFirstSnap;
-  const fabBottom = insets.bottom + sheetFirstSnap + FOOTER_HEIGHT + gap + gap;
+  const footerBottom = insets.bottom + gap;
+  const fabBottom = insets.bottom + FOOTER_HEIGHT + gap + gap;
 
   return (
     <View style={styles.container}>
@@ -272,9 +156,9 @@ export default function HomeScreen() {
           <Marker
             coordinate={userLocation}
             anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
+            tracksViewChanges={heading != null}
           >
-            <UserLocationDot size={DOT_SIZE} />
+            <UserLocationDot size={DOT_SIZE} heading={heading} />
           </Marker>
         )}
         {places.map((place) => (
@@ -294,7 +178,7 @@ export default function HomeScreen() {
       </View>
 
       {/* Right-side floating action buttons — bottom right */}
-      <Animated.View style={[styles.fabColumn, { bottom: fabBottom, opacity: footerOpacity }]}>
+      <View style={[styles.fabColumn, { bottom: fabBottom }]}>
         <Pressable
           style={styles.fab}
           onPress={() => Alert.alert('Notifications', 'Bientot disponible')}
@@ -309,20 +193,20 @@ export default function HomeScreen() {
         </Pressable>
         <Pressable
           style={styles.fab}
-          onPress={() => setShowCreateTrip(true)}
+          onPress={() => router.push('/(trip)/create')}
         >
           <Ionicons name="add" size={scaledIcon(22)} color={colors.white} />
         </Pressable>
-      </Animated.View>
+      </View>
 
       {/* Recenter button — bottom left */}
-      <Animated.View
-        style={[styles.recenterButtonContainer, { bottom: fabBottom, opacity: footerOpacity }]}
+      <View
+        style={[styles.recenterButtonContainer, { bottom: fabBottom }]}
       >
         <Pressable style={styles.recenterButton} onPress={handleRecenter}>
           <Ionicons name="locate" size={scaledIcon(22)} color={colors.white} />
         </Pressable>
-      </Animated.View>
+      </View>
 
       {/* Active trip card — bottom */}
       {activeTripId && (
@@ -347,11 +231,11 @@ export default function HomeScreen() {
         </Pressable>
       )}
 
-      {/* Navigation footer — above bottom sheet, fades when sheet expanded */}
-      <Animated.View style={[styles.navFooter, { bottom: footerBottom, opacity: footerOpacity }]} pointerEvents="auto">
+      {/* Navigation footer */}
+      <View style={[styles.navFooter, { bottom: footerBottom }]}>
         <Pressable
           style={[styles.navItemInactive, styles.navItemLeft]}
-          onPress={() => router.push('/(tabs)/contacts')}
+          onPress={() => router.push('/(tabs)/profile')}
         >
           <Ionicons name="person" size={scaledIcon(20)} color={colors.gray[400]} />
         </Pressable>
@@ -364,34 +248,8 @@ export default function HomeScreen() {
         >
           <Ionicons name="star" size={scaledIcon(20)} color={colors.gray[400]} />
         </Pressable>
-      </Animated.View>
+      </View>
 
-      {/* Places bottom sheet — swipe up to see saved places */}
-      <PlacesBottomSheet
-        places={places}
-        onPlacePress={handlePlacePress}
-        onDeletePlace={handleDeletePlace}
-        bottomInset={0}
-        onSheetChange={handleSheetChange}
-        onSaveSuccess={handleSaveSuccess}
-        onSaveError={handleSaveError}
-        onPlaceSelected={handlePlaceSelectedOnMap}
-      />
-
-      <CreateTripSheet
-        visible={showCreateTrip}
-        onClose={() => setShowCreateTrip(false)}
-      />
-
-      <Snackbar
-        visible={snackbar.visible}
-        title={snackbar.title}
-        subtitle={snackbar.subtitle}
-        variant={snackbar.variant}
-        onHide={() => setSnackbar((s) => ({ ...s, visible: false }))}
-        action={snackbar.action}
-        duration={5000}
-      />
     </View>
   );
 }

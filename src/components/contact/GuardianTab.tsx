@@ -1,15 +1,25 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { useContacts } from '@/src/hooks/useContacts';
+import { Snackbar } from '@/src/components/ui/Snackbar';
+import { AcceptContactDialog } from '@/src/components/contact/AcceptContactDialog';
 import { formatPhoneNumber, getInitials } from '@/src/utils/formatters';
 import { scaledIcon, ms } from '@/src/utils/scaling';
+import type { TrustedContactRow } from '@/src/types/contact';
 
 export function GuardianTab() {
-  const { contacts, isLoading } = useContacts();
+  const { contacts, isLoading, respondToInvitation, isRespondingToInvitation } = useContacts();
+
+  const [selectedContact, setSelectedContact] = useState<TrustedContactRow | null>(null);
+  const [snackbar, setSnackbar] = useState<{
+    visible: boolean;
+    title: string;
+    variant: 'success' | 'error';
+  }>({ visible: false, title: '', variant: 'success' });
 
   const pendingContacts = useMemo(
     () => contacts.filter((c) => c.validation_status === 'pending'),
@@ -20,6 +30,32 @@ export function GuardianTab() {
     () => contacts.filter((c) => c.validation_status === 'accepted'),
     [contacts],
   );
+
+  const handleValidatePress = useCallback((contact: TrustedContactRow) => {
+    setSelectedContact(contact);
+  }, []);
+
+  const handleAccept = useCallback(async () => {
+    if (!selectedContact) return;
+    try {
+      await respondToInvitation({ contactId: selectedContact.id, response: 'accepted' });
+      setSnackbar({ visible: true, title: 'Demande acceptee', variant: 'success' });
+      setSelectedContact(null);
+    } catch {
+      setSnackbar({ visible: true, title: 'Erreur lors de la validation', variant: 'error' });
+    }
+  }, [selectedContact, respondToInvitation]);
+
+  const handleRefuse = useCallback(async () => {
+    if (!selectedContact) return;
+    try {
+      await respondToInvitation({ contactId: selectedContact.id, response: 'refused' });
+      setSnackbar({ visible: true, title: 'Demande refusee', variant: 'error' });
+      setSelectedContact(null);
+    } catch {
+      setSnackbar({ visible: true, title: 'Erreur lors du refus', variant: 'error' });
+    }
+  }, [selectedContact, respondToInvitation]);
 
   if (isLoading) {
     return (
@@ -53,7 +89,11 @@ export function GuardianTab() {
         <View style={styles.guardianSection}>
           <Text style={styles.sectionTitle}>Contacts en attente de validation</Text>
           {pendingContacts.map((contact) => (
-            <View key={contact.id} style={styles.guardianCard}>
+            <Pressable
+              key={contact.id}
+              style={styles.pendingCard}
+              onPress={() => handleValidatePress(contact)}
+            >
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
                   {getInitials(contact.name)}
@@ -68,14 +108,14 @@ export function GuardianTab() {
               <View style={styles.pendingBadge}>
                 <Text style={styles.pendingBadgeText}>Valider</Text>
               </View>
-            </View>
+            </Pressable>
           ))}
         </View>
       )}
 
       {activeContacts.length > 0 && (
         <View style={styles.guardianSection}>
-          <Text style={styles.sectionTitle}>Contacts</Text>
+          <Text style={styles.sectionTitle}>Contacts acceptes</Text>
           {activeContacts.map((contact) => (
             <View key={contact.id} style={styles.guardianCard}>
               <View style={styles.avatar}>
@@ -89,10 +129,31 @@ export function GuardianTab() {
                   {formatPhoneNumber(contact.phone)}
                 </Text>
               </View>
+              <Ionicons
+                name="checkmark-circle"
+                size={scaledIcon(20)}
+                color={colors.success[400]}
+              />
             </View>
           ))}
         </View>
       )}
+
+      <AcceptContactDialog
+        visible={selectedContact !== null}
+        onClose={() => setSelectedContact(null)}
+        onAccept={handleAccept}
+        onRefuse={handleRefuse}
+        contactName={selectedContact?.name ?? ''}
+        isProcessing={isRespondingToInvitation}
+      />
+
+      <Snackbar
+        visible={snackbar.visible}
+        title={snackbar.title}
+        variant={snackbar.variant}
+        onHide={() => setSnackbar((prev) => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }
@@ -141,6 +202,17 @@ const styles = StyleSheet.create({
     color: colors.primary[200],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    marginBottom: spacing[2],
+  },
+  pendingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing[3],
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    marginBottom: spacing[2],
   },
   guardianCard: {
     flexDirection: 'row',

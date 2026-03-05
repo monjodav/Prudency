@@ -1,11 +1,14 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from 'react';
-import { ActivityIndicator, StyleSheet, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, View, ViewStyle, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import MapView, {
   Marker,
   Polyline,
@@ -13,8 +16,16 @@ import MapView, {
   Region,
 } from 'react-native-maps';
 import { colors } from '@/src/theme/colors';
-import { DARK_MAP_STYLE } from '@/src/theme/mapStyles';
+import { getMapStyle } from '@/src/theme/mapStyles';
+import { UserLocationDot } from '@/src/components/icons/UserLocationDot';
 import { ms } from '@/src/utils/scaling';
+import type { RouteSegment, RouteStep } from '@/src/services/directionsService';
+
+const USER_DOT_SIZE = ms(32, 0.4);
+
+const mapStyle = getMapStyle();
+const isDarkMap = mapStyle.length > 0;
+const WALKING_COLOR = isDarkMap ? '#FFFFFF' : '#000000';
 
 interface LatLng {
   lat: number;
@@ -25,8 +36,12 @@ interface TripMapProps {
   departure?: LatLng | null;
   arrival?: LatLng | null;
   routeCoordinates?: { latitude: number; longitude: number }[];
+  routeSegments?: RouteSegment[];
+  steps?: RouteStep[];
+  bottomPadding?: number;
   showUserLocation?: boolean;
   userLocation?: LatLng | null;
+  userHeading?: number | null;
   style?: ViewStyle;
   onMapReady?: () => void;
 }
@@ -49,8 +64,12 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
     departure,
     arrival,
     routeCoordinates,
+    routeSegments,
+    steps,
+    bottomPadding,
     showUserLocation = false,
     userLocation,
+    userHeading,
     style,
     onMapReady,
   },
@@ -70,10 +89,19 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
     if (departure) points.push({ latitude: departure.lat, longitude: departure.lng });
     if (arrival) points.push({ latitude: arrival.lat, longitude: arrival.lng });
     if (userLocation) points.push({ latitude: userLocation.lat, longitude: userLocation.lng });
-    if (routeCoordinates) points.push(...routeCoordinates);
+    if (routeSegments && routeSegments.length > 0) {
+      for (const seg of routeSegments) points.push(...seg.coordinates);
+    } else if (routeCoordinates) {
+      points.push(...routeCoordinates);
+    }
+
+    const edgePadding = {
+      ...EDGE_PADDING,
+      bottom: bottomPadding ?? EDGE_PADDING.bottom,
+    };
 
     if (points.length >= 2) {
-      mapRef.current?.fitToCoordinates(points, { edgePadding: EDGE_PADDING, animated: true });
+      mapRef.current?.fitToCoordinates(points, { edgePadding, animated: true });
     } else if (points.length === 1) {
       const point = points[0];
       if (point) {
@@ -83,7 +111,7 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
         );
       }
     }
-  }, [departure, arrival, userLocation, routeCoordinates]);
+  }, [departure, arrival, userLocation, routeCoordinates, routeSegments, bottomPadding]);
 
   const handleMapReady = useCallback(() => {
     setIsReady(true);
@@ -91,8 +119,36 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
     onMapReady?.();
   }, [fitToMarkers, onMapReady]);
 
-  const initialRegion = departure
-    ? { latitude: departure.lat, longitude: departure.lng, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+  // Re-zoom when route coordinates or segments change after mount
+  useEffect(() => {
+    if (!isReady) return;
+    const hasSegments = routeSegments && routeSegments.length > 0;
+    const hasCoords = routeCoordinates && routeCoordinates.length >= 2;
+    if (hasSegments || hasCoords) {
+      fitToMarkers();
+    }
+  }, [isReady, routeCoordinates, routeSegments, fitToMarkers]);
+
+  const transitStops = useMemo(() => {
+    if (!steps) return [];
+    const seen = new Set<string>();
+    const result: { key: string; lat: number; lng: number; color: string }[] = [];
+    for (const step of steps) {
+      if (step.travelMode !== 'TRANSIT' || !step.transitDetails) continue;
+      const color = step.transitDetails.line.color;
+      for (const stop of [step.transitDetails.departureStop, step.transitDetails.arrivalStop]) {
+        const coordKey = `${stop.location.lat.toFixed(5)},${stop.location.lng.toFixed(5)}`;
+        if (seen.has(coordKey)) continue;
+        seen.add(coordKey);
+        result.push({ key: coordKey, lat: stop.location.lat, lng: stop.location.lng, color });
+      }
+    }
+    return result;
+  }, [steps]);
+
+  const center = departure ?? userLocation;
+  const initialRegion = center
+    ? { latitude: center.lat, longitude: center.lng, latitudeDelta: 0.05, longitudeDelta: 0.05 }
     : DEFAULT_REGION;
 
   return (
@@ -107,40 +163,58 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
         provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={initialRegion}
-        customMapStyle={DARK_MAP_STYLE}
-        showsUserLocation={showUserLocation}
+        customMapStyle={mapStyle}
+        showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={false}
         onMapReady={handleMapReady}
       >
-        {departure && (
+        {showUserLocation && userLocation && (
           <Marker
-            coordinate={{ latitude: departure.lat, longitude: departure.lng }}
-            pinColor={colors.success[500]}
-            title="Depart"
-          />
+            coordinate={{ latitude: userLocation.lat, longitude: userLocation.lng }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={userHeading != null}
+          >
+            <UserLocationDot size={USER_DOT_SIZE} heading={userHeading} />
+          </Marker>
         )}
+        {transitStops.map((stop) => (
+          <Marker
+            key={stop.key}
+            coordinate={{ latitude: stop.lat, longitude: stop.lng }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
+          >
+            <View style={[styles.stopDot, { borderColor: stop.color }]} />
+          </Marker>
+        ))}
         {arrival && (
           <Marker
             coordinate={{ latitude: arrival.lat, longitude: arrival.lng }}
-            pinColor={colors.error[500]}
-            title="Arrivee"
-          />
+            anchor={{ x: 0.5, y: 0.95 }}
+            tracksViewChanges={false}
+          >
+            <Ionicons name="location-sharp" size={ms(32, 0.4)} color={colors.error[500]} />
+          </Marker>
         )}
-        {userLocation && !showUserLocation && (
-          <Marker
-            coordinate={{ latitude: userLocation.lat, longitude: userLocation.lng }}
-            pinColor={colors.primary[500]}
-            title="Position actuelle"
-          />
-        )}
-        {routeCoordinates && routeCoordinates.length >= 2 && (
-          <Polyline
-            coordinates={routeCoordinates}
-            strokeColor={colors.primary[500]}
-            strokeWidth={4}
-          />
-        )}
+        {routeSegments && routeSegments.length > 0
+          ? routeSegments.map((segment, i) => (
+              <Polyline
+                key={`seg-${i}`}
+                coordinates={segment.coordinates}
+                strokeColor={segment.isDashed ? WALKING_COLOR : segment.color}
+                strokeWidth={segment.isDashed ? 5 : 5}
+                lineDashPattern={segment.isDashed ? [12, 10] : undefined}
+                lineCap={segment.isDashed ? 'butt' : 'round'}
+              />
+            ))
+          : routeCoordinates && routeCoordinates.length >= 2 && (
+              <Polyline
+                coordinates={routeCoordinates}
+                strokeColor={colors.primary[500]}
+                strokeWidth={4}
+              />
+            )}
       </MapView>
     </View>
   );
@@ -148,13 +222,12 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: ms(16, 0.3),
+    flex: 1,
     overflow: 'hidden',
     backgroundColor: colors.gray[900],
   },
   map: {
-    height: ms(200, 0.5),
-    width: '100%',
+    flex: 1,
   },
   loading: {
     ...StyleSheet.absoluteFillObject,
@@ -162,5 +235,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.gray[900],
+  },
+  stopDot: {
+    width: ms(10, 0.4),
+    height: ms(10, 0.4),
+    borderRadius: ms(5, 0.4),
+    backgroundColor: colors.white,
+    borderWidth: 2.5,
   },
 });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,10 +8,9 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useAuth } from '@/src/hooks/useAuth';
-import { appVersion } from '@/src/config/env';
-import { figmaScale, scaledIcon, ms, scaledSpacing } from '@/src/utils/scaling';
+import { usePremium } from '@/src/hooks/usePremium';
 import { LogoutDialog } from '@/src/components/profile/LogoutDialog';
-import * as authService from '@/src/services/authService';
+import { ms, mvs, scaledRadius, scaledIcon } from '@/src/utils/scaling';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -31,7 +30,7 @@ function MenuItem({ icon, label, onPress }: MenuItemProps) {
         <Ionicons name={icon} size={scaledIcon(20)} color={colors.primary[300]} />
       </View>
       <Text style={styles.menuText}>{label}</Text>
-      <Ionicons name="chevron-forward" size={scaledIcon(16)} color={colors.gray[600]} />
+      <Ionicons name="chevron-forward" size={scaledIcon(16)} color={colors.primary[300]} />
     </Pressable>
   );
 }
@@ -41,40 +40,12 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const { signOut } = useAuth();
+  const { isPremium } = usePremium();
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
-
-  const handleSignOut = () => {
-    setLogoutDialogVisible(true);
-  };
 
   const handleLogoutConfirm = async () => {
     setLogoutDialogVisible(false);
     await signOut();
-  };
-
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Supprimer mon compte',
-      'Cette action est irréversible. Toutes tes données seront supprimées.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              await authService.deleteAccount();
-            } catch {
-              // Account may already be deleted server-side — continue to sign out
-            }
-            await signOut();
-          },
-        },
-      ]
-    );
   };
 
   const firstName = user?.user_metadata?.first_name;
@@ -88,98 +59,87 @@ export default function ProfileScreen() {
     .toUpperCase();
 
   return (
-    <View style={styles.container}>
-      {/* Background ellipse */}
-      <View style={styles.ellipseContainer}>
-        <View style={styles.ellipse} />
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + spacing[6] }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Profile header */}
-        <View style={styles.profileHeader}>
+    <View style={[styles.container, { paddingTop: insets.top + mvs(16, 0.3), paddingBottom: insets.bottom + mvs(90, 0.4) }]}>
+      {/* Profile header */}
+      <View style={styles.profileHeader}>
+        <View style={styles.avatarRing}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initials}</Text>
           </View>
-          <Text style={styles.displayName}>{displayName}</Text>
-          <Text style={styles.email}>{user?.email ?? 'Non connecté'}</Text>
         </View>
+        <Text style={styles.displayName}>{displayName}</Text>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{isPremium ? 'Prudency Plus' : 'Membre Prudency'}</Text>
+        </View>
+      </View>
 
-        {/* Account section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mon compte</Text>
-          <View style={styles.sectionCard}>
-            <MenuItem
-              icon="person-outline"
-              label="Infos personnelles"
-              onPress={() => router.push('/(profile)/personal-info')}
-            />
-            <MenuItem
-              icon="settings-outline"
-              label="Préférences"
-              onPress={() => router.push('/(profile)/preferences')}
-            />
-            <MenuItem
-              icon="lock-closed-outline"
-              label="Sécurité et confidentialité"
-              onPress={() => router.push('/(profile)/security')}
-            />
-            <MenuItem
-              icon="card-outline"
-              label="Abonnement"
-              onPress={() => router.push('/(profile)/subscription')}
-            />
+      {/* Tes informations */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Tes informations</Text>
+        <MenuItem
+          icon="person-outline"
+          label="Infos personnelles"
+          onPress={() => router.push('/(profile)/personal-info')}
+        />
+        <MenuItem
+          icon="image-outline"
+          label="À propos de Prudency"
+          onPress={() => router.push('/(profile)/about')}
+        />
+      </View>
+
+      {/* Adapte Prudency */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Adapte Prudency à ton usage</Text>
+        <MenuItem
+          icon="options-outline"
+          label="Préférences"
+          onPress={() => router.push('/(profile)/preferences')}
+        />
+      </View>
+
+      {/* Sécurité */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Sécurise Prudency à ton niveau</Text>
+        <MenuItem
+          icon="settings-outline"
+          label="Sécurité et confidentialité"
+          onPress={() => router.push('/(profile)/security')}
+        />
+      </View>
+
+      {/* Déconnexion */}
+      <View style={styles.logoutSection}>
+        <Pressable
+          style={({ pressed }) => [styles.menuItem, styles.logoutItem, pressed && styles.menuItemPressed]}
+          onPress={() => setLogoutDialogVisible(true)}
+        >
+          <View style={styles.logoutIconContainer}>
+            <Ionicons name="log-out-outline" size={scaledIcon(20)} color={colors.error[400]} />
           </View>
-        </View>
+          <Text style={styles.logoutText}>Déconnexion</Text>
+          <Ionicons name="chevron-forward" size={scaledIcon(16)} color={colors.error[400]} />
+        </Pressable>
+      </View>
 
-        {/* Help section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Assistance</Text>
-          <View style={styles.sectionCard}>
-            <MenuItem icon="help-circle-outline" label="Centre d'aide" />
-            <MenuItem icon="mail-outline" label="Nous contacter" />
-            <MenuItem
-              icon="information-circle-outline"
-              label="À propos"
-              onPress={() => router.push('/(profile)/about')}
-            />
-          </View>
-        </View>
-
-        {/* Logout section */}
-        <View style={styles.section}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.signOutButton,
-              pressed && styles.signOutButtonPressed,
-            ]}
-            onPress={handleSignOut}
-          >
-            <Ionicons
-              name="log-out-outline"
-              size={scaledIcon(20)}
-              color={colors.error[400]}
-              style={styles.signOutIcon}
-            />
-            <Text style={styles.signOutText}>Se déconnecter</Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.deleteAccountButton,
-              pressed && styles.deleteAccountPressed,
-            ]}
-            onPress={handleDeleteAccount}
-          >
-            <Text style={styles.deleteAccountText}>Supprimer mon compte</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.version}>Prudency v{appVersion}</Text>
-      </ScrollView>
+      {/* Navigation footer */}
+      <View style={[styles.navFooter, { bottom: insets.bottom + spacing[2] }]}>
+        <Pressable style={[styles.navItemActive, styles.navItemLeft]}>
+          <Ionicons name="person" size={scaledIcon(20)} color={colors.white} />
+        </Pressable>
+        <Pressable
+          style={styles.navItemInactive}
+          onPress={() => router.replace('/')}
+        >
+          <View style={styles.navDot} />
+        </Pressable>
+        <Pressable
+          style={[styles.navItemInactive, styles.navItemRight]}
+          onPress={() => router.push('/(tabs)/places')}
+        >
+          <Ionicons name="star" size={scaledIcon(20)} color={colors.gray[400]} />
+        </Pressable>
+      </View>
 
       <LogoutDialog
         visible={logoutDialogVisible}
@@ -190,90 +150,81 @@ export default function ProfileScreen() {
   );
 }
 
+const AVATAR_SIZE = ms(90, 0.4);
+const RING_SIZE = AVATAR_SIZE + ms(10, 0.4);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.primary[950],
   },
-  ellipseContainer: {
-    position: 'absolute',
-    top: figmaScale(-400),
-    left: figmaScale(-500),
-    width: figmaScale(1386),
-    height: figmaScale(1278),
-    overflow: 'hidden',
-  },
-  ellipse: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.secondary[400],
-    borderRadius: figmaScale(700),
-    opacity: 0.5,
-    transform: [{ rotate: '3deg' }],
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: spacing[10],
-  },
   profileHeader: {
     alignItems: 'center',
-    paddingVertical: spacing[6],
+    paddingVertical: mvs(12, 0.3),
     paddingHorizontal: spacing[6],
   },
+  avatarRing: {
+    width: RING_SIZE,
+    height: RING_SIZE,
+    borderRadius: RING_SIZE / 2,
+    borderWidth: 2,
+    borderColor: colors.primary[400],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: mvs(10, 0.3),
+  },
   avatar: {
-    width: ms(80, 0.5),
-    height: ms(80, 0.5),
-    borderRadius: ms(80, 0.5) / 2,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     backgroundColor: colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing[3],
   },
   avatarText: {
-    ...typography.h2,
+    ...typography.h1,
     color: colors.white,
     fontWeight: '600',
   },
   displayName: {
-    ...typography.h3,
+    ...typography.h2,
     color: colors.white,
     fontWeight: '600',
+    marginBottom: mvs(6, 0.3),
   },
-  email: {
-    ...typography.bodySmall,
-    color: colors.primary[200],
-    marginTop: spacing[1],
+  badge: {
+    paddingHorizontal: spacing[4],
+    paddingVertical: mvs(3, 0.3),
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.primary[400],
+  },
+  badgeText: {
+    ...typography.caption,
+    color: colors.primary[300],
+    fontWeight: '600',
   },
   section: {
     paddingHorizontal: spacing[6],
-    marginTop: spacing[6],
+    marginTop: mvs(14, 0.3),
+    gap: mvs(8, 0.3),
   },
   sectionTitle: {
-    ...typography.caption,
-    color: colors.primary[300],
-    marginBottom: spacing[3],
-    textTransform: 'uppercase',
-    letterSpacing: scaledSpacing(1),
-  },
-  sectionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    overflow: 'hidden',
+    ...typography.bodySmall,
+    color: colors.gray[400],
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing[4],
+    paddingVertical: mvs(12, 0.3),
     paddingHorizontal: spacing[4],
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   menuItemPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   menuIconContainer: {
     width: ms(32, 0.5),
@@ -289,44 +240,68 @@ const styles = StyleSheet.create({
     color: colors.white,
     flex: 1,
   },
-  signOutButton: {
+  logoutSection: {
+    marginTop: 'auto',
+    paddingHorizontal: spacing[6],
+    marginBottom: mvs(16, 0.3),
+  },
+  logoutItem: {
+    backgroundColor: 'rgba(202, 31, 31, 0.08)',
+    borderColor: 'rgba(202, 31, 31, 0.2)',
+  },
+  logoutIconContainer: {
+    width: ms(32, 0.5),
+    height: ms(32, 0.5),
+    borderRadius: ms(8, 0.5),
+    backgroundColor: 'rgba(202, 31, 31, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing[3],
+  },
+  logoutText: {
+    ...typography.body,
+    color: colors.error[400],
+    flex: 1,
+  },
+  navFooter: {
+    position: 'absolute',
+    left: spacing[4],
+    right: spacing[4],
     flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: 'rgba(10, 10, 20, 0.9)',
+    borderRadius: scaledRadius(28),
+    overflow: 'hidden',
+    zIndex: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  navItemInactive: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing[4],
-    backgroundColor: 'rgba(202, 31, 31, 0.1)',
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(202, 31, 31, 0.2)',
-    marginBottom: spacing[3],
+    paddingVertical: spacing[3] + spacing[2],
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  signOutButtonPressed: {
-    opacity: 0.8,
-  },
-  signOutIcon: {
-    marginRight: spacing[2],
-  },
-  signOutText: {
-    ...typography.button,
-    color: colors.error[400],
-    fontWeight: '600',
-  },
-  deleteAccountButton: {
+  navItemActive: {
+    flex: 1,
     alignItems: 'center',
-    paddingVertical: spacing[3],
+    justifyContent: 'center',
+    paddingVertical: spacing[3] + spacing[2],
   },
-  deleteAccountPressed: {
-    opacity: 0.7,
+  navItemLeft: {
+    borderRightWidth: 1,
   },
-  deleteAccountText: {
-    ...typography.bodySmall,
-    color: colors.error[400],
-    textDecorationLine: 'underline',
+  navItemRight: {
+    borderLeftWidth: 1,
   },
-  version: {
-    ...typography.caption,
-    color: colors.gray[600],
-    textAlign: 'center',
-    marginTop: spacing[8],
+  navDot: {
+    width: ms(12, 0.4),
+    height: ms(12, 0.4),
+    borderRadius: ms(6, 0.4),
+    backgroundColor: colors.brandPosition[50],
+    borderWidth: 2,
+    borderColor: 'rgba(204, 99, 249, 0.4)',
   },
 });

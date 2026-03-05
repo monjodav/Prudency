@@ -5,7 +5,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Pressable,
-  FlatList,
+  ScrollView,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
@@ -16,7 +17,93 @@ import { ListItem } from '@/src/components/ui/ListItem';
 import { Toggle } from '@/src/components/ui/Toggle';
 import { Checkbox } from '@/src/components/ui/Checkbox';
 import { ms, scaledIcon } from '@/src/utils/scaling';
+import { MetroIcon } from '@/src/components/transit/MetroIcon';
+import { BusIcon } from '@/src/components/transit/BusIcon';
+import { TramIcon } from '@/src/components/transit/TramIcon';
 import type { PlaceAutocompleteResult } from '@/src/services/placesService';
+
+const RESULT_ITEM_HEIGHT = ms(52, 0.4);
+const MAX_VISIBLE_RESULTS = 5;
+
+type TransitIconType = 'metro' | 'tram' | 'bus' | 'rer' | 'train' | 'airport';
+
+function detectTransitModes(types: string[], text: string): TransitIconType[] {
+  const modes: TransitIconType[] = [];
+  const lower = text.toLowerCase();
+
+  const hasType = (t: string) => types.includes(t);
+  const hasText = (keyword: string) => lower.includes(keyword);
+
+  if (hasType('subway_station') || hasText('métro') || hasText('metro')) modes.push('metro');
+  if (hasType('light_rail_station') || hasText('tramway') || hasText('tram')) modes.push('tram');
+  if (hasType('bus_station') || hasText('bus')) modes.push('bus');
+  if (hasText('rer')) modes.push('rer');
+  if (hasType('train_station') || hasText('gare')) modes.push('train');
+  if (hasType('airport') || hasText('aéroport') || hasText('airport')) modes.push('airport');
+
+  return modes;
+}
+
+function PlaceIcons({ types, secondaryText, size }: { types: string[]; secondaryText: string; size: number }) {
+  const modes = detectTransitModes(types, secondaryText);
+
+  if (modes.length === 0) {
+    return <Ionicons name="location-outline" size={size} color={colors.primary[300]} />;
+  }
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: ms(3, 0.3) }}>
+      {modes.map((mode) => {
+        switch (mode) {
+          case 'metro':
+            return <MetroIcon key={mode} size={size} />;
+          case 'tram':
+            return <TramIcon key={mode} size={size} />;
+          case 'bus':
+            return <BusIcon key={mode} size={size} />;
+          case 'rer':
+          case 'train':
+            return <Ionicons key={mode} name="train-outline" size={size} color={colors.primary[300]} />;
+          case 'airport':
+            return <Ionicons key={mode} name="airplane-outline" size={size} color={colors.primary[300]} />;
+        }
+      })}
+    </View>
+  );
+}
+
+function SearchResults({
+  results,
+  onSelect,
+  onDismiss,
+}: {
+  results: PlaceAutocompleteResult[];
+  onSelect: (result: PlaceAutocompleteResult) => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <View style={styles.resultsCard}>
+      <ScrollView
+        style={{ maxHeight: RESULT_ITEM_HEIGHT * MAX_VISIBLE_RESULTS }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={results.length > MAX_VISIBLE_RESULTS}
+        nestedScrollEnabled
+      >
+        {results.map((result, i) => (
+          <View key={result.placeId}>
+            <ListItem
+              text={result.mainText}
+              secondaryText={result.secondaryText}
+              iconLeft={<PlaceIcons types={result.types} secondaryText={result.secondaryText} size={scaledIcon(20)} />}
+              onPress={() => onSelect(result)}
+            />
+            {i < results.length - 1 && <View style={styles.divider} />}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
 
 interface Contact {
   id: string;
@@ -31,24 +118,68 @@ interface DepartureSectionProps {
   address: string;
   onChangeAddress: (text: string) => void;
   onUseCurrentLocation: () => void;
+  onClear: () => void;
+  isGeocoding: boolean;
+  isResolving: boolean;
+  isSearching: boolean;
+  searchResults: PlaceAutocompleteResult[];
+  onSelectPlace: (result: PlaceAutocompleteResult) => void;
+  onDismissResults: () => void;
 }
 
-export function DepartureSection({ address, onChangeAddress, onUseCurrentLocation }: DepartureSectionProps) {
+export function DepartureSection({
+  address,
+  onChangeAddress,
+  onUseCurrentLocation,
+  onClear,
+  isGeocoding,
+  isResolving,
+  isSearching,
+  searchResults,
+  onSelectPlace,
+  onDismissResults,
+}: DepartureSectionProps) {
+  const isBusy = isGeocoding || isResolving;
+  const showClear = address.length > 0 && !isBusy;
+
+  const inputIconRight = isBusy ? (
+    <ActivityIndicator size="small" color={colors.primary[400]} />
+  ) : showClear ? (
+    <Pressable onPress={onClear} hitSlop={8}>
+      <Ionicons name="close-circle" size={scaledIcon(20)} color={colors.gray[500]} />
+    </Pressable>
+  ) : undefined;
+
   return (
     <View>
       <Input
         label="Lieu de départ"
-        placeholder="D'où pars-tu ?"
-        value={address}
+        placeholder={isBusy ? 'Localisation en cours...' : "D'où pars-tu ?"}
+        value={isBusy ? '' : address}
         onChangeText={onChangeAddress}
+        onBlur={onDismissResults}
         variant="dark"
+        editable={!isBusy}
+        iconRight={inputIconRight}
       />
+      {isSearching && !isResolving && (
+        <ActivityIndicator size="small" color={colors.primary[400]} style={styles.searchSpinner} />
+      )}
+      {searchResults.length > 0 && (
+        <SearchResults
+          results={searchResults}
+          onSelect={onSelectPlace}
+          onDismiss={onDismissResults}
+        />
+      )}
       <View style={styles.currentLocationWrapper}>
         <ListItem
           text="Utiliser ma position actuelle"
           variant="outline"
           iconLeft={
-            <Ionicons name="locate" size={scaledIcon(20)} color={colors.primary[300]} />
+            isGeocoding
+              ? <ActivityIndicator size="small" color={colors.primary[300]} />
+              : <Ionicons name="locate" size={scaledIcon(20)} color={colors.primary[300]} />
           }
           onPress={onUseCurrentLocation}
         />
@@ -62,21 +193,27 @@ export function DepartureSection({ address, onChangeAddress, onUseCurrentLocatio
 interface DestinationSectionProps {
   address: string;
   onChangeAddress: (text: string) => void;
+  onClear: () => void;
   isSearching: boolean;
   searchResults: PlaceAutocompleteResult[];
   onSelectPlace: (result: PlaceAutocompleteResult) => void;
+  onDismissResults: () => void;
   savedPlaces?: { name: string; onPress: () => void }[];
   recentPlaces?: { name: string; address: string; onPress: () => void }[];
+  onFocus?: () => void;
 }
 
 export function DestinationSection({
   address,
   onChangeAddress,
+  onClear,
   isSearching,
   searchResults,
   onSelectPlace,
+  onDismissResults,
   savedPlaces,
   recentPlaces,
+  onFocus,
 }: DestinationSectionProps) {
   return (
     <View>
@@ -85,27 +222,26 @@ export function DestinationSection({
         placeholder="Où vas-tu ?"
         value={address}
         onChangeText={onChangeAddress}
+        onFocus={onFocus}
+        onBlur={onDismissResults}
         variant="dark"
+        iconRight={
+          address.length > 0 ? (
+            <Pressable onPress={onClear} hitSlop={8}>
+              <Ionicons name="close-circle" size={scaledIcon(20)} color={colors.gray[500]} />
+            </Pressable>
+          ) : undefined
+        }
       />
       {isSearching && (
         <ActivityIndicator size="small" color={colors.primary[400]} style={styles.searchSpinner} />
       )}
       {searchResults.length > 0 && (
-        <View style={styles.resultsCard}>
-          {searchResults.map((result, i) => (
-            <View key={result.placeId}>
-              <ListItem
-                text={result.mainText}
-                secondaryText={result.secondaryText}
-                iconLeft={
-                  <Ionicons name="location-outline" size={scaledIcon(20)} color={colors.primary[300]} />
-                }
-                onPress={() => onSelectPlace(result)}
-              />
-              {i < searchResults.length - 1 && <View style={styles.divider} />}
-            </View>
-          ))}
-        </View>
+        <SearchResults
+          results={searchResults}
+          onSelect={onSelectPlace}
+          onDismiss={onDismissResults}
+        />
       )}
       {searchResults.length === 0 && !isSearching && (
         <>
@@ -160,10 +296,11 @@ interface DepartureTimeSectionProps {
   departureTime: Date;
   onChangeTime: (date: Date) => void;
   onSetNow: () => void;
+  onScrollTo?: () => void;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
+const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 const ITEM_HEIGHT = ms(44, 0.4);
 const VISIBLE_ITEMS = 5;
 
@@ -172,8 +309,9 @@ function ScrollColumn({ data, selected, onSelect }: {
   selected: number;
   onSelect: (val: number) => void;
 }) {
-  const listRef = useRef<FlatList>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const initialIndex = data.indexOf(selected);
+  const padding = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
 
   const handleScrollEnd = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
     const offsetY = event.nativeEvent.contentOffset.y;
@@ -188,35 +326,32 @@ function ScrollColumn({ data, selected, onSelect }: {
   return (
     <View style={styles.scrollColumnWrapper}>
       <View style={styles.scrollHighlight} pointerEvents="none" />
-      <FlatList
-        ref={listRef}
-        data={data}
-        keyExtractor={(item) => String(item)}
-        initialScrollIndex={initialIndex >= 0 ? initialIndex : 0}
-        getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
+      <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
         onMomentumScrollEnd={handleScrollEnd}
-        contentContainerStyle={{
-          paddingVertical: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
-        }}
-        renderItem={({ item }) => {
+        contentOffset={{ x: 0, y: (initialIndex >= 0 ? initialIndex : 0) * ITEM_HEIGHT }}
+        contentContainerStyle={{ paddingVertical: padding }}
+        nestedScrollEnabled
+      >
+        {data.map((item) => {
           const isSelected = item === selected;
           return (
-            <Pressable onPress={() => onSelect(item)} style={styles.scrollItem}>
+            <Pressable key={item} onPress={() => onSelect(item)} style={styles.scrollItem}>
               <Text style={[styles.scrollItemText, isSelected && styles.scrollItemTextSelected]}>
                 {String(item).padStart(2, '0')}
               </Text>
             </Pressable>
           );
-        }}
-      />
+        })}
+      </ScrollView>
     </View>
   );
 }
 
-export function DepartureTimeSection({ departureTime, onChangeTime, onSetNow }: DepartureTimeSectionProps) {
+export function DepartureTimeSection({ departureTime, onChangeTime, onSetNow, onScrollTo }: DepartureTimeSectionProps) {
   const [showPicker, setShowPicker] = useState(false);
   const timeStr = departureTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
@@ -239,22 +374,23 @@ export function DepartureTimeSection({ departureTime, onChangeTime, onSetNow }: 
       <View style={styles.timeRow}>
         <View style={styles.timeDisplay}>
           <Text style={styles.timeLabel}>Départ</Text>
-          <Pressable onPress={() => setShowPicker(!showPicker)} style={styles.timeValueBtn}>
+          <Pressable onPress={() => { setShowPicker(!showPicker); if (!showPicker) onScrollTo?.(); }} style={styles.timeValueBtn}>
             <Text style={styles.timeValue}>{timeStr}</Text>
           </Pressable>
         </View>
-        <ListItem
-          text="Partir maintenant"
-          variant="outline"
-          iconLeft={
-            <Ionicons name="time" size={scaledIcon(20)} color={colors.primary[300]} />
-          }
-          onPress={() => {
-            onSetNow();
-            setShowPicker(false);
-          }}
-          style={styles.nowButton}
-        />
+        {!showPicker && (
+          <ListItem
+            text="Partir maintenant"
+            variant="outline"
+            iconLeft={
+              <Ionicons name="time" size={scaledIcon(20)} color={colors.primary[300]} />
+            }
+            onPress={() => {
+              onSetNow();
+            }}
+            style={styles.nowButton}
+          />
+        )}
       </View>
       {showPicker && (
         <View style={styles.pickerCard}>
@@ -297,7 +433,7 @@ interface TransportOption {
 }
 
 const TRANSPORT_OPTIONS: TransportOption[] = [
-  { mode: 'walk', label: 'Marche', icon: 'walk-outline' },
+  { mode: 'walk', label: 'Marche', icon: 'walk' },
   { mode: 'transit', label: 'Transports', icon: 'bus-outline' },
   { mode: 'bike', label: 'Vélo', icon: 'bicycle-outline' },
   { mode: 'car', label: 'Voiture', icon: 'car-outline' },
@@ -489,12 +625,12 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     ...typography.label,
-    color: colors.gray[400],
+    color: colors.gray[300],
     marginBottom: spacing[1],
   },
   sectionHint: {
     ...typography.caption,
-    color: colors.gray[500],
+    color: colors.gray[400],
     marginBottom: spacing[3],
   },
   currentLocationWrapper: {
@@ -505,7 +641,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing[2],
   },
   resultsCard: {
-    backgroundColor: colors.primary[900],
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
   },
@@ -513,6 +649,19 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginHorizontal: spacing[4],
+  },
+  dismissButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[1],
+    paddingVertical: spacing[2],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  dismissText: {
+    ...typography.caption,
+    color: colors.gray[500],
   },
   suggestionsSection: {
     marginBottom: spacing[4],
@@ -672,14 +821,16 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   contactItem: {
-    backgroundColor: colors.primary[900],
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.primary[800],
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   toggleItem: {
-    backgroundColor: colors.primary[900],
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
   },

@@ -11,6 +11,7 @@ interface PlaceAutocompleteResult {
   description: string;
   mainText: string;
   secondaryText: string;
+  types: string[];
 }
 
 interface PlaceDetails {
@@ -59,6 +60,7 @@ export async function searchPlaces(
     description: prediction.description,
     mainText: prediction.structured_formatting.main_text,
     secondaryText: prediction.structured_formatting.secondary_text,
+    types: prediction.types ?? [],
   }));
 }
 
@@ -142,6 +144,7 @@ interface AutocompleteApiResponse {
   predictions: Array<{
     place_id: string;
     description: string;
+    types: string[];
     structured_formatting: {
       main_text: string;
       secondary_text: string;

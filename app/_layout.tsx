@@ -1,7 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Slot } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
@@ -91,7 +91,19 @@ export default function RootLayout() {
           <BottomSheetModalProvider>
           <View style={styles.container}>
             <AuthGate>
-              <Slot />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="(profile)" />
+                <Stack.Screen
+                  name="(trip)"
+                  options={{
+                    headerShown: false,
+                    presentation: 'transparentModal',
+                    animation: 'none',
+                  }}
+                />
+              </Stack>
             </AuthGate>
             {showSplash && (
               <AnimatedSplashScreen

@@ -16,11 +16,14 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
+import { Input } from '@/src/components/ui/Input';
+import { Modal } from '@/src/components/ui/Modal';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { ms, scaledIcon } from '@/src/utils/scaling';
 import { useBiometric } from '@/src/hooks/useBiometric';
 import { useAuth } from '@/src/hooks/useAuth';
 import * as authService from '@/src/services/authService';
+import { supabase } from '@/src/services/supabaseClient';
 
 type PermissionStatus = 'granted' | 'denied' | 'undetermined';
 
@@ -119,6 +122,9 @@ export default function SecurityScreen() {
   const { isAvailable, isEnabled: biometricEnabled, setEnabled: setBiometricEnabled } = useBiometric();
   const { signOut } = useAuth();
   const permissions = usePermissionStatuses();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleChangePassword = () => {
     Alert.alert(
@@ -128,32 +134,18 @@ export default function SecurityScreen() {
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Envoyer',
-          onPress: () => {
-            Alert.alert('Email envoye', 'Vérifie ta boîte mail.');
-          },
-        },
-      ]
-    );
-  };
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Supprimer mon compte',
-      'Cette action est irréversible. Toutes tes données seront supprimées.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
           onPress: async () => {
             try {
-              await authService.deleteAccount();
-              await signOut();
+              const { data: { user } } = await supabase.auth.getUser();
+              const email = user?.email;
+              if (!email) {
+                Alert.alert('Erreur', 'Impossible de trouver ton adresse email.');
+                return;
+              }
+              await authService.resetPassword(email);
+              Alert.alert('Email envoyé', 'Vérifie ta boîte mail pour réinitialiser ton mot de passe.');
             } catch {
-              Alert.alert(
-                'Erreur',
-                'La suppression du compte a échoué. Réessaie.',
-              );
+              Alert.alert('Erreur', 'Impossible d\'envoyer l\'email. Réessaie plus tard.');
             }
           },
         },
@@ -161,12 +153,25 @@ export default function SecurityScreen() {
     );
   };
 
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      await authService.deleteAccount();
+      setShowDeleteModal(false);
+      await signOut();
+    } catch {
+      Alert.alert('Erreur', 'La suppression du compte a echoue. Reessaie.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const showComingSoon = () => {
     Alert.alert('Page en construction', 'Cette page sera disponible prochainement.');
   };
 
   return (
-    <DarkScreen scrollable>
+    <DarkScreen scrollable headerTitle="Sécurité et confidentialité">
       <Section title="Autorisations systeme">
         <PermissionToggle label="Localisation" status={permissions.location} icon="map-marker" />
         <PermissionToggle label="Notifications" status={permissions.notifications} icon="bell" />
@@ -205,16 +210,53 @@ export default function SecurityScreen() {
       <Section title="Zone de danger">
         <View style={styles.dangerContent}>
           <Text style={styles.dangerDescription}>
-            La suppression de ton compte est irréversible. Toutes tes données, trajets et contacts seront supprimés.
+            La suppression de ton compte est irreversible. Toutes tes donnees, trajets et contacts seront supprimes.
           </Text>
           <Button
             title="Supprimer mon compte"
             variant="danger"
-            onPress={handleDeleteAccount}
+            onPress={() => {
+              setDeleteConfirmText('');
+              setShowDeleteModal(true);
+            }}
             fullWidth
           />
         </View>
       </Section>
+
+      <Modal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Supprimer mon compte"
+      >
+        <Text style={styles.deleteModalText}>
+          Cette action est definitive. Toutes tes donnees seront supprimees :
+        </Text>
+        <View style={styles.deleteConsequences}>
+          <Text style={styles.deleteConsequenceItem}>- Ton profil et tes informations personnelles</Text>
+          <Text style={styles.deleteConsequenceItem}>- Tous tes trajets et historique</Text>
+          <Text style={styles.deleteConsequenceItem}>- Tes contacts de confiance</Text>
+          <Text style={styles.deleteConsequenceItem}>- Tes notes et alertes</Text>
+        </View>
+        <Text style={styles.deleteModalText}>
+          Pour confirmer, tape SUPPRIMER ci-dessous :
+        </Text>
+        <Input
+          placeholder="SUPPRIMER"
+          value={deleteConfirmText}
+          onChangeText={setDeleteConfirmText}
+          autoCapitalize="characters"
+          variant="light"
+        />
+        <Button
+          title="Supprimer definitivement"
+          variant="danger"
+          onPress={handleDeleteAccount}
+          loading={isDeleting}
+          fullWidth
+          disabled={deleteConfirmText !== 'SUPPRIMER'}
+        />
+      </Modal>
     </DarkScreen>
   );
 }
@@ -274,5 +316,18 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.gray[300],
     marginBottom: spacing[4],
+  },
+  deleteModalText: {
+    ...typography.body,
+    color: colors.gray[700],
+    marginBottom: spacing[3],
+  },
+  deleteConsequences: {
+    marginBottom: spacing[4],
+  },
+  deleteConsequenceItem: {
+    ...typography.bodySmall,
+    color: colors.gray[600],
+    marginBottom: spacing[1],
   },
 });

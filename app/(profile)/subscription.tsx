@@ -13,29 +13,62 @@ import { Button } from '@/src/components/ui/Button';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { Snackbar } from '@/src/components/ui/Snackbar';
 import { ms, scaledIcon, scaledSpacing, scaledLineHeight } from '@/src/utils/scaling';
+import { usePremium } from '@/src/hooks/usePremium';
 
-const FEATURES = [
-  'Garder mon trajet secret',
-  'Ajout de notes',
-  'Détection d\'anomalie durant le trajet',
-  'Envoie alerte à ta/tes personne(s) de confiance',
+const FREE_FEATURES = [
+  { label: '1 personne de confiance', icon: 'user' as const },
+  { label: 'Trajet avec suivi GPS', icon: 'map-marker' as const },
+  { label: 'Bouton d\'alerte manuelle', icon: 'exclamation-circle' as const },
+  { label: 'Partage de position', icon: 'share-alt' as const },
+] as const;
+
+const PREMIUM_FEATURES = [
+  { label: 'Jusqu\'a 5 personnes de confiance', icon: 'users' as const },
+  { label: 'Notes de trajet chiffrees', icon: 'lock' as const },
+  { label: 'Detection d\'anomalies (detour, retard)', icon: 'shield' as const },
+  { label: 'Historique complet des trajets', icon: 'history' as const },
+  { label: 'Nettoyage auto des donnees anciennes', icon: 'trash' as const },
 ] as const;
 
 export default function SubscriptionScreen() {
-  const [selectedPlan, setSelectedPlan] = useState<'standard' | 'plus'>('standard');
+  const { isPremium, isLoading, activate, isActivating } = usePremium();
+  const [selectedPlan, setSelectedPlan] = useState<'standard' | 'plus'>(
+    isPremium ? 'plus' : 'standard',
+  );
   const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState({
+    title: '',
+    subtitle: '',
+    variant: 'info' as 'info' | 'success' | 'error',
+  });
 
-  const handleActivatePlus = () => {
+  const handleActivatePlus = async () => {
+    try {
+      await activate();
+      setSnackbarMessage({
+        title: 'Prudency Plus active',
+        subtitle: 'Tu beneficies maintenant de toutes les fonctionnalites.',
+        variant: 'success',
+      });
+    } catch {
+      setSnackbarMessage({
+        title: 'Erreur',
+        subtitle: 'Impossible d\'activer Prudency Plus pour le moment.',
+        variant: 'error',
+      });
+    }
     setSnackbarVisible(true);
   };
 
+  const currentPlanLabel = isPremium
+    ? 'Tu utilises actuellement Prudency Plus.'
+    : 'Tu utilises actuellement Prudency en version Standard.';
+
   return (
-    <DarkScreen scrollable>
+    <DarkScreen scrollable headerTitle="Mon abonnement">
       <View style={styles.header}>
         <Text style={styles.title}>Mon abonnement</Text>
-        <Text style={styles.subtitle}>
-          Tu utilises actuellement Prudency en version Standard.
-        </Text>
+        <Text style={styles.subtitle}>{currentPlanLabel}</Text>
       </View>
 
       <View style={styles.plans}>
@@ -48,47 +81,65 @@ export default function SubscriptionScreen() {
         />
         <PlanOption
           label="Prudency Plus"
-          note="Fonctionnalités à venir"
+          badge={isPremium ? 'Actif' : undefined}
+          badgeColor={isPremium ? colors.primary[400] : undefined}
           selected={selectedPlan === 'plus'}
-          onPress={() => {
-            setSelectedPlan('plus');
-            setSnackbarVisible(true);
-          }}
-          disabled
+          onPress={() => setSelectedPlan('plus')}
         />
       </View>
 
-      <View style={styles.featuresCard}>
-        <View style={styles.featuresHeader}>
-          <Text style={styles.featuresTitle}>Standard</Text>
-          <View style={styles.freeBadge}>
-            <Text style={styles.freeBadgeText}>Gratuit</Text>
+      {selectedPlan === 'standard' ? (
+        <View style={styles.featuresCard}>
+          <View style={styles.featuresHeader}>
+            <Text style={styles.featuresTitle}>Standard</Text>
+            <View style={styles.freeBadge}>
+              <Text style={styles.freeBadgeText}>Gratuit</Text>
+            </View>
           </View>
+          {FREE_FEATURES.map((feature) => (
+            <View key={feature.label} style={styles.featureRow}>
+              <FontAwesome name={feature.icon} size={scaledIcon(14)} color={colors.success[500]} />
+              <Text style={styles.featureText}>{feature.label}</Text>
+            </View>
+          ))}
         </View>
-        {FEATURES.map((feature) => (
-          <View key={feature} style={styles.featureRow}>
-            <FontAwesome name="check" size={scaledIcon(14)} color={colors.success[500]} />
-            <Text style={styles.featureText}>{feature}</Text>
+      ) : (
+        <View style={styles.featuresCard}>
+          <View style={styles.featuresHeader}>
+            <Text style={styles.featuresTitle}>Prudency Plus</Text>
+            <View style={[styles.freeBadge, { backgroundColor: colors.primary[400] }]}>
+              <Text style={styles.freeBadgeText}>Premium</Text>
+            </View>
           </View>
-        ))}
-      </View>
+          <Text style={styles.includesText}>Tout le Standard, plus :</Text>
+          {PREMIUM_FEATURES.map((feature) => (
+            <View key={feature.label} style={styles.featureRow}>
+              <FontAwesome name={feature.icon} size={scaledIcon(14)} color={colors.primary[300]} />
+              <Text style={styles.featureText}>{feature.label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <Text style={styles.disclaimer}>
-        Abonnement mensuel sans engagement, résiliable à tout moment. En continuant, tu acceptes les CGU, CGV et la Politique de confidentialité.
+        Abonnement mensuel sans engagement, resiliable a tout moment. En continuant, tu acceptes les CGU, CGV et la Politique de confidentialite.
       </Text>
 
-      <Button
-        title="Activer le Prudency Plus"
-        onPress={handleActivatePlus}
-        fullWidth
-        style={styles.ctaButton}
-      />
+      {!isPremium && selectedPlan === 'plus' && (
+        <Button
+          title="Activer le Prudency Plus"
+          onPress={handleActivatePlus}
+          fullWidth
+          style={styles.ctaButton}
+          loading={isActivating || isLoading}
+        />
+      )}
 
       <Snackbar
         visible={snackbarVisible}
-        title="Fonctionnalité à venir"
-        subtitle="Les abonnements seront disponibles prochainement."
-        variant="info"
+        title={snackbarMessage.title}
+        subtitle={snackbarMessage.subtitle}
+        variant={snackbarMessage.variant}
         duration={3000}
         onHide={() => setSnackbarVisible(false)}
       />
@@ -100,35 +151,30 @@ function PlanOption({
   label,
   badge,
   badgeColor,
-  note,
   selected,
   onPress,
-  disabled,
 }: {
   label: string;
   badge?: string;
   badgeColor?: string;
-  note?: string;
   selected: boolean;
   onPress: () => void;
-  disabled?: boolean;
 }) {
   return (
     <Pressable
-      style={[styles.planOption, selected && styles.planOptionSelected, disabled && styles.planDisabled]}
+      style={[styles.planOption, selected && styles.planOptionSelected]}
       onPress={onPress}
     >
       <View style={[styles.radio, selected && styles.radioSelected]}>
         {selected && <View style={styles.radioDot} />}
       </View>
       <View style={styles.planContent}>
-        <Text style={[styles.planLabel, disabled && styles.planLabelDisabled]}>{label}</Text>
+        <Text style={styles.planLabel}>{label}</Text>
         {badge ? (
           <View style={[styles.badge, { backgroundColor: badgeColor }]}>
             <Text style={styles.badgeText}>{badge}</Text>
           </View>
         ) : null}
-        {note ? <Text style={styles.planNote}>{note}</Text> : null}
       </View>
     </Pressable>
   );
@@ -166,9 +212,6 @@ const styles = StyleSheet.create({
   planOptionSelected: {
     borderColor: colors.primary[400],
   },
-  planDisabled: {
-    opacity: 0.5,
-  },
   radio: {
     width: RADIO_SIZE,
     height: RADIO_SIZE,
@@ -200,9 +243,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600',
   },
-  planLabelDisabled: {
-    color: colors.gray[400],
-  },
   badge: {
     paddingHorizontal: spacing[2],
     paddingVertical: scaledSpacing(2),
@@ -212,11 +252,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.white,
     fontWeight: '600',
-  },
-  planNote: {
-    ...typography.caption,
-    color: colors.gray[400],
-    width: '100%',
   },
   featuresCard: {
     backgroundColor: colors.primary[900],
@@ -244,6 +279,11 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.white,
     fontWeight: '600',
+  },
+  includesText: {
+    ...typography.bodySmall,
+    color: colors.gray[400],
+    marginBottom: spacing[2],
   },
   featureRow: {
     flexDirection: 'row',

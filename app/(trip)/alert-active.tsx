@@ -17,10 +17,10 @@ import { Button } from '@/src/components/ui/Button';
 import { useAlert } from '@/src/hooks/useAlert';
 import { useContacts } from '@/src/hooks/useContacts';
 import { useActiveTrip } from '@/src/hooks/useActiveTrip';
+import { usePanicAlert } from '@/src/hooks/usePanicAlert';
+import { useRealtimeLocation } from '@/src/hooks/useRealtimeLocation';
 import { useTripStore } from '@/src/stores/tripStore';
-import { scaledFontSize, scaledIcon, scaledRadius, ms } from '@/src/utils/scaling';
-
-const ALERT_COUNTDOWN_SECONDS = 30;
+import { scaledFontSize, scaledIcon, ms } from '@/src/utils/scaling';
 
 export default function AlertActiveScreen() {
   const router = useRouter();
@@ -28,11 +28,22 @@ export default function AlertActiveScreen() {
   const { contacts } = useContacts();
   const { trip } = useActiveTrip();
   const { reset: resetTripStore } = useTripStore();
+  const {
+    phase,
+    escalationSecondsLeft,
+    sendDataNow,
+    cancelEscalation,
+    reset: resetPanic,
+  } = usePanicAlert();
+
+  const { location: realtimeLocation, isConnected: isRealtimeConnected } =
+    useRealtimeLocation({ tripId: trip?.id ?? null, enabled: true });
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [alertDuration, setAlertDuration] = useState(0);
-  // Alert is already triggered when navigating to this screen
-  const alertSent = true;
+
+  const isContactOnly = phase === 'sent_contact_only';
+  const isDataSent = phase === 'sent_with_data';
 
   useEffect(() => {
     Animated.loop(
@@ -78,6 +89,8 @@ export default function AlertActiveScreen() {
       if (trip) {
         await resolveAlertByTrip({ tripId: trip.id, status: 'false_alarm' });
       }
+      cancelEscalation();
+      resetPanic();
       resetTripStore();
       router.replace('/(tabs)');
     } catch {
@@ -101,6 +114,7 @@ export default function AlertActiveScreen() {
           <Ionicons name="warning" size={scaledIcon(64)} color={colors.white} />
         </Animated.View>
         <Text style={styles.title}>ALERTE ACTIVE</Text>
+        <Text style={styles.subtitle}>Alerte manuelle (urgence)</Text>
         <Text style={styles.duration}>
           Depuis {formatSeconds(alertDuration)}
         </Text>
@@ -108,36 +122,103 @@ export default function AlertActiveScreen() {
 
       <View style={styles.content}>
         <View style={styles.statusCard}>
-            <Text style={styles.statusTitle}>Contacts notifies</Text>
-            <Text style={styles.statusCount}>
-              {contacts.length}/{contacts.length}
-            </Text>
+          <Text style={styles.statusTitle}>Contacts notifies</Text>
+          <Text style={styles.statusCount}>
+            {contacts.length}/{contacts.length}
+          </Text>
 
-            <View style={styles.contactsList}>
-              {contacts.map((contact) => (
-                <View key={contact.id} style={styles.contactRow}>
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={scaledIcon(18)}
-                    color={colors.success[500]}
-                  />
-                  <Text style={styles.contactName}>{contact.name}</Text>
-                  <Text style={styles.contactStatus}>Notifie</Text>
-                </View>
-              ))}
-              {contacts.length === 0 && (
-                <Text style={styles.noContactsText}>
-                  Aucun contact de confiance configure.
+          <View style={styles.contactsList}>
+            {contacts.map((contact) => (
+              <View key={contact.id} style={styles.contactRow}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={scaledIcon(18)}
+                  color={colors.success[500]}
+                />
+                <Text style={styles.contactName}>{contact.name}</Text>
+                <Text style={styles.contactStatus}>Notifie</Text>
+              </View>
+            ))}
+            {contacts.length === 0 && (
+              <Text style={styles.noContactsText}>
+                Aucun contact de confiance configure.
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {isContactOnly && escalationSecondsLeft > 0 && (
+          <View style={styles.escalationCard}>
+            <Ionicons
+              name="time-outline"
+              size={scaledIcon(20)}
+              color={colors.warning[600]}
+            />
+            <View style={styles.escalationContent}>
+              <Text style={styles.escalationTitle}>
+                Envoi automatique des donnees dans {formatSeconds(escalationSecondsLeft)}
+              </Text>
+              <Text style={styles.escalationHint}>
+                Ta position et tes informations seront partagees avec tes contacts si tu ne fais rien.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {isContactOnly && (
+          <Pressable style={styles.sendDataButton} onPress={sendDataNow}>
+            <Ionicons name="share-outline" size={scaledIcon(18)} color={colors.white} />
+            <Text style={styles.sendDataButtonText}>
+              Envoyer mes donnees maintenant
+            </Text>
+          </Pressable>
+        )}
+
+        {isDataSent && (
+          <View style={styles.dataSentCard}>
+            <Ionicons
+              name="checkmark-circle"
+              size={scaledIcon(20)}
+              color={colors.success[500]}
+            />
+            <Text style={styles.dataSentText}>
+              Position et informations envoyees a tes contacts
+            </Text>
+          </View>
+        )}
+
+        {realtimeLocation?.batteryLevel != null && (
+          <View style={styles.batteryCard}>
+            <Ionicons
+              name={realtimeLocation.batteryLevel <= 15 ? 'battery-dead' : 'battery-half'}
+              size={scaledIcon(18)}
+              color={realtimeLocation.batteryLevel <= 15 ? colors.error[500] : colors.gray[600]}
+            />
+            <View style={styles.batteryContent}>
+              <Text style={styles.batteryText}>
+                Batterie : {realtimeLocation.batteryLevel}%
+              </Text>
+              {realtimeLocation.estimatedBatteryMinutes != null && (
+                <Text style={styles.batteryEstimate}>
+                  ~{realtimeLocation.estimatedBatteryMinutes} min estimees restantes
                 </Text>
               )}
             </View>
           </View>
+        )}
 
         <View style={styles.infoCard}>
           <Ionicons name="location" size={scaledIcon(18)} color={colors.primary[500]} />
           <Text style={styles.infoText}>
-            Votre position est partagee en temps reel avec vos contacts
+            {isDataSent
+              ? 'Votre position est partagee en temps reel avec vos contacts'
+              : 'Vos contacts ont ete prevenus de votre alerte'}
           </Text>
+          {isRealtimeConnected && (
+            <View style={styles.liveBadge}>
+              <Text style={styles.liveBadgeText}>LIVE</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.emergencyCard}>
@@ -159,7 +240,7 @@ export default function AlertActiveScreen() {
           icon={<Ionicons name="shield-checkmark-outline" size={scaledIcon(20)} color={colors.primary[50]} />}
         />
         <Text style={styles.cancelHint}>
-          Annulez uniquement si vous êtes en sécurité
+          Annulez uniquement si vous etes en securite
         </Text>
       </View>
     </View>
@@ -190,11 +271,11 @@ const styles = StyleSheet.create({
     color: colors.white,
     letterSpacing: scaledFontSize(2),
   },
-  countdown: {
-    ...typography.body,
+  subtitle: {
+    ...typography.bodySmall,
     color: colors.white,
     opacity: 0.9,
-    marginTop: spacing[2],
+    marginTop: spacing[1],
     fontWeight: '600',
   },
   duration: {
@@ -209,25 +290,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius['2xl'],
     borderTopRightRadius: borderRadius['2xl'],
     padding: spacing[6],
-  },
-  countdownCard: {
-    alignItems: 'center',
-    backgroundColor: colors.error[50],
-    borderRadius: borderRadius.lg,
-    padding: spacing[6],
-    marginBottom: spacing[4],
-  },
-  countdownBig: {
-    fontSize: scaledFontSize(64),
-    fontWeight: '700',
-    color: colors.error[500],
-    fontVariant: ['tabular-nums'],
-  },
-  countdownLabel: {
-    ...typography.body,
-    color: colors.error[700],
-    textAlign: 'center',
-    marginTop: spacing[2],
   },
   statusCard: {
     backgroundColor: colors.gray[50],
@@ -269,6 +331,82 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     textAlign: 'center',
   },
+  escalationCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+    backgroundColor: colors.warning[50],
+    padding: spacing[4],
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing[4],
+    borderWidth: 1,
+    borderColor: colors.warning[200],
+  },
+  escalationContent: {
+    flex: 1,
+  },
+  escalationTitle: {
+    ...typography.bodySmall,
+    color: colors.warning[800],
+    fontWeight: '600',
+  },
+  escalationHint: {
+    ...typography.caption,
+    color: colors.warning[600],
+    marginTop: spacing[1],
+  },
+  sendDataButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.primary[500],
+    paddingVertical: spacing[3],
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing[4],
+  },
+  sendDataButtonText: {
+    ...typography.button,
+    color: colors.white,
+  },
+  dataSentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    backgroundColor: colors.success[50],
+    padding: spacing[4],
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing[4],
+    borderWidth: 1,
+    borderColor: colors.success[200],
+  },
+  dataSentText: {
+    ...typography.bodySmall,
+    color: colors.success[700],
+    flex: 1,
+  },
+  batteryCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+    backgroundColor: colors.gray[50],
+    padding: spacing[4],
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing[4],
+  },
+  batteryContent: {
+    flex: 1,
+  },
+  batteryText: {
+    ...typography.bodySmall,
+    color: colors.gray[700],
+    fontWeight: '600',
+  },
+  batteryEstimate: {
+    ...typography.caption,
+    color: colors.gray[500],
+    marginTop: spacing[1],
+  },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -282,6 +420,18 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.primary[700],
     flex: 1,
+  },
+  liveBadge: {
+    backgroundColor: colors.error[500],
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    borderRadius: borderRadius.sm,
+  },
+  liveBadgeText: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: ms(10, 0.3),
   },
   emergencyCard: {
     backgroundColor: colors.error[50],

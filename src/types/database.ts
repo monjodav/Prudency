@@ -121,10 +121,12 @@ export type Database = {
           email: string | null
           first_name: string | null
           id: string
+          is_premium: boolean | null
           last_name: string | null
           onboarding_completed: boolean | null
           phone: string | null
           phone_verified: boolean | null
+          premium_since: string | null
           updated_at: string | null
         }
         Insert: {
@@ -134,10 +136,12 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id: string
+          is_premium?: boolean | null
           last_name?: string | null
           onboarding_completed?: boolean | null
           phone?: string | null
           phone_verified?: boolean | null
+          premium_since?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -147,10 +151,12 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id?: string
+          is_premium?: boolean | null
           last_name?: string | null
           onboarding_completed?: boolean | null
           phone?: string | null
           phone_verified?: boolean | null
+          premium_since?: string | null
           updated_at?: string | null
         }
         Relationships: []

@@ -3,8 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  SectionList,
-  Pressable,
+  ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,17 +11,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing } from '@/src/theme/spacing';
+import { spacing, borderRadius } from '@/src/theme/spacing';
 import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
 import { Snackbar } from '@/src/components/ui/Snackbar';
+import { FAB } from '@/src/components/ui/FAB';
 import { GuardianTab } from '@/src/components/contact/GuardianTab';
 import { ContactListItem } from '@/src/components/contact/ContactListItem';
 import { useContacts } from '@/src/hooks/useContacts';
 import { APP_CONFIG } from '@/src/utils/constants';
 import type { TrustedContactRow } from '@/src/types/contact';
-import { figmaScale, scaledIcon, scaledShadow, ms } from '@/src/utils/scaling';
+import { figmaScale, scaledIcon, ms } from '@/src/utils/scaling';
 
-const TABS = ['On me protege', 'Je protege'];
+const TABS = ['On me protège', 'Je protège'];
+
+function groupByLetter(contacts: TrustedContactRow[]): { letter: string; items: TrustedContactRow[] }[] {
+  const sorted = [...contacts].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  const groups: Record<string, TrustedContactRow[]> = {};
+
+  for (const contact of sorted) {
+    const letter = contact.name.charAt(0).toUpperCase();
+    if (!groups[letter]) groups[letter] = [];
+    groups[letter].push(contact);
+  }
+
+  return Object.entries(groups)
+    .sort(([a], [b]) => a.localeCompare(b, 'fr'))
+    .map(([letter, items]) => ({ letter, items }));
+}
 
 export default function ContactsScreen() {
   const router = useRouter();
@@ -37,16 +52,8 @@ export default function ContactsScreen() {
   }>({ visible: false, title: '', variant: 'success' });
 
   const favorites = useMemo(() => contacts.filter((c) => c.is_favorite), [contacts]);
-  const regular = useMemo(() => contacts.filter((c) => !c.is_favorite), [contacts]);
-
-  const sections = useMemo(
-    () =>
-      [
-        { title: 'Favoris', data: favorites },
-        { title: 'Contacts enregistrés', data: regular },
-      ].filter((s) => s.data.length > 0),
-    [favorites, regular],
-  );
+  const nonFavorites = useMemo(() => contacts.filter((c) => !c.is_favorite), [contacts]);
+  const letterGroups = useMemo(() => groupByLetter(nonFavorites), [nonFavorites]);
 
   const handleToggleFavorite = useCallback(
     async (contact: TrustedContactRow) => {
@@ -54,13 +61,13 @@ export default function ContactsScreen() {
         await toggleFavorite(contact.id, contact.is_favorite);
         setSnackbar({
           visible: true,
-          title: contact.is_favorite ? 'Retire des favoris' : 'Ajoute aux favoris',
+          title: contact.is_favorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
           variant: contact.is_favorite ? 'error' : 'success',
         });
       } catch {
         setSnackbar({
           visible: true,
-          title: 'Erreur lors de la mise a jour',
+          title: 'Erreur lors de la mise à jour',
           variant: 'error',
         });
       }
@@ -88,27 +95,25 @@ export default function ContactsScreen() {
     [deleteContact],
   );
 
-  const renderContact = ({ item }: { item: TrustedContactRow }) => (
-    <ContactListItem
-      contact={item}
-      onToggleFavorite={handleToggleFavorite}
-      onDelete={handleDelete}
-      onEdit={(id) =>
-        router.push({ pathname: '/(profile)/add-contact', params: { editId: id } })
-      }
-    />
-  );
-
-  const renderSectionHeader = ({ section }: { section: { title: string } }) => (
-    <View style={styles.sectionHeader}>
-      {section.title === 'Favoris' && (
-        <Ionicons name="star" size={scaledIcon(14)} color={colors.warning[400]} style={styles.sectionIcon} />
-      )}
-      <Text style={styles.sectionTitle}>{section.title}</Text>
-    </View>
+  const handleEdit = useCallback(
+    (id: string) => {
+      router.push({ pathname: '/(profile)/add-contact', params: { editId: id } });
+    },
+    [router],
   );
 
   const canAddMore = contacts.length < APP_CONFIG.MAX_TRUSTED_CONTACTS;
+
+  const renderContactCard = (contact: TrustedContactRow, isLast: boolean) => (
+    <ContactListItem
+      key={contact.id}
+      contact={contact}
+      onToggleFavorite={handleToggleFavorite}
+      onDelete={handleDelete}
+      onEdit={handleEdit}
+      showSeparator={!isLast}
+    />
+  );
 
   return (
     <View style={styles.container}>
@@ -116,19 +121,7 @@ export default function ContactsScreen() {
         <View style={styles.ellipse} />
       </View>
 
-      <View style={[styles.header, { paddingTop: insets.top + spacing[4] }]}>
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Personnes de confiance</Text>
-          <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
-            <Ionicons name="settings-outline" size={scaledIcon(22)} color={colors.gray[400]} />
-          </Pressable>
-        </View>
-        <Text style={styles.subtitle}>
-          {contacts.length}/{APP_CONFIG.MAX_TRUSTED_CONTACTS} contacts configures
-        </Text>
-      </View>
-
-      <View style={styles.segmentContainer}>
+      <View style={[styles.segmentContainer, { paddingTop: insets.top + spacing[16] }]}>
         <SegmentedControl
           options={TABS}
           selectedIndex={tabIndex}
@@ -137,9 +130,7 @@ export default function ContactsScreen() {
         />
       </View>
 
-      <Text style={styles.helperText}>
-        En cas de problème, une alerte est automatiquement envoyée à tes contacts favoris.
-      </Text>
+      <Text style={styles.description}>Les personnes qui reçoivent mes alertes</Text>
 
       {tabIndex === 0 ? (
         <>
@@ -158,28 +149,71 @@ export default function ContactsScreen() {
               </View>
               <Text style={styles.emptyTitle}>Aucun contact</Text>
               <Text style={styles.emptyDescription}>
-                Ajoutez des personnes de confiance qui seront prevenues en cas d'alerte
+                Ajoutez des personnes de confiance qui seront prévenues en cas d'alerte
               </Text>
             </View>
           ) : (
-            <SectionList
-              sections={sections}
-              keyExtractor={(item) => item.id}
-              renderItem={renderContact}
-              renderSectionHeader={renderSectionHeader}
+            <ScrollView
               contentContainerStyle={styles.listContent}
-              stickySectionHeadersEnabled={false}
-            />
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Favoris section */}
+              <Text style={styles.sectionTitle}>Favoris</Text>
+              {favorites.length === 0 ? (
+                <View style={styles.cardBlock}>
+                  <Text style={styles.emptyFavorites}>Aucun favoris pour le moment.</Text>
+                </View>
+              ) : (
+                <View style={styles.cardBlock}>
+                  {favorites.map((contact, index) =>
+                    renderContactCard(contact, index === favorites.length - 1),
+                  )}
+                </View>
+              )}
+
+              {/* Contacts enregistrés section */}
+              {letterGroups.length > 0 && (
+                <>
+                  <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>
+                    Contacts enregistrés
+                  </Text>
+                  {letterGroups.map((group) => (
+                    <View key={group.letter} style={styles.letterGroup}>
+                      <Text style={styles.letterLabel}>{group.letter}</Text>
+                      <View style={styles.cardBlock}>
+                        {group.items.map((contact, index) =>
+                          renderContactCard(contact, index === group.items.length - 1),
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </>
+              )}
+            </ScrollView>
           )}
 
           {canAddMore && (
-            <Pressable
-              style={styles.fab}
+            <FAB
+              icon={<Ionicons name="add" size={scaledIcon(26)} color={colors.white} />}
+              variant="default"
+              size="lg"
               onPress={() => router.push('/(profile)/add-contact')}
-            >
-              <Ionicons name="add" size={scaledIcon(28)} color={colors.white} />
-            </Pressable>
+              style={styles.fabAdd}
+            />
           )}
+
+          <FAB
+            icon={
+              <Ionicons
+                name="information-circle"
+                size={scaledIcon(20)}
+                color={colors.white}
+              />
+            }
+            variant="full"
+            size="sm"
+            style={styles.fabInfo}
+          />
         </>
       ) : (
         <GuardianTab />
@@ -213,23 +247,11 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     transform: [{ rotate: '3deg' }],
   },
-  header: { paddingHorizontal: spacing[6], paddingBottom: spacing[4] },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  segmentContainer: {
+    paddingHorizontal: spacing[6],
+    marginBottom: spacing[3],
   },
-  title: {
-    ...typography.h2,
-    color: colors.white,
-  },
-  subtitle: {
-    ...typography.bodySmall,
-    color: colors.primary[200],
-    marginTop: spacing[1],
-  },
-  segmentContainer: { paddingHorizontal: spacing[6], marginBottom: spacing[3] },
-  helperText: {
+  description: {
     ...typography.caption,
     color: colors.primary[200],
     paddingHorizontal: spacing[6],
@@ -242,20 +264,35 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing[6],
-    paddingBottom: spacing[20],
+    paddingBottom: spacing[24],
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing[2],
-    marginTop: spacing[2],
-  },
-  sectionIcon: { marginRight: spacing[2] },
   sectionTitle: {
-    ...typography.label,
-    color: colors.primary[200],
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    ...typography.caption,
+    fontWeight: 'bold',
+    color: colors.gray[50],
+    marginBottom: spacing[2],
+  },
+  sectionTitleSpacing: {
+    marginTop: spacing[5],
+  },
+  cardBlock: {
+    backgroundColor: colors.secondary[900],
+    borderRadius: borderRadius.dialog,
+    overflow: 'hidden',
+  },
+  emptyFavorites: {
+    ...typography.caption,
+    color: colors.gray[500],
+    textAlign: 'center',
+    paddingVertical: spacing[5],
+  },
+  letterGroup: {
+    marginTop: spacing[3],
+  },
+  letterLabel: {
+    ...typography.caption,
+    color: colors.gray[500],
+    marginBottom: spacing[1],
   },
   emptyState: {
     flex: 1,
@@ -283,22 +320,14 @@ const styles = StyleSheet.create({
     marginTop: spacing[2],
     marginBottom: spacing[6],
   },
-  fab: {
+  fabAdd: {
     position: 'absolute',
     bottom: spacing[8],
     right: spacing[6],
-    width: ms(56, 0.5),
-    height: ms(56, 0.5),
-    borderRadius: ms(56, 0.5) / 2,
-    backgroundColor: colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...scaledShadow({
-      shadowColor: colors.black,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 6,
-    }),
+  },
+  fabInfo: {
+    position: 'absolute',
+    bottom: spacing[8],
+    left: spacing[6],
   },
 });

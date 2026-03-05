@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
 import { useAuth } from '@/src/hooks/useAuth';
+import { getProfile } from '@/src/services/authService';
 import { sendOtp } from '@/src/services/otpService';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { scaledSpacing, scaledFontSize, scaledRadius, scaledIcon, ms } from '@/src/utils/scaling';
@@ -44,6 +45,36 @@ export default function PersonalInfoScreen() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Pre-fill from profile (e.g. Apple Sign In stores name on first auth)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function prefill() {
+      try {
+        const profile = await getProfile();
+        if (cancelled) return;
+        if (profile.first_name) setFirstName(profile.first_name);
+        if (profile.last_name) setLastName(profile.last_name);
+      } catch {
+        // Profile may not exist yet (e.g. trigger still running) — retry once
+        if (cancelled) return;
+        await new Promise((r) => setTimeout(r, 800));
+        if (cancelled) return;
+        try {
+          const profile = await getProfile();
+          if (cancelled) return;
+          if (profile.first_name) setFirstName(profile.first_name);
+          if (profile.last_name) setLastName(profile.last_name);
+        } catch {
+          // no profile yet — fields stay empty
+        }
+      }
+    }
+
+    void prefill();
+    return () => { cancelled = true; };
+  }, []);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -146,9 +177,9 @@ export default function PersonalInfoScreen() {
               }}
               error={errors.firstName}
               autoCapitalize="words"
-              autoCorrect={false}
               autoComplete="given-name"
               textContentType="givenName"
+              importantForAutofill="yes"
               variant="dark"
               containerStyle={styles.inputNoMargin}
             />
@@ -159,9 +190,9 @@ export default function PersonalInfoScreen() {
               value={lastName}
               onChangeText={setLastName}
               autoCapitalize="words"
-              autoCorrect={false}
               autoComplete="family-name"
               textContentType="familyName"
+              importantForAutofill="yes"
               variant="dark"
               containerStyle={styles.inputNoMargin}
             />
@@ -329,8 +360,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary[50],
     borderRadius: scaledRadius(8),
-    height: ms(48, 0.5),
+    minHeight: ms(48, 0.5),
     paddingHorizontal: scaledSpacing(12),
+    paddingVertical: scaledSpacing(10),
   },
   phoneRowError: {
     borderColor: colors.error[600],
@@ -361,8 +393,8 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontFamily: 'Inter_400Regular',
     color: colors.white,
-    height: '100%',
     paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   phoneError: {
     fontSize: scaledFontSize(12),

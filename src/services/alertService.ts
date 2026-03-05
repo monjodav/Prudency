@@ -2,6 +2,9 @@ import { supabase } from './supabaseClient';
 import { AlertRow, AlertUpdate, TriggerAlertInput } from '@/src/types/alert';
 import { sendAlertSchema } from '@/src/utils/validators';
 
+const ALERT_MAX_RETRIES = 3;
+const ALERT_BASE_DELAY_MS = 1_000;
+
 export async function triggerAlert(input: TriggerAlertInput): Promise<AlertRow> {
   const validated = sendAlertSchema.parse(input);
 
@@ -11,19 +14,34 @@ export async function triggerAlert(input: TriggerAlertInput): Promise<AlertRow> 
     throw authError ?? new Error('Utilisateur non connecté');
   }
 
-  const { data, error } = await supabase.functions.invoke<AlertRow>('send-alert', {
-    body: validated,
-  });
+  let lastError: Error | null = null;
 
-  if (error) {
-    throw error;
+  for (let attempt = 0; attempt <= ALERT_MAX_RETRIES; attempt++) {
+    try {
+      const { data, error } = await supabase.functions.invoke<AlertRow>('send-alert', {
+        body: validated,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error("Aucune donnee retournee par l'Edge Function");
+      }
+
+      return data;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+
+      if (attempt < ALERT_MAX_RETRIES) {
+        const delay = ALERT_BASE_DELAY_MS * Math.pow(2, attempt);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
   }
 
-  if (!data) {
-    throw new Error("Aucune donnée retournée par l'Edge Function");
-  }
-
-  return data;
+  throw lastError ?? new Error("Echec de l'envoi de l'alerte apres plusieurs tentatives");
 }
 
 export async function getAlerts(

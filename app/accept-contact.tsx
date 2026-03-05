@@ -4,6 +4,8 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
+  Linking,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,13 +22,17 @@ import {
   ms,
 } from '@/src/utils/scaling';
 
+const APP_STORE_URL = 'https://apps.apple.com/app/prudency';
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.prudency.app';
+
 interface InviterInfo {
   inviterName: string;
   contactName: string;
   contactId: string;
+  validationStatus: string;
 }
 
-type ScreenState = 'loading' | 'ready' | 'accepted' | 'refused' | 'error';
+type ScreenState = 'loading' | 'ready' | 'already_handled' | 'accepted' | 'refused' | 'error';
 
 export default function AcceptContactScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
@@ -39,7 +45,7 @@ export default function AcceptContactScreen() {
 
   useEffect(() => {
     if (!token) {
-      setErrorMessage('Lien d\'invitation invalide.');
+      setErrorMessage("Lien d'invitation invalide.");
       setState('error');
       return;
     }
@@ -49,20 +55,45 @@ export default function AcceptContactScreen() {
 
   async function fetchInvitation(inviteToken: string) {
     try {
-      // Fetch the contact invitation by token
       const { data: contact, error } = await supabase
         .from('trusted_contacts')
-        .select('id, name, user_id')
-        .eq('id', inviteToken)
+        .select('id, name, user_id, validation_status')
+        .eq('invitation_token', inviteToken)
         .single();
 
       if (error || !contact) {
-        setErrorMessage('Cette invitation n\'existe pas ou a expire.');
+        setErrorMessage("Cette invitation n'existe pas ou a expire.");
         setState('error');
         return;
       }
 
-      // Fetch inviter's profile
+      if (contact.validation_status === 'accepted') {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', contact.user_id)
+          .single();
+
+        const inviterName = profile
+          ? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim()
+          : 'Quelqu\'un';
+
+        setInviter({
+          inviterName: inviterName || 'Quelqu\'un',
+          contactName: contact.name,
+          contactId: contact.id,
+          validationStatus: contact.validation_status,
+        });
+        setState('already_handled');
+        return;
+      }
+
+      if (contact.validation_status === 'refused') {
+        setErrorMessage("Cette invitation a deja ete refusee.");
+        setState('error');
+        return;
+      }
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('first_name, last_name')
@@ -77,10 +108,11 @@ export default function AcceptContactScreen() {
         inviterName: inviterName || 'Quelqu\'un',
         contactName: contact.name,
         contactId: contact.id,
+        validationStatus: contact.validation_status,
       });
       setState('ready');
     } catch {
-      setErrorMessage('Impossible de charger l\'invitation.');
+      setErrorMessage("Impossible de charger l'invitation.");
       setState('error');
     }
   }
@@ -90,14 +122,19 @@ export default function AcceptContactScreen() {
     setProcessing(true);
 
     try {
-      await supabase
+      const { error } = await supabase
         .from('trusted_contacts')
-        .update({ notify_by_push: true, updated_at: new Date().toISOString() })
+        .update({
+          validation_status: 'accepted',
+          notify_by_push: true,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', inviter.contactId);
 
+      if (error) throw error;
       setState('accepted');
     } catch {
-      setErrorMessage('Une erreur est survenue. Veuillez réessayer.');
+      setErrorMessage('Une erreur est survenue. Veuillez reessayer.');
       setState('error');
     } finally {
       setProcessing(false);
@@ -109,18 +146,27 @@ export default function AcceptContactScreen() {
     setProcessing(true);
 
     try {
-      await supabase
+      const { error } = await supabase
         .from('trusted_contacts')
-        .delete()
+        .update({
+          validation_status: 'refused',
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', inviter.contactId);
 
+      if (error) throw error;
       setState('refused');
     } catch {
-      setErrorMessage('Une erreur est survenue. Veuillez réessayer.');
+      setErrorMessage('Une erreur est survenue. Veuillez reessayer.');
       setState('error');
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleDownloadApp = () => {
+    const storeUrl = Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL;
+    void Linking.openURL(storeUrl);
   };
 
   const handleClose = () => {
@@ -144,10 +190,11 @@ export default function AcceptContactScreen() {
             </View>
             <Text style={styles.title}>Invitation de confiance</Text>
             <Text style={styles.subtitle}>
-              {inviter.inviterName} souhaite vous ajouter comme personne de confiance sur Prudency.
+              {inviter.inviterName} souhaite t'ajouter comme personne de confiance sur Prudency.
             </Text>
             <Text style={styles.description}>
-              En acceptant, vous serez prevenu(e) si un probleme survient pendant ses trajets.
+              En acceptant, tu seras prevenu(e) si un probleme survient pendant ses trajets.
+              Tu pourras recevoir des notifications et des SMS d'alerte.
             </Text>
 
             <View style={styles.actions}>
@@ -166,7 +213,34 @@ export default function AcceptContactScreen() {
                 style={styles.refuseButton}
               />
             </View>
+
+            <View style={styles.downloadSection}>
+              <Text style={styles.downloadText}>
+                Tu n'as pas encore l'application ?
+              </Text>
+              <Button
+                title="Telecharger Prudency"
+                variant="ghost"
+                onPress={handleDownloadApp}
+                size="sm"
+              />
+            </View>
           </>
+        )}
+
+        {state === 'already_handled' && inviter && (
+          <View style={styles.centered}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="checkmark-circle" size={scaledIcon(64)} color={colors.success[400]} />
+            </View>
+            <Text style={styles.title}>Deja acceptee</Text>
+            <Text style={styles.subtitle}>
+              Tu es deja contact de confiance de {inviter.inviterName}.
+            </Text>
+            <View style={styles.actions}>
+              <Button title="Fermer" onPress={handleClose} fullWidth />
+            </View>
+          </View>
         )}
 
         {state === 'accepted' && (
@@ -176,7 +250,10 @@ export default function AcceptContactScreen() {
             </View>
             <Text style={styles.title}>Invitation acceptee</Text>
             <Text style={styles.subtitle}>
-              Vous etes desormais contact de confiance de {inviter?.inviterName}.
+              Tu es desormais contact de confiance de {inviter?.inviterName}.
+            </Text>
+            <Text style={styles.description}>
+              Tu recevras des notifications si un probleme survient pendant ses trajets.
             </Text>
             <View style={styles.actions}>
               <Button title="Fermer" onPress={handleClose} fullWidth />
@@ -191,7 +268,7 @@ export default function AcceptContactScreen() {
             </View>
             <Text style={styles.title}>Invitation refusee</Text>
             <Text style={styles.subtitle}>
-              Vous avez refuse l'invitation.
+              Tu as refuse l'invitation de {inviter?.inviterName}.
             </Text>
             <View style={styles.actions}>
               <Button title="Fermer" onPress={handleClose} fullWidth />
@@ -213,7 +290,6 @@ export default function AcceptContactScreen() {
         )}
       </View>
 
-      {/* Logo */}
       <View style={styles.logoContainer}>
         <Text style={styles.logo}>PRUDENCY</Text>
       </View>
@@ -284,6 +360,17 @@ const styles = StyleSheet.create({
   },
   refuseButton: {
     borderColor: colors.primary[50],
+  },
+  downloadSection: {
+    alignItems: 'center',
+    marginTop: scaledSpacing(32),
+  },
+  downloadText: {
+    fontSize: scaledFontSize(14),
+    fontFamily: 'Inter_400Regular',
+    color: colors.primary[50],
+    opacity: 0.7,
+    marginBottom: scaledSpacing(4),
   },
   logoContainer: {
     alignItems: 'center',

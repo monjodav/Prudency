@@ -41,3 +41,11 @@ export const ALERT_STATUS = {
   RESOLVED: 'resolved',
   FALSE_ALARM: 'false_alarm',
 } as const;
+
+export const PREMIUM_LIMITS = {
+  FREE_MAX_CONTACTS: 1,
+  PREMIUM_MAX_CONTACTS: 5,
+  FREE_MAX_NOTES_PER_TRIP: 5,
+  PREMIUM_MAX_NOTES_PER_TRIP: 20,
+  NOTE_CLEANUP_RETENTION_DAYS: 90,
+} as const;

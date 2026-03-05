@@ -3,6 +3,8 @@ import { TripNote, TripNoteInsert } from '@/src/types/database';
 import { tripNoteSchema } from '@/src/utils/validators';
 import { encryptContent, decryptContent } from '@/src/utils/encryption';
 
+const DEFAULT_CLEANUP_DAYS = 90;
+
 export interface CreateNoteInput {
   tripId: string;
   content: string;
@@ -106,4 +108,54 @@ export async function updateTripNote(noteId: string, content: string): Promise<T
   }
 
   return { ...(data as TripNote), content };
+}
+
+export async function deleteTripNote(noteId: string): Promise<void> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
+  const { error } = await supabase
+    .from('trip_notes')
+    .delete()
+    .eq('id', noteId)
+    .eq('user_id', user.id);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function cleanupOldNotes(
+  retentionDays: number = DEFAULT_CLEANUP_DAYS,
+): Promise<number> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw authError ?? new Error('Utilisateur non connecté');
+  }
+
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+  const { data, error } = await supabase
+    .from('trip_notes')
+    .delete()
+    .eq('user_id', user.id)
+    .lt('created_at', cutoffDate.toISOString())
+    .select('id');
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.length ?? 0;
 }

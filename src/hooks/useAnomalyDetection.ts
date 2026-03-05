@@ -1,29 +1,60 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { AnomalyReason } from '@/src/components/trip/AnomalyDialog';
+import type { AnomalyReason, AnomalyType } from '@/src/components/trip/AnomalyDialog';
 import { useTripStore } from '@/src/stores/tripStore';
+import {
+  DEFAULT_THRESHOLDS,
+  checkRouteDeviation,
+  checkOvertime,
+  checkProlongedStop,
+  isStationary,
+  resolveAnomalyType,
+} from '@/src/utils/anomalyDetection';
+import type { AnomalyThresholds } from '@/src/utils/anomalyDetection';
 
 const NO_RESPONSE_DELAY_MS = 10 * 60 * 1000;
+const DETECTION_INTERVAL_MS = 15_000;
 
 interface AnomalyDetectionState {
   showAnomalyDialog: boolean;
   showNoResponseDialog: boolean;
   currentAnomaly: AnomalyReason | null;
+  detectedAnomalyType: AnomalyType | null;
   anomalyShownForTrip: boolean;
   noResponseShownForAnomaly: boolean;
 }
 
-export function useAnomalyDetection() {
+interface RoutePolyline {
+  latitude: number;
+  longitude: number;
+}
+
+interface UseAnomalyDetectionOptions {
+  routePolyline?: RoutePolyline[];
+  estimatedArrivalAt?: string | null;
+  tripStatus?: string | null;
+  thresholds?: Partial<AnomalyThresholds>;
+}
+
+export function useAnomalyDetection(options?: UseAnomalyDetectionOptions) {
   const activeTripId = useTripStore((s) => s.activeTripId);
+  const lastKnownLat = useTripStore((s) => s.lastKnownLat);
+  const lastKnownLng = useTripStore((s) => s.lastKnownLng);
+
+  const thresholds = { ...DEFAULT_THRESHOLDS, ...options?.thresholds };
 
   const [state, setState] = useState<AnomalyDetectionState>({
     showAnomalyDialog: false,
     showNoResponseDialog: false,
     currentAnomaly: null,
+    detectedAnomalyType: null,
     anomalyShownForTrip: false,
     noResponseShownForAnomaly: false,
   });
 
   const noResponseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stationarySinceRef = useRef<number | null>(null);
+  const lastStationaryPosRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const clearNoResponseTimer = useCallback(() => {
     if (noResponseTimerRef.current) {
@@ -32,27 +63,126 @@ export function useAnomalyDetection() {
     }
   }, []);
 
+  const clearDetectionInterval = useCallback(() => {
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
-    return clearNoResponseTimer;
-  }, [clearNoResponseTimer]);
+    return () => {
+      clearNoResponseTimer();
+      clearDetectionInterval();
+    };
+  }, [clearNoResponseTimer, clearDetectionInterval]);
 
   useEffect(() => {
     if (!activeTripId) {
       clearNoResponseTimer();
+      clearDetectionInterval();
+      stationarySinceRef.current = null;
+      lastStationaryPosRef.current = null;
       setState({
         showAnomalyDialog: false,
         showNoResponseDialog: false,
         currentAnomaly: null,
+        detectedAnomalyType: null,
         anomalyShownForTrip: false,
         noResponseShownForAnomaly: false,
       });
     }
-  }, [activeTripId, clearNoResponseTimer]);
+  }, [activeTripId, clearNoResponseTimer, clearDetectionInterval]);
 
-  const presentAnomalyDialog = useCallback(() => {
+  const triggerAnomalyDialog = useCallback((anomalyType: AnomalyType) => {
+    setState((prev) => {
+      if (prev.anomalyShownForTrip || prev.showAnomalyDialog || prev.currentAnomaly) {
+        return prev;
+      }
+      return {
+        ...prev,
+        showAnomalyDialog: true,
+        detectedAnomalyType: anomalyType,
+        anomalyShownForTrip: true,
+      };
+    });
+  }, []);
+
+  const runDetection = useCallback(() => {
+    if (!activeTripId || options?.tripStatus !== 'active') return;
+    if (lastKnownLat === null || lastKnownLng === null) return;
+
+    const position = { lat: lastKnownLat, lng: lastKnownLng };
+
+    const stationary = isStationary(
+      position,
+      lastStationaryPosRef.current,
+      null,
+      thresholds.stationarySpeedThreshold,
+    );
+
+    if (stationary) {
+      if (stationarySinceRef.current === null) {
+        stationarySinceRef.current = Date.now();
+        lastStationaryPosRef.current = position;
+      }
+    } else {
+      stationarySinceRef.current = null;
+      lastStationaryPosRef.current = position;
+    }
+
+    const isDeviation =
+      options?.routePolyline && options.routePolyline.length > 0
+        ? checkRouteDeviation(position, options.routePolyline, thresholds.routeDeviationMeters)
+        : false;
+
+    const isOvertime = checkOvertime(
+      options?.estimatedArrivalAt ?? null,
+      thresholds.overtimeMinutes,
+    );
+
+    const isProlongedStop = checkProlongedStop(
+      stationarySinceRef.current,
+      thresholds.prolongedStopMinutes,
+    );
+
+    const anomalyType = resolveAnomalyType({ isDeviation, isOvertime, isProlongedStop });
+
+    if (anomalyType) {
+      triggerAnomalyDialog(anomalyType);
+    }
+  }, [
+    activeTripId,
+    lastKnownLat,
+    lastKnownLng,
+    options?.routePolyline,
+    options?.estimatedArrivalAt,
+    options?.tripStatus,
+    thresholds.routeDeviationMeters,
+    thresholds.overtimeMinutes,
+    thresholds.prolongedStopMinutes,
+    thresholds.stationarySpeedThreshold,
+    triggerAnomalyDialog,
+  ]);
+
+  useEffect(() => {
+    if (!activeTripId || options?.tripStatus !== 'active') {
+      clearDetectionInterval();
+      return;
+    }
+
+    runDetection();
+
+    detectionIntervalRef.current = setInterval(runDetection, DETECTION_INTERVAL_MS);
+
+    return clearDetectionInterval;
+  }, [activeTripId, options?.tripStatus, runDetection, clearDetectionInterval]);
+
+  const presentAnomalyDialog = useCallback((anomalyType?: AnomalyType) => {
     setState((prev) => ({
       ...prev,
       showAnomalyDialog: true,
+      detectedAnomalyType: anomalyType ?? prev.detectedAnomalyType ?? 'generic',
       anomalyShownForTrip: true,
     }));
   }, []);
@@ -90,10 +220,12 @@ export function useAnomalyDetection() {
 
   const handleAllGood = useCallback(() => {
     clearNoResponseTimer();
+    stationarySinceRef.current = null;
     setState((prev) => ({
       ...prev,
       showNoResponseDialog: false,
       currentAnomaly: null,
+      anomalyShownForTrip: false,
       noResponseShownForAnomaly: true,
     }));
   }, [clearNoResponseTimer]);
@@ -118,9 +250,12 @@ export function useAnomalyDetection() {
 
   const resetAnomaly = useCallback(() => {
     clearNoResponseTimer();
+    stationarySinceRef.current = null;
     setState((prev) => ({
       ...prev,
       currentAnomaly: null,
+      detectedAnomalyType: null,
+      anomalyShownForTrip: false,
       noResponseShownForAnomaly: false,
     }));
   }, [clearNoResponseTimer]);
@@ -129,6 +264,7 @@ export function useAnomalyDetection() {
     showAnomalyDialog: state.showAnomalyDialog,
     showNoResponseDialog: state.showNoResponseDialog,
     currentAnomaly: state.currentAnomaly,
+    detectedAnomalyType: state.detectedAnomalyType,
     presentAnomalyDialog,
     dismissAnomalyDialog,
     handleAnomalySelect,

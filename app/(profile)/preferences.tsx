@@ -55,7 +55,7 @@ export default function PreferencesScreen() {
   const [passwordEndTrip, setPasswordEndTrip] = useState(false);
 
   return (
-    <DarkScreen scrollable avoidKeyboard>
+    <DarkScreen scrollable avoidKeyboard headerTitle="Préférences">
       <SectionHeader title="Alertes automatiques" />
       <View style={styles.card}>
         <Slider

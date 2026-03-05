@@ -1,3 +1,19 @@
+/** Returns true when it's night-time in France (18:00–05:59 Europe/Paris). */
+export function isFranceNight(): boolean {
+  const hour = new Date().toLocaleString('en-US', {
+    hour: 'numeric',
+    hour12: false,
+    timeZone: 'Europe/Paris',
+  });
+  const h = Number(hour);
+  return h >= 18 || h < 6;
+}
+
+/** Returns the appropriate map style based on time of day in France. */
+export function getMapStyle(): typeof DARK_MAP_STYLE | [] {
+  return isFranceNight() ? DARK_MAP_STYLE : [];
+}
+
 /** Dark map style for Google Maps — shared across all map instances. */
 export const DARK_MAP_STYLE = [
   { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },

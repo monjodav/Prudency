@@ -409,6 +409,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     color: colors.white,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   hintLight: {
     fontSize: ms(13, 0.3),
@@ -417,5 +420,8 @@ const styles = StyleSheet.create({
     color: colors.white,
     textAlign: 'center',
     marginTop: spacing[1],
+    textShadowColor: 'rgba(0, 0, 0, 1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 });

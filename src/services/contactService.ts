@@ -149,6 +149,23 @@ export async function sendInvitation(contactId: string): Promise<void> {
   return data;
 }
 
+export async function respondToContactInvitation(
+  contactId: string,
+  response: 'accepted' | 'refused',
+): Promise<void> {
+  const { error } = await supabase
+    .from('trusted_contacts')
+    .update({
+      validation_status: response,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', contactId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function deleteContact(id: string): Promise<void> {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 

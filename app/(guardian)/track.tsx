@@ -1,5 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  Linking,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { colors } from '@/src/theme/colors';
@@ -7,85 +14,176 @@ import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
 import { TripMap } from '@/src/components/map/TripMap';
+import { useGuardianTripDetail } from '@/src/hooks/useGuardianAlert';
+import { useRealtimeLocation } from '@/src/hooks/useRealtimeLocation';
 import { ms, scaledIcon, scaledShadow } from '@/src/utils/scaling';
 
 export default function TrackScreen() {
-  const { personId } = useLocalSearchParams<{ personId: string }>();
+  const { tripId, personId } = useLocalSearchParams<{
+    tripId?: string;
+    personId?: string;
+  }>();
   const router = useRouter();
 
-  const [personData] = useState({
-    name: 'Marie Dupont',
-    phone: '+33 6 12 34 56 78',
-    status: 'trip_active' as const,
-    batteryLevel: 72,
-    currentPosition: {
-      lat: 48.8566,
-      lng: 2.3522,
-    },
-    destination: {
-      name: 'Maison',
-      lat: 48.8698,
-      lng: 2.3298,
-    },
-    estimatedArrival: '18:30',
-    startedAt: '17:45',
+  const { data, isLoading, error } = useGuardianTripDetail(tripId ?? null);
+
+  const { location: realtimeLocation, isConnected } = useRealtimeLocation({
+    tripId: data?.trip.id ?? null,
+    enabled: !!data?.trip.id,
   });
 
+  const trip = data?.trip;
+  const person = data?.person;
+  const alert = data?.alert;
+
+  const currentLat = realtimeLocation?.lat ?? trip?.departure_lat ?? null;
+  const currentLng = realtimeLocation?.lng ?? trip?.departure_lng ?? null;
+  const currentBattery = realtimeLocation?.batteryLevel ?? alert?.battery_level ?? null;
+
   const handleCall = () => {
-    // Placeholder: initiate phone call
+    if (person?.phone) {
+      Linking.openURL(`tel:${person.phone}`);
+    }
   };
 
   const handleMessage = () => {
-    // Placeholder: open SMS
+    if (person?.phone) {
+      Linking.openURL(`sms:${person.phone}`);
+    }
   };
+
+  const formatTime = (isoString: string | null | undefined) => {
+    if (!isoString) return '--:--';
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centeredContent]}>
+        <ActivityIndicator size="large" color={colors.primary[500]} />
+      </View>
+    );
+  }
+
+  if (error || !data || !trip || !person) {
+    return (
+      <View style={[styles.container, styles.centeredContent]}>
+        <FontAwesome name="exclamation-circle" size={scaledIcon(48)} color={colors.gray[400]} />
+        <Text style={styles.errorText}>Impossible de charger le trajet</Text>
+        <Button
+          title="Fermer"
+          variant="outline"
+          onPress={() => router.back()}
+        />
+      </View>
+    );
+  }
+
+  const userLocation = currentLat != null && currentLng != null
+    ? { lat: currentLat, lng: currentLng }
+    : null;
+
+  const arrival = trip.arrival_lat != null && trip.arrival_lng != null
+    ? { lat: trip.arrival_lat, lng: trip.arrival_lng }
+    : null;
 
   return (
     <View style={styles.container}>
       <View style={styles.mapContainer}>
-        <TripMap
-          userLocation={personData.currentPosition}
-          arrival={personData.destination}
-        />
+        {userLocation && (
+          <TripMap
+            userLocation={userLocation}
+            arrival={arrival ?? undefined}
+          />
+        )}
+        {!userLocation && (
+          <View style={styles.noMapContainer}>
+            <FontAwesome name="map-o" size={scaledIcon(48)} color={colors.gray[300]} />
+            <Text style={styles.noMapText}>Position non disponible</Text>
+          </View>
+        )}
+
+        {isConnected && (
+          <View style={styles.liveOverlay}>
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveBadgeText}>EN DIRECT</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       <View style={styles.infoPanel}>
         <View style={styles.personHeader}>
           <View style={styles.avatarPlaceholder}>
             <Text style={styles.avatarText}>
-              {personData.name.charAt(0).toUpperCase()}
+              {person.name.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.personInfo}>
-            <Text style={styles.personName}>{personData.name}</Text>
-            <Text style={styles.tripStatus}>En trajet vers {personData.destination.name}</Text>
+            <Text style={styles.personName}>{person.name}</Text>
+            <Text style={styles.tripStatus}>
+              {alert
+                ? 'Alerte en cours'
+                : trip.arrival_address
+                  ? `En trajet vers ${trip.arrival_address}`
+                  : 'En trajet'}
+            </Text>
           </View>
-          <View style={styles.batteryContainer}>
-            <FontAwesome
-              name={personData.batteryLevel > 20 ? 'battery-three-quarters' : 'battery-quarter'}
-              size={scaledIcon(16)}
-              color={personData.batteryLevel > 20 ? colors.success[500] : colors.error[500]}
-            />
-            <Text style={styles.batteryText}>{personData.batteryLevel}%</Text>
-          </View>
+          {currentBattery != null && (
+            <View style={styles.batteryContainer}>
+              <FontAwesome
+                name={currentBattery > 20 ? 'battery-three-quarters' : 'battery-quarter'}
+                size={scaledIcon(16)}
+                color={currentBattery > 20 ? colors.success[500] : colors.error[500]}
+              />
+              <Text style={styles.batteryText}>{currentBattery}%</Text>
+            </View>
+          )}
         </View>
+
+        {alert && (
+          <View style={styles.alertBanner}>
+            <FontAwesome name="exclamation-triangle" size={scaledIcon(16)} color={colors.error[600]} />
+            <Text style={styles.alertBannerText}>
+              Alerte declenchee a {formatTime(alert.triggered_at)}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.tripDetails}>
           <View style={styles.detailRow}>
             <FontAwesome name="clock-o" size={scaledIcon(16)} color={colors.gray[500]} />
             <Text style={styles.detailText}>
-              Depart : {personData.startedAt}
+              Depart : {formatTime(trip.started_at)}
             </Text>
           </View>
-          <View style={styles.detailRow}>
-            <FontAwesome name="flag-checkered" size={scaledIcon(16)} color={colors.gray[500]} />
-            <Text style={styles.detailText}>
-              Arrivee prevue : {personData.estimatedArrival}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <FontAwesome name="map-marker" size={scaledIcon(16)} color={colors.primary[500]} />
-            <Text style={styles.detailText}>{personData.destination.name}</Text>
-          </View>
+          {trip.estimated_arrival_at && (
+            <View style={styles.detailRow}>
+              <FontAwesome name="flag-checkered" size={scaledIcon(16)} color={colors.gray[500]} />
+              <Text style={styles.detailText}>
+                Arrivee prevue : {formatTime(trip.estimated_arrival_at)}
+              </Text>
+            </View>
+          )}
+          {trip.arrival_address && (
+            <View style={styles.detailRow}>
+              <FontAwesome name="map-marker" size={scaledIcon(16)} color={colors.primary[500]} />
+              <Text style={styles.detailText}>{trip.arrival_address}</Text>
+            </View>
+          )}
+          {realtimeLocation?.recordedAt && (
+            <View style={styles.detailRow}>
+              <FontAwesome name="wifi" size={scaledIcon(16)} color={colors.success[500]} />
+              <Text style={styles.detailText}>
+                Derniere position : {formatTime(realtimeLocation.recordedAt)}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.actions}>
@@ -115,8 +213,56 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.white,
   },
+  centeredContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing[6],
+    gap: spacing[4],
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.gray[600],
+  },
   mapContainer: {
     flex: 1,
+    position: 'relative',
+  },
+  noMapContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.gray[100],
+    gap: spacing[3],
+  },
+  noMapText: {
+    ...typography.body,
+    color: colors.gray[400],
+  },
+  liveOverlay: {
+    position: 'absolute',
+    top: spacing[4],
+    right: spacing[4],
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    backgroundColor: colors.error[500],
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: borderRadius.full,
+  },
+  liveDot: {
+    width: ms(8, 0.5),
+    height: ms(8, 0.5),
+    borderRadius: ms(8, 0.5) / 2,
+    backgroundColor: colors.white,
+  },
+  liveBadgeText: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   infoPanel: {
     backgroundColor: colors.white,
@@ -168,6 +314,20 @@ const styles = StyleSheet.create({
   batteryText: {
     ...typography.bodySmall,
     color: colors.gray[600],
+  },
+  alertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.error[50],
+    padding: spacing[3],
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing[4],
+  },
+  alertBannerText: {
+    ...typography.bodySmall,
+    color: colors.error[700],
+    fontWeight: '600',
   },
   tripDetails: {
     backgroundColor: colors.gray[50],

@@ -16,6 +16,7 @@ interface BottomInfoPanelProps {
   onEndTrip: () => void;
   onPauseTrip: () => void;
   onExtendTrip: () => void;
+  onEditTrip: () => void;
   onCancelTrip: () => void;
   isCancelling: boolean;
 }
@@ -27,6 +28,7 @@ export function BottomInfoPanel({
   onEndTrip,
   onPauseTrip,
   onExtendTrip,
+  onEditTrip,
   onCancelTrip,
   isCancelling,
 }: BottomInfoPanelProps) {
@@ -105,6 +107,14 @@ export function BottomInfoPanel({
           fullWidth
           size="md"
           icon={<Ionicons name="time-outline" size={scaledIcon(20)} color={colors.primary[50]} />}
+        />
+        <Button
+          title="Modifier le trajet"
+          variant="outline"
+          onPress={onEditTrip}
+          fullWidth
+          size="md"
+          icon={<Ionicons name="create-outline" size={scaledIcon(20)} color={colors.primary[50]} />}
         />
         <Pressable
           style={styles.cancelLink}

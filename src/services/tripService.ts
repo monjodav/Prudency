@@ -220,7 +220,56 @@ export async function cancelTrip(id: string): Promise<TripRow> {
     throw error;
   }
 
-  return data as TripRow;
+  const trip = data as TripRow;
+
+  if (trip.trusted_contact_id) {
+    notifyCancelTrip(trip.id).catch(() => undefined);
+  }
+
+  return trip;
+}
+
+export async function notifyCancelTrip(tripId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('notify-trip-cancelled', {
+    body: { tripId },
+  });
+
+  if (error) {
+    if (__DEV__) console.warn('Notify cancel failed:', error);
+  }
+}
+
+export interface EditTripInput {
+  arrivalAddress?: string;
+  arrivalLat?: number;
+  arrivalLng?: number;
+  estimatedArrivalAt?: string;
+  estimatedDurationMinutes?: number;
+}
+
+export async function editActiveTrip(
+  id: string,
+  input: EditTripInput,
+): Promise<TripRow> {
+  const updates: Parameters<typeof updateTrip>[1] = {};
+
+  if (input.arrivalAddress !== undefined) {
+    updates.arrival_address = input.arrivalAddress;
+  }
+  if (input.arrivalLat !== undefined) {
+    updates.arrival_lat = input.arrivalLat;
+  }
+  if (input.arrivalLng !== undefined) {
+    updates.arrival_lng = input.arrivalLng;
+  }
+  if (input.estimatedArrivalAt !== undefined) {
+    updates.estimated_arrival_at = input.estimatedArrivalAt;
+  }
+  if (input.estimatedDurationMinutes !== undefined) {
+    updates.estimated_duration_minutes = input.estimatedDurationMinutes;
+  }
+
+  return updateTrip(id, updates);
 }
 
 export async function completeTrip(id: string): Promise<TripRow> {
@@ -236,6 +285,7 @@ export async function completeTrip(id: string): Promise<TripRow> {
   const updateData: TripUpdate = {
     status: TRIP_STATUS.COMPLETED,
     completed_at: new Date().toISOString(),
+    validated_at: new Date().toISOString(),
   };
 
   const { data, error } = await supabase
@@ -250,5 +300,21 @@ export async function completeTrip(id: string): Promise<TripRow> {
     throw error;
   }
 
-  return data as TripRow;
+  const trip = data as TripRow;
+
+  if (trip.trusted_contact_id) {
+    notifyArrival(trip.id).catch(() => undefined);
+  }
+
+  return trip;
+}
+
+export async function notifyArrival(tripId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('notify-arrival', {
+    body: { tripId },
+  });
+
+  if (error) {
+    if (__DEV__) console.warn('Notify arrival failed:', error);
+  }
 }
