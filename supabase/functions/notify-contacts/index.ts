@@ -50,48 +50,31 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization" }), {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Internal-only: require X-Internal-Secret header
+    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
+    if (!internalSecret) {
+      return new Response(
+        JSON.stringify({ error: "Server misconfigured" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const isServiceCall = await timingSafeEqual(internalSecret, req.headers.get("X-Internal-Secret") ?? "");
+    if (!isServiceCall) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
     // Use service role to read contacts across RLS boundaries
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Check if this is a service-level call (from check-trip-timeout or other internal function)
-    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
-    const isServiceCall = !!(internalSecret && await timingSafeEqual(internalSecret, req.headers.get("X-Internal-Secret") ?? ""));
-
-    let userId: string | null = null;
-
-    if (isServiceCall) {
-      // Service-level call - userId will be extracted from the alert
-      userId = null; // Will be set after fetching the alert
-    } else {
-      // User-level call - verify the caller is authenticated
-      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-      const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-
-      const {
-        data: { user },
-        error: authError,
-      } = await supabaseAuth.auth.getUser();
-      if (authError || !user) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      userId = user.id;
-    }
 
     // Parse and validate input
     const body = await req.json();
@@ -148,15 +131,6 @@ Deno.serve(async (req) => {
 
     const alertData = alert as unknown as AlertWithUser;
 
-    // For user-level calls, verify alert belongs to authenticated user
-    // For service-level calls, skip this check (already authorized)
-    if (userId !== null && alertData.user_id !== userId) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // Fetch trusted contacts for this user
     const { data: contacts, error: contactsError } = await supabaseAdmin
       .from("trusted_contacts")
@@ -209,9 +183,7 @@ Deno.serve(async (req) => {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                ...(isServiceCall
-                  ? { "X-Internal-Secret": internalSecret! }
-                  : { Authorization: authHeader! }),
+                "X-Internal-Secret": internalSecret,
               },
               body: JSON.stringify({
                 to: contact.phone,

@@ -98,16 +98,6 @@ export async function updatePassword(newPassword: string) {
   }
 }
 
-export async function getSession() {
-  const { data, error } = await supabase.auth.getSession();
-
-  if (error) {
-    throw error;
-  }
-
-  return data.session;
-}
-
 export async function getProfile(): Promise<Profile> {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 

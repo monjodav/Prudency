@@ -41,9 +41,9 @@ export default function GuardianScreen() {
   }, []);
 
   const handleAccept = useCallback(async () => {
-    if (!selectedContact) return;
+    if (!selectedContact?.invitation_token) return;
     try {
-      await respondToInvitation({ contactId: selectedContact.id, response: 'accepted' });
+      await respondToInvitation({ token: selectedContact.invitation_token, response: 'accepted' });
       setSnackbar({ visible: true, title: 'Demande acceptee', variant: 'success' });
       setSelectedContact(null);
     } catch {
@@ -52,9 +52,9 @@ export default function GuardianScreen() {
   }, [selectedContact, respondToInvitation]);
 
   const handleRefuse = useCallback(async () => {
-    if (!selectedContact) return;
+    if (!selectedContact?.invitation_token) return;
     try {
-      await respondToInvitation({ contactId: selectedContact.id, response: 'refused' });
+      await respondToInvitation({ token: selectedContact.invitation_token, response: 'refused' });
       setSnackbar({ visible: true, title: 'Demande refusee', variant: 'error' });
       setSelectedContact(null);
     } catch {

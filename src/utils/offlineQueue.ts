@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { documentDirectory, getInfoAsync, readAsStringAsync, writeAsStringAsync } from 'expo-file-system/legacy';
 
 const MAX_QUEUE_SIZE = 200;
 
@@ -11,16 +11,21 @@ interface QueueItem<T> {
 
 export class OfflineQueue<T> {
   private items: QueueItem<T>[] = [];
-  private readonly storageKey: string;
+  private readonly filePath: string;
   private flushing = false;
 
   constructor(storageKey: string) {
-    this.storageKey = `prudency_queue_${storageKey}`;
+    this.filePath = `${documentDirectory}prudency_queue_${storageKey}.json`;
   }
 
   async load(): Promise<void> {
     try {
-      const raw = await SecureStore.getItemAsync(this.storageKey);
+      const info = await getInfoAsync(this.filePath);
+      if (!info.exists) {
+        this.items = [];
+        return;
+      }
+      const raw = await readAsStringAsync(this.filePath);
       if (raw) {
         this.items = JSON.parse(raw) as QueueItem<T>[];
       }
@@ -93,23 +98,12 @@ export class OfflineQueue<T> {
 
   private async persist(): Promise<void> {
     try {
-      await SecureStore.setItemAsync(
-        this.storageKey,
+      await writeAsStringAsync(
+        this.filePath,
         JSON.stringify(this.items),
       );
     } catch {
-      // SecureStore has a 2048 byte limit per item — if exceeded, trim
-      if (this.items.length > 50) {
-        this.items = this.items.slice(-50);
-        try {
-          await SecureStore.setItemAsync(
-            this.storageKey,
-            JSON.stringify(this.items),
-          );
-        } catch {
-          // Last resort: clear storage, keep in-memory only
-        }
-      }
+      // File write failed — keep in-memory only
     }
   }
 }

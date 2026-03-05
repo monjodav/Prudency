@@ -166,14 +166,13 @@ Deno.serve(async (req) => {
       console.error("Update trip status error:", updateError);
     }
 
-    // Notify contacts via internal call (using service role key for auth)
+    // Notify contacts via internal call (using X-Internal-Secret for auth)
     try {
       const notifyResponse = await fetchWithRetry(
         `${supabaseUrl}/functions/v1/notify-contacts`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${supabaseServiceKey}`,
             "Content-Type": "application/json",
             ...(internalSecret ? { "X-Internal-Secret": internalSecret } : {}),
           },

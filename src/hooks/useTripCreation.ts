@@ -6,7 +6,7 @@ import { useTrip } from '@/src/hooks/useTrip';
 import { useContacts } from '@/src/hooks/useContacts';
 import { useLocation } from '@/src/hooks/useLocation';
 import { usePastTrips } from '@/src/hooks/useHistory';
-import { useSavedPlaces } from '@/src/hooks/useSavedPlaces';
+import { usePlaces } from '@/src/hooks/usePlaces';
 import { useTripStore } from '@/src/stores/tripStore';
 import { searchPlaces, getPlaceDetails, reverseGeocode } from '@/src/services/placesService';
 import { fetchDirectionsMultiple, buildRouteSegments } from '@/src/services/directionsService';
@@ -28,7 +28,7 @@ export function useTripCreation() {
   const { contacts, isLoading: contactsLoading, createContact, isCreating: isCreatingContact } = useContacts();
   const { getCurrentLocation, startTracking } = useLocation();
   const { trips: pastTrips } = usePastTrips();
-  const { places: savedPlacesData } = useSavedPlaces();
+  const { places: savedPlacesData } = usePlaces();
   const { setActiveTrip, setTripDetails } = useTripStore();
 
   const [destinationAddress, setDestinationAddress] = useState('');

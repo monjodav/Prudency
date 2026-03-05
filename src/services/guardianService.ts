@@ -139,11 +139,15 @@ export async function getGuardianAlertDetail(
     .eq('id', trip.user_id)
     .single();
 
-  const { data: contact } = await supabase
-    .from('trusted_contacts')
-    .select('name, phone')
-    .eq('id', trip.trusted_contact_id!)
-    .single();
+  let contact: { name: string; phone: string } | null = null;
+  if (trip.trusted_contact_id) {
+    const { data: rawContact } = await supabase
+      .from('trusted_contacts')
+      .select('name, phone')
+      .eq('id', trip.trusted_contact_id)
+      .single();
+    contact = rawContact;
+  }
 
   const personName = [profile?.first_name, profile?.last_name]
     .filter(Boolean)
@@ -187,11 +191,15 @@ export async function getGuardianTripDetail(tripId: string): Promise<{
     .eq('id', trip.user_id)
     .single();
 
-  const { data: contact } = await supabase
-    .from('trusted_contacts')
-    .select('name, phone')
-    .eq('id', trip.trusted_contact_id!)
-    .single();
+  let contact: { name: string; phone: string } | null = null;
+  if (trip.trusted_contact_id) {
+    const { data: rawContact } = await supabase
+      .from('trusted_contacts')
+      .select('name, phone')
+      .eq('id', trip.trusted_contact_id)
+      .single();
+    contact = rawContact;
+  }
 
   const personName = [profile?.first_name, profile?.last_name]
     .filter(Boolean)

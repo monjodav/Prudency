@@ -36,9 +36,9 @@ export function GuardianTab() {
   }, []);
 
   const handleAccept = useCallback(async () => {
-    if (!selectedContact) return;
+    if (!selectedContact?.invitation_token) return;
     try {
-      await respondToInvitation({ contactId: selectedContact.id, response: 'accepted' });
+      await respondToInvitation({ token: selectedContact.invitation_token, response: 'accepted' });
       setSnackbar({ visible: true, title: 'Demande acceptée', variant: 'success' });
       setSelectedContact(null);
     } catch {
@@ -47,9 +47,9 @@ export function GuardianTab() {
   }, [selectedContact, respondToInvitation]);
 
   const handleRefuse = useCallback(async () => {
-    if (!selectedContact) return;
+    if (!selectedContact?.invitation_token) return;
     try {
-      await respondToInvitation({ contactId: selectedContact.id, response: 'refused' });
+      await respondToInvitation({ token: selectedContact.invitation_token, response: 'refused' });
       setSnackbar({ visible: true, title: 'Demande refusée', variant: 'error' });
       setSelectedContact(null);
     } catch {

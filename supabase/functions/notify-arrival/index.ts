@@ -96,8 +96,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Rate limit: max 1 arrival notification per trip
-    if (trip.arrival_notified) {
+    // Atomically claim the notification to prevent race conditions
+    const { data: claimed, error: claimError } = await supabaseAdmin
+      .from("trips")
+      .update({ arrival_notified: true })
+      .eq("id", tripId)
+      .eq("arrival_notified", false)
+      .select("id")
+      .maybeSingle();
+
+    if (claimError) {
+      console.error("Atomic claim error:", claimError);
+      return new Response(
+        JSON.stringify({ error: "Internal server error" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (!claimed) {
       return new Response(
         JSON.stringify({ error: "Arrival notification already sent for this trip" }),
         {
@@ -201,12 +220,6 @@ Deno.serve(async (req) => {
       );
 
     await Promise.all(smsPromises);
-
-    // Mark trip as notified to prevent duplicate notifications
-    await supabaseAdmin
-      .from("trips")
-      .update({ arrival_notified: true })
-      .eq("id", tripId);
 
     return new Response(JSON.stringify(output), {
       status: 200,

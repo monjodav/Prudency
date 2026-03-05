@@ -88,7 +88,7 @@ export default function ActiveTripScreen() {
         if (r) setRoute(r);
       });
     }
-  }, [departure?.lat, departure?.lng, arrival?.lat, arrival?.lng]);
+  }, [departure?.lat, departure?.lng, arrival?.lat, arrival?.lng, route]);
 
   useEffect(() => {
     if (!isTracking) {

@@ -23,18 +23,20 @@ async function checkConnectivity(): Promise<boolean> {
 
 export function useNetworkStatus() {
   const [isOnline, setIsOnline] = useState(true);
+  const isOnlineRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onReconnectCallbacks = useRef<Array<() => void>>([]);
 
   const check = useCallback(async () => {
-    const wasOnline = isOnline;
     const nowOnline = await checkConnectivity();
     setIsOnline(nowOnline);
 
-    if (!wasOnline && nowOnline) {
+    if (!isOnlineRef.current && nowOnline) {
       onReconnectCallbacks.current.forEach((cb) => cb());
     }
-  }, [isOnline]);
+
+    isOnlineRef.current = nowOnline;
+  }, []);
 
   const onReconnect = useCallback((callback: () => void) => {
     onReconnectCallbacks.current.push(callback);
@@ -46,7 +48,10 @@ export function useNetworkStatus() {
   }, []);
 
   useEffect(() => {
-    checkConnectivity().then(setIsOnline);
+    checkConnectivity().then((online) => {
+      setIsOnline(online);
+      isOnlineRef.current = online;
+    });
 
     intervalRef.current = setInterval(check, CHECK_INTERVAL_MS);
 

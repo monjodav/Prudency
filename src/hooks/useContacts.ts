@@ -38,8 +38,8 @@ export function useContacts() {
   });
 
   const respondToInvitationMutation = useMutation({
-    mutationFn: ({ contactId, response }: { contactId: string; response: 'accepted' | 'refused' }) =>
-      contactService.respondToContactInvitation(contactId, response),
+    mutationFn: ({ token, response }: { token: string; response: 'accepted' | 'refused' }) =>
+      contactService.respondToContactInvitation(token, response),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contacts });
     },

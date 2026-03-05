@@ -4,10 +4,12 @@ import type { useActiveTrip } from '@/src/hooks/useActiveTrip';
 export function useTripTiming(trip: ReturnType<typeof useActiveTrip>['trip']) {
   const [now, setNow] = useState(Date.now());
 
+  const hasTrip = trip != null;
   useEffect(() => {
+    if (!hasTrip) return;
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [hasTrip]);
 
   return useMemo(() => {
     if (!trip?.started_at) {

@@ -71,9 +71,9 @@ export default function HomeScreen() {
       // Watch position in real time
       subscription = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.High,
+          accuracy: Location.Accuracy.Balanced,
           distanceInterval: 5,
-          timeInterval: 3000,
+          timeInterval: 10000,
         },
         (location) => {
           if (cancelled) return;

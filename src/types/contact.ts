@@ -19,4 +19,3 @@ export interface ContactUpdateInput {
   isFavorite?: boolean;
 }
 
-export type ContactWithValidation = TrustedContactRow;

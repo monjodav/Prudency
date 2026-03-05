@@ -116,54 +116,20 @@ export async function updateContact(
   return data as TrustedContactRow;
 }
 
-export async function sendInvitation(contactId: string): Promise<void> {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    throw authError ?? new Error('Utilisateur non connecté');
-  }
-
-  const contact = await getContactById(contactId);
-
-  if (contact.user_id !== user.id) {
-    throw new Error('Ce contact ne vous appartient pas');
-  }
-
-  const { data, error } = await supabase.functions.invoke(
-    'send-contact-invitation',
-    {
-      body: {
-        contactId,
-        recipientPhone: contact.phone,
-        recipientName: contact.name,
-      },
-    },
-  );
-
-  if (error) {
-    throw new Error(
-      error.message ?? "Erreur lors de l'envoi de l'invitation",
-    );
-  }
-
-  return data;
-}
-
 export async function respondToContactInvitation(
-  contactId: string,
+  token: string,
   response: 'accepted' | 'refused',
-): Promise<void> {
-  const { error } = await supabase
-    .from('trusted_contacts')
-    .update({
-      validation_status: response,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', contactId);
+): Promise<{ success?: boolean; contactName?: string; error?: string }> {
+  // @ts-expect-error -- respond_to_invitation not yet in generated types
+  const { data, error } = await supabase.rpc('respond_to_invitation', {
+    p_token: token,
+    p_response: response,
+  });
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
+  const result = data as { success?: boolean; contactName?: string; error?: string };
+  if (result.error) throw new Error(result.error);
+  return result;
 }
 
 export async function deleteContact(id: string): Promise<void> {

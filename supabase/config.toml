@@ -58,7 +58,7 @@ enabled = false
 verify_jwt = true
 
 [functions.send-sms]
-verify_jwt = true
+verify_jwt = false
 
 [functions.check-trip-timeout]
 verify_jwt = false
@@ -67,7 +67,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.notify-contacts]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-contact-invitation]
 verify_jwt = true

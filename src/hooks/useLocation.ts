@@ -31,7 +31,38 @@ export function useLocation(options?: AdaptiveTrackingOptions) {
   } = useTripStore();
 
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+  const startingRef = useRef(false);
   const currentModeRef = useRef<TrackingMode>('idle');
+
+  const handleLocationUpdate = useCallback(
+    async (location: Location.LocationObject) => {
+      const { latitude: lat, longitude: lng } = location.coords;
+      updateLocation(lat, lng);
+
+      const tripId = useTripStore.getState().activeTripId;
+      if (!tripId) {
+        return;
+      }
+
+      try {
+        const battery = await getBatteryLevel();
+        setBatteryLevel(battery);
+
+        await locationService.updateLocationWithQueue({
+          tripId,
+          lat,
+          lng,
+          accuracy: location.coords.accuracy ?? undefined,
+          speed: location.coords.speed ?? undefined,
+          heading: location.coords.heading ?? undefined,
+          batteryLevel: battery,
+        });
+      } catch {
+        // Silently fail to avoid disrupting tracking
+      }
+    },
+    [updateLocation, setBatteryLevel],
+  );
 
   const applyTrackingConfig = useCallback(async (mode: TrackingMode) => {
     const config = getTrackingConfig(mode, batteryLevel);
@@ -47,32 +78,7 @@ export function useLocation(options?: AdaptiveTrackingOptions) {
         timeInterval: config.timeInterval,
         distanceInterval: config.distanceInterval,
       },
-      async (location) => {
-        const { latitude: lat, longitude: lng } = location.coords;
-        updateLocation(lat, lng);
-
-        const tripId = useTripStore.getState().activeTripId;
-        if (!tripId) {
-          return;
-        }
-
-        try {
-          const battery = await getBatteryLevel();
-          setBatteryLevel(battery);
-
-          await locationService.updateLocationWithQueue({
-            tripId,
-            lat,
-            lng,
-            accuracy: location.coords.accuracy ?? undefined,
-            speed: location.coords.speed ?? undefined,
-            heading: location.coords.heading ?? undefined,
-            batteryLevel: battery,
-          });
-        } catch {
-          // Silently fail to avoid disrupting tracking
-        }
-      },
+      handleLocationUpdate,
     );
 
     try {
@@ -83,70 +89,48 @@ export function useLocation(options?: AdaptiveTrackingOptions) {
 
     currentModeRef.current = mode;
     setTrackingMode(mode);
-  }, [batteryLevel, updateLocation, setBatteryLevel, setTrackingMode]);
+  }, [batteryLevel, handleLocationUpdate, setTrackingMode]);
 
   const startTracking = useCallback(async () => {
-    const permission = await requestLocationPermission();
-    if (permission !== 'granted') {
-      throw new Error('Permission de localisation refusee');
-    }
-
-    if (watchRef.current) {
-      return;
-    }
-
-    setTracking(true);
-
-    const initialMode = resolveTrackingMode(
-      options?.tripStatus ?? 'active',
-      isAlerted,
-      options?.remainingMinutes ?? null,
-      options?.tripStartedAt ?? null,
-    );
-
-    const config = getTrackingConfig(initialMode, batteryLevel);
-
-    watchRef.current = await Location.watchPositionAsync(
-      {
-        accuracy: config.accuracy,
-        timeInterval: config.timeInterval,
-        distanceInterval: config.distanceInterval,
-      },
-      async (location) => {
-        const { latitude: lat, longitude: lng } = location.coords;
-        updateLocation(lat, lng);
-
-        const tripId = useTripStore.getState().activeTripId;
-        if (!tripId) {
-          return;
-        }
-
-        try {
-          const battery = await getBatteryLevel();
-          setBatteryLevel(battery);
-
-          await locationService.updateLocationWithQueue({
-            tripId,
-            lat,
-            lng,
-            accuracy: location.coords.accuracy ?? undefined,
-            speed: location.coords.speed ?? undefined,
-            heading: location.coords.heading ?? undefined,
-            batteryLevel: battery,
-          });
-        } catch {
-          // Silently fail to avoid disrupting tracking
-        }
-      },
-    );
-
-    currentModeRef.current = initialMode;
-    setTrackingMode(initialMode);
+    if (watchRef.current || startingRef.current) return;
+    startingRef.current = true;
 
     try {
-      await locationService.startBackgroundTracking(config);
-    } catch {
-      // Background tracking not available
+      const permission = await requestLocationPermission();
+      if (permission !== 'granted') {
+        throw new Error('Permission de localisation refusee');
+      }
+
+      setTracking(true);
+
+      const initialMode = resolveTrackingMode(
+        options?.tripStatus ?? 'active',
+        isAlerted,
+        options?.remainingMinutes ?? null,
+        options?.tripStartedAt ?? null,
+      );
+
+      const config = getTrackingConfig(initialMode, batteryLevel);
+
+      watchRef.current = await Location.watchPositionAsync(
+        {
+          accuracy: config.accuracy,
+          timeInterval: config.timeInterval,
+          distanceInterval: config.distanceInterval,
+        },
+        handleLocationUpdate,
+      );
+
+      currentModeRef.current = initialMode;
+      setTrackingMode(initialMode);
+
+      try {
+        await locationService.startBackgroundTracking(config);
+      } catch {
+        // Background tracking not available
+      }
+    } finally {
+      startingRef.current = false;
     }
   }, [
     options?.tripStatus,
@@ -156,8 +140,7 @@ export function useLocation(options?: AdaptiveTrackingOptions) {
     batteryLevel,
     setTracking,
     setTrackingMode,
-    updateLocation,
-    setBatteryLevel,
+    handleLocationUpdate,
   ]);
 
   const stopTracking = useCallback(async () => {

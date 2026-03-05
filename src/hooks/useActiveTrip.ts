@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as tripService from '@/src/services/tripService';
 import { useTripStore } from '@/src/stores/tripStore';
@@ -52,21 +52,29 @@ export function useActiveTrip() {
     };
   }, [session, trip?.id, queryClient]);
 
+  const [now, setNow] = useState(Date.now());
+  const hasTrip = trip != null;
+
+  useEffect(() => {
+    if (!hasTrip) return;
+    const interval = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(interval);
+  }, [hasTrip]);
+
   const remainingMinutes = useMemo(() => {
     if (!trip?.estimated_arrival_at) {
       return 0;
     }
     const arrival = new Date(trip.estimated_arrival_at).getTime();
-    const now = Date.now();
     return Math.max(0, Math.round((arrival - now) / (1000 * 60)));
-  }, [trip?.estimated_arrival_at]);
+  }, [trip?.estimated_arrival_at, now]);
 
   const isOvertime = useMemo(() => {
     if (!trip?.estimated_arrival_at) {
       return false;
     }
-    return Date.now() > new Date(trip.estimated_arrival_at).getTime();
-  }, [trip?.estimated_arrival_at]);
+    return now > new Date(trip.estimated_arrival_at).getTime();
+  }, [trip?.estimated_arrival_at, now]);
 
   return {
     trip,

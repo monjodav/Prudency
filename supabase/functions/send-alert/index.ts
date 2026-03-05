@@ -165,13 +165,14 @@ Deno.serve(async (req) => {
     const notifiedContacts: NotifiedContact[] = [];
 
     try {
+      const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET") ?? "";
       const notifyResponse = await fetchWithRetry(
         `${supabaseUrl}/functions/v1/notify-contacts`,
         {
           method: "POST",
           headers: {
-            Authorization: authHeader,
             "Content-Type": "application/json",
+            "X-Internal-Secret": internalSecret,
           },
           body: JSON.stringify({ alertId: alert.id }),
         },

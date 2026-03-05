@@ -103,8 +103,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check max attempts
-    if (otpRecord.attempts >= MAX_ATTEMPTS) {
+    // Atomically check and increment attempts to prevent race conditions
+    const { data: claimed, error: claimError } = await adminClient
+      .from("phone_verifications")
+      .update({ attempts: otpRecord.attempts + 1 })
+      .eq("id", otpRecord.id)
+      .lt("attempts", MAX_ATTEMPTS)
+      .select("id")
+      .maybeSingle();
+
+    if (claimError) {
+      console.error("Atomic attempt increment error:", claimError.message);
+      return new Response(
+        JSON.stringify({ error: "Internal server error" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (!claimed) {
       return new Response(
         JSON.stringify({ error: "too_many_attempts" }),
         {
@@ -113,12 +132,6 @@ Deno.serve(async (req) => {
         },
       );
     }
-
-    // Increment attempts
-    await adminClient
-      .from("phone_verifications")
-      .update({ attempts: otpRecord.attempts + 1 })
-      .eq("id", otpRecord.id);
 
     // Verify code (constant-time comparison on hashed values)
     const hashedInput = await sha256(code);

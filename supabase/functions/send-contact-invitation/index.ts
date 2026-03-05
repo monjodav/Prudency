@@ -156,7 +156,20 @@ Deno.serve(async (req) => {
     const message =
       `Bonjour, ${senderName} vous a choisi(e) comme contact de confiance sur Prudency. Téléchargez l'app pour accepter.`;
 
-    // Update the contact record with invitation info
+    // Send SMS first — only update DB on success to avoid wasting invitation count
+    if (!isOvhConfigured()) {
+      return new Response(
+        JSON.stringify({ error: "SMS service not configured" }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    await sendSmsViaOvh(recipientPhone, message);
+
+    // SMS sent successfully — now update the contact record
     const { error: updateError } = await supabaseAdmin
       .from("trusted_contacts")
       .update({
@@ -176,19 +189,6 @@ Deno.serve(async (req) => {
         },
       );
     }
-
-    // Send SMS directly via OVH (recipient is not a Prudency user yet)
-    if (!isOvhConfigured()) {
-      return new Response(
-        JSON.stringify({ error: "SMS service not configured" }),
-        {
-          status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    await sendSmsViaOvh(recipientPhone, message);
 
     const output: SendContactInvitationOutput = {
       status: "sent",

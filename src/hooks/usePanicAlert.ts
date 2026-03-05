@@ -75,12 +75,12 @@ export function usePanicAlert() {
 
   const sendAlertWithData = useCallback(
     async (reason?: string) => {
-      if (!trip) return;
+      if (!trip) return null;
 
       const location = await fetchFreshLocation();
       const battery = await getBatteryLevel().catch(() => batteryLevel);
 
-      await triggerAlert({
+      const alert = await triggerAlert({
         tripId: trip.id,
         type: 'manual',
         reason: reason ?? 'Alerte manuelle (urgence)',
@@ -88,6 +88,8 @@ export function usePanicAlert() {
         lng: location?.lng,
         batteryLevel: battery ?? undefined,
       });
+
+      return alert;
     },
     [trip, fetchFreshLocation, batteryLevel, triggerAlert],
   );
@@ -138,21 +140,22 @@ export function usePanicAlert() {
         locationSharingService.startAlertTracking(trip.id).catch(() => undefined);
 
         if (includeData) {
-          await sendAlertWithData('Alerte manuelle (urgence)');
+          const alert = await sendAlertWithData('Alerte manuelle (urgence)');
           setState((prev) => ({
             ...prev,
             phase: 'sent_with_data',
+            alertId: alert?.id ?? null,
             escalationSecondsLeft: 0,
           }));
           clearEscalationTimers();
         } else {
           // Send contact-only alert (no location/battery data)
-          await triggerAlert({
+          const alert = await triggerAlert({
             tripId: trip.id,
             type: 'manual',
             reason: 'Alerte manuelle (urgence) — prise de contact',
           });
-          setState((prev) => ({ ...prev, phase: 'sent_contact_only' }));
+          setState((prev) => ({ ...prev, phase: 'sent_contact_only', alertId: alert.id }));
           startEscalationCountdown();
         }
 

@@ -55,10 +55,6 @@ export async function stopAlertTracking(): Promise<void> {
   }
 }
 
-export function buildGoogleMapsLink(lat: number, lng: number): string {
-  return `https://maps.google.com/?q=${lat},${lng}`;
-}
-
 export async function getLastKnownLocations(
   tripId: string,
   limit = 10,
