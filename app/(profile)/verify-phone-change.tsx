@@ -2,30 +2,28 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   Pressable,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
+  StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { colors } from '@/src/theme/colors';
+import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { Button } from '@/src/components/ui/Button';
-import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
-import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { sendOtp, verifyOtp } from '@/src/services/otpService';
+import { updateProfile } from '@/src/services/authService';
 import { toE164 } from '@/src/utils/phoneUtils';
-import { useAuth } from '@/src/hooks/useAuth';
 import { scaledSpacing, scaledFontSize, scaledLineHeight, scaledRadius, ms } from '@/src/utils/scaling';
 
 const CODE_LENGTH = 6;
 
-export default function VerifyPhoneScreen() {
+export default function VerifyPhoneChangeScreen() {
   const router = useRouter();
-  const { updateProfile } = useAuth();
+  const queryClient = useQueryClient();
   const { phone: rawPhone } = useLocalSearchParams<{ phone: string }>();
   const phone = rawPhone ? toE164(rawPhone) : undefined;
+
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +38,6 @@ export default function VerifyPhoneScreen() {
   }, [resendTimer]);
 
   const handleCodeChange = (index: number, value: string) => {
-    // Handle autofill / paste of full code
     const digits = value.replace(/\D/g, '');
     if (digits.length > 1) {
       const newCode = [...code];
@@ -71,6 +68,11 @@ export default function VerifyPhoneScreen() {
   };
 
   const handleVerify = async () => {
+    if (!phone) {
+      setError('Numéro de téléphone manquant.');
+      return;
+    }
+
     const fullCode = code.join('');
     if (fullCode.length !== CODE_LENGTH) {
       setError('Renseigne le code complet reçu par SMS.');
@@ -81,7 +83,7 @@ export default function VerifyPhoneScreen() {
     setError(null);
 
     try {
-      const verified = await verifyOtp(phone!, fullCode);
+      const verified = await verifyOtp(phone, fullCode);
 
       if (!verified) {
         setError('Le code saisi est incorrect. Vérifie-le et réessaie.');
@@ -90,7 +92,9 @@ export default function VerifyPhoneScreen() {
         return;
       }
 
-      router.replace('/(auth)/permissions-location');
+      await updateProfile({ phone, phone_verified: true });
+      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+      router.dismiss(2);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '';
       if (message.includes('code_expired')) {
@@ -121,114 +125,72 @@ export default function VerifyPhoneScreen() {
     }
   };
 
-  const displayPhone = phone || '';
   const isCodeComplete = code.every((c) => c !== '');
 
   return (
-    <OnboardingBackground>
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Logo */}
-          <View style={styles.logoTopContainer}>
-            <PrudencyLogo size="md" />
-          </View>
+    <DarkScreen scrollable avoidKeyboard headerTitle="Vérification">
+      <View style={styles.header}>
+        <Text style={styles.title}>Vérifie ton numéro</Text>
+        <Text style={styles.subtitle}>
+          Un code a été envoyé au : {phone ?? ''}{'\n'}
+          Tu as {resendTimer}s pour rentrer le code.
+        </Text>
+      </View>
 
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Vérifie ton numéro</Text>
-            <Text style={styles.subtitle}>
-              Je t'ai envoyé un code au : {displayPhone}{'\n'}
-              Tu as {resendTimer}s pour rentrer le code.
-            </Text>
-          </View>
-
-          {/* OTP Input */}
-          <View style={styles.codeContainer}>
-            {code.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => {
-                  inputRefs.current[index] = ref;
-                }}
-                style={[
-                  styles.codeInput,
-                  digit && styles.codeInputFilled,
-                  error && styles.codeInputError,
-                ]}
-                value={digit}
-                onChangeText={(value) => handleCodeChange(index, value)}
-                onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
-                keyboardType="number-pad"
-                maxLength={index === 0 ? CODE_LENGTH : 1}
-                selectTextOnFocus
-                autoFocus={index === 0}
-                placeholder="_"
-                placeholderTextColor={colors.gray[500]}
-                textContentType={index === 0 ? 'oneTimeCode' : 'none'}
-                autoComplete={index === 0 ? 'sms-otp' : 'off'}
-              />
-            ))}
-          </View>
-
-          {error && <Text style={styles.error}>{error}</Text>}
-
-          {/* Resend link */}
-          <Pressable onPress={handleResend} disabled={resendTimer > 0}>
-            <Text
-              style={[
-                styles.resendLink,
-                resendTimer > 0 && styles.resendLinkDisabled,
-              ]}
-            >
-              Recevoir un nouveau code
-            </Text>
-          </Pressable>
-
-          <View style={styles.spacer} />
-
-          {/* Submit button */}
-          <Button
-            title="Commencer"
-            onPress={handleVerify}
-            loading={isLoading}
-            disabled={!isCodeComplete || isLoading}
-            fullWidth
-          />
-
-          {/* TODO: retirer quand le service OVH SMS standard sera prêt */}
-          <Pressable
-            style={styles.skipButton}
-            onPress={async () => {
-              await updateProfile({ phone_verified: true });
-              router.replace('/(auth)/permissions-location');
+      <View style={styles.codeContainer}>
+        {code.map((digit, index) => (
+          <TextInput
+            key={index}
+            ref={(ref) => {
+              inputRefs.current[index] = ref;
             }}
-          >
-            <Text style={styles.skipText}>Passer cette étape</Text>
-          </Pressable>
+            style={[
+              styles.codeInput,
+              digit && styles.codeInputFilled,
+              error && styles.codeInputError,
+            ]}
+            value={digit}
+            onChangeText={(val) => handleCodeChange(index, val)}
+            onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
+            keyboardType="number-pad"
+            maxLength={index === 0 ? CODE_LENGTH : 1}
+            selectTextOnFocus
+            autoFocus={index === 0}
+            placeholder="_"
+            placeholderTextColor={colors.gray[500]}
+            textContentType={index === 0 ? 'oneTimeCode' : 'none'}
+            autoComplete={index === 0 ? 'sms-otp' : 'off'}
+          />
+        ))}
+      </View>
 
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </OnboardingBackground>
+      {error && <Text style={styles.error}>{error}</Text>}
+
+      <Pressable onPress={handleResend} disabled={resendTimer > 0}>
+        <Text
+          style={[
+            styles.resendLink,
+            resendTimer > 0 && styles.resendLinkDisabled,
+          ]}
+        >
+          Recevoir un nouveau code
+        </Text>
+      </Pressable>
+
+      <View style={styles.spacer} />
+
+      <Button
+        title="Confirmer"
+        onPress={handleVerify}
+        loading={isLoading}
+        disabled={!isCodeComplete || isLoading}
+        fullWidth
+      />
+    </DarkScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: scaledSpacing(64),
-    paddingTop: scaledSpacing(100),
-    paddingBottom: scaledSpacing(40),
-  },
   header: {
     alignItems: 'center',
     marginBottom: scaledSpacing(24),
@@ -293,20 +255,5 @@ const styles = StyleSheet.create({
   spacer: {
     flex: 1,
     minHeight: scaledSpacing(40),
-  },
-  logoTopContainer: {
-    alignItems: 'center',
-    marginBottom: scaledSpacing(24),
-  },
-  skipButton: {
-    marginTop: scaledSpacing(16),
-    alignItems: 'center',
-  },
-  skipText: {
-    fontSize: scaledFontSize(14),
-    fontWeight: '400',
-    fontFamily: 'Inter_400Regular',
-    color: colors.gray[400],
-    textDecorationLine: 'underline',
   },
 });

@@ -17,6 +17,7 @@ import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
 import { scaledIcon } from '@/src/utils/scaling';
+import { ScreenBackground } from '@/src/components/ui/ScreenBackground';
 
 interface DarkScreenProps {
   children: React.ReactNode;
@@ -25,18 +26,28 @@ interface DarkScreenProps {
   style?: ViewStyle;
   avoidKeyboard?: boolean;
   headerTitle?: string;
+  headerLeft?: React.ReactNode;
+  headerRight?: React.ReactNode;
 }
 
-function Header({ title }: { title: string }) {
+interface HeaderProps {
+  title: string;
+  left?: React.ReactNode;
+  right?: React.ReactNode;
+}
+
+function Header({ title, left, right }: HeaderProps) {
   const router = useRouter();
 
   return (
     <View style={headerStyles.row}>
-      <Pressable onPress={() => router.back()} hitSlop={12} style={headerStyles.side}>
-        <Ionicons name="chevron-back" size={scaledIcon(24)} color={colors.white} />
-      </Pressable>
+      {left ?? (
+        <Pressable onPress={() => router.back()} hitSlop={12} style={headerStyles.side}>
+          <Ionicons name="chevron-back" size={scaledIcon(24)} color={colors.white} />
+        </Pressable>
+      )}
       <Text style={headerStyles.title} numberOfLines={1}>{title}</Text>
-      <View style={headerStyles.side} />
+      {right ?? <View style={headerStyles.side} />}
     </View>
   );
 }
@@ -48,6 +59,8 @@ export function DarkScreen({
   style,
   avoidKeyboard = false,
   headerTitle,
+  headerLeft,
+  headerRight,
 }: DarkScreenProps) {
   const insets = useSafeAreaInsets();
 
@@ -88,8 +101,9 @@ export function DarkScreen({
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }, style]}>
+      <ScreenBackground />
       <StatusBar barStyle="light-content" />
-      {headerTitle && <Header title={headerTitle} />}
+      {headerTitle && <Header title={headerTitle} left={headerLeft} right={headerRight} />}
       {wrappedContent}
     </View>
   );
@@ -113,8 +127,9 @@ const headerStyles = StyleSheet.create({
   },
   title: {
     ...typography.body,
+    fontFamily: 'Inter_700Bold',
     color: colors.white,
-    fontWeight: '600',
+    fontWeight: '700',
     flex: 1,
     textAlign: 'center',
   },

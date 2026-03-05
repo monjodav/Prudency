@@ -1,22 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
-import { Snackbar } from '@/src/components/ui/Snackbar';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { appVersion } from '@/src/config/env';
 import { scaledIcon, scaledLineHeight, scaledRadius } from '@/src/utils/scaling';
 
 export default function AboutScreen() {
-  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const router = useRouter();
 
   return (
     <DarkScreen scrollable headerTitle="À propos de Prudency">
@@ -37,20 +37,18 @@ export default function AboutScreen() {
             ta position avec tes proches de confiance. Simple, discrète et
             rassurante, l'app veille sur toi sans jamais dramatiser.
           </Text>
+          <Pressable
+            style={styles.demoButton}
+            onPress={() => router.push('/(auth)/onboarding?demo=true')}
+          >
+            <Ionicons name="images-outline" size={scaledIcon(20)} color={colors.white} />
+            <Text style={styles.demoButtonText}>Voir la démo</Text>
+            <View style={styles.demoArrow}>
+              <Ionicons name="chevron-forward" size={scaledIcon(18)} color={colors.primary[400]} />
+            </View>
+          </Pressable>
         </View>
       </View>
-
-      {/* Voir la démo */}
-      <Pressable
-        style={styles.demoButton}
-        onPress={() => setSnackbarVisible(true)}
-      >
-        <Ionicons name="images-outline" size={scaledIcon(20)} color={colors.white} />
-        <Text style={styles.demoButtonText}>Voir la démo</Text>
-        <View style={styles.demoArrow}>
-          <Ionicons name="chevron-forward" size={scaledIcon(18)} color={colors.primary[400]} />
-        </View>
-      </Pressable>
 
       {/* Comment ça marche ? */}
       <View style={styles.section}>
@@ -75,14 +73,6 @@ export default function AboutScreen() {
         </View>
       </View>
 
-      <Snackbar
-        visible={snackbarVisible}
-        title="Fonctionnalité à venir"
-        subtitle="La démo sera disponible prochainement."
-        variant="info"
-        duration={3000}
-        onHide={() => setSnackbarVisible(false)}
-      />
     </DarkScreen>
   );
 }
@@ -124,7 +114,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[6],
   },
   card: {
-    backgroundColor: colors.primary[900],
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: borderRadius.lg,
     padding: spacing[5],
   },
@@ -141,11 +131,11 @@ const styles = StyleSheet.create({
   demoButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary[900],
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing[4],
-    paddingHorizontal: spacing[5],
-    marginBottom: spacing[6],
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
+    marginTop: spacing[4],
     gap: spacing[3],
   },
   demoButtonText: {

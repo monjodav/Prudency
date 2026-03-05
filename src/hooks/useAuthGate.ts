@@ -5,14 +5,22 @@ import { useAuthStore } from '@/src/stores/authStore';
 import { queryClient } from '@/src/config/queryClient';
 import { getProfile } from '@/src/services/authService';
 
+const ONBOARDING_SCREENS = [
+  'permissions-location',
+  'permissions-notifications',
+  'onboarding',
+  'add-contact',
+  'add-contact-form',
+];
+
 export function useAuthGate() {
   const { session, isLoading, setSession, setLoading } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
   const isChecking = useRef(false);
-  // Track the session id that triggered the last profile check to avoid
-  // re-running while a check for the same session is still in flight.
-  const checkedSessionId = useRef<string | null>(null);
+  // Keep a live ref so the async callback reads the latest segments
+  const segmentsRef = useRef(segments);
+  segmentsRef.current = segments;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -23,9 +31,7 @@ export function useAuthGate() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Reset so the next useEffect run will re-check profile
       isChecking.current = false;
-      checkedSessionId.current = null;
       setSession(session);
 
       if (event === 'PASSWORD_RECOVERY') {
@@ -36,27 +42,19 @@ export function useAuthGate() {
     return () => subscription.unsubscribe();
   }, [setSession, setLoading, router]);
 
+  // Redirect unauthenticated users immediately (synchronous, no fetch)
   useEffect(() => {
     if (isLoading) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-
-    // No session → must be in auth group
-    if (!session) {
-      if (!inAuthGroup) {
-        router.replace('/(auth)/login');
-      }
-      return;
+    if (!session && segments[0] !== '(auth)') {
+      router.replace('/(auth)/login');
     }
+  }, [session, isLoading, segments, router]);
 
-    // Session exists but profile check already in flight for this session
-    if (isChecking.current && checkedSessionId.current === session.user.id) {
-      return;
-    }
+  // Check profile completeness once when session appears (not on every segment change)
+  useEffect(() => {
+    if (isLoading || !session || isChecking.current) return;
 
-    // Session exists — always check profile completeness before allowing (tabs)
     isChecking.current = true;
-    checkedSessionId.current = session.user.id;
 
     void (async () => {
       try {
@@ -66,25 +64,31 @@ export function useAuthGate() {
           staleTime: 0,
         });
 
+        // Read segments at resolution time, not at launch time
+        const currentSegments = segmentsRef.current;
+        const inAuthGroup = currentSegments[0] === '(auth)';
+        const currentScreen = currentSegments[1] as string | undefined;
+
         if (!profile?.first_name || !profile?.phone) {
-          if (!inAuthGroup || segments[1] !== 'personal-info') {
+          if (!inAuthGroup || currentScreen !== 'personal-info') {
             router.replace('/(auth)/personal-info');
           }
         } else if (!profile.phone_verified) {
-          if (!inAuthGroup || segments[1] !== 'verify-phone') {
+          if (!inAuthGroup || currentScreen !== 'verify-phone') {
             router.replace({
               pathname: '/(auth)/verify-phone',
               params: { phone: profile.phone },
             });
           }
         } else if (!profile.onboarding_completed) {
-          if (!inAuthGroup || !['permissions-location', 'permissions-notifications', 'onboarding', 'add-contact', 'add-contact-form'].includes(segments[1] as string)) {
+          if (!inAuthGroup || !ONBOARDING_SCREENS.includes(currentScreen ?? '')) {
             router.replace('/(auth)/permissions-location');
           }
         } else if (inAuthGroup) {
           router.replace('/(tabs)');
         }
       } catch {
+        const inAuthGroup = segmentsRef.current[0] === '(auth)';
         if (!inAuthGroup) {
           router.replace('/(auth)/personal-info');
         }
@@ -92,5 +96,5 @@ export function useAuthGate() {
         isChecking.current = false;
       }
     })();
-  }, [session, isLoading, segments, router]);
+  }, [session, isLoading, router]);
 }

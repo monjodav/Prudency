@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Pressable,
   Alert,
+  Linking,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -77,7 +78,11 @@ export default function AddContactFormScreen() {
       if (status !== 'granted') {
         Alert.alert(
           'Permission requise',
-          'Autorise l\'accès aux contacts pour importer facilement.'
+          'Autorise l\'accès aux contacts pour importer facilement.',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Ouvrir les réglages', onPress: () => Linking.openSettings() },
+          ],
         );
         return;
       }

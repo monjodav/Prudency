@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
-import { useAuthStore } from '@/src/stores/authStore';
 import { useAuth } from '@/src/hooks/useAuth';
 import { usePremium } from '@/src/hooks/usePremium';
+import { getProfile } from '@/src/services/authService';
 import { LogoutDialog } from '@/src/components/profile/LogoutDialog';
 import { ms, mvs, scaledRadius, scaledIcon } from '@/src/utils/scaling';
+import { ScreenBackground } from '@/src/components/ui/ScreenBackground';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -38,19 +40,17 @@ function MenuItem({ icon, label, onPress }: MenuItemProps) {
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user } = useAuthStore();
   const { signOut } = useAuth();
   const { isPremium } = usePremium();
   const [logoutDialogVisible, setLogoutDialogVisible] = useState(false);
+  const { data: profile } = useQuery({ queryKey: ['profile'], queryFn: getProfile });
 
   const handleLogoutConfirm = async () => {
     setLogoutDialogVisible(false);
     await signOut();
   };
 
-  const firstName = user?.user_metadata?.first_name;
-  const lastName = user?.user_metadata?.last_name;
-  const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Utilisateur';
+  const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Utilisateur';
   const initials = displayName
     .split(' ')
     .map((part) => part.charAt(0))
@@ -60,6 +60,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + mvs(16, 0.3), paddingBottom: insets.bottom + mvs(90, 0.4) }]}>
+      <ScreenBackground />
       {/* Profile header */}
       <View style={styles.profileHeader}>
         <View style={styles.avatarRing}>
@@ -108,8 +109,9 @@ export default function ProfileScreen() {
         />
       </View>
 
-      {/* Déconnexion */}
+      {/* Clôture */}
       <View style={styles.logoutSection}>
+        <Text style={styles.sectionTitle}>Clôture du compte</Text>
         <Pressable
           style={({ pressed }) => [styles.menuItem, styles.logoutItem, pressed && styles.menuItemPressed]}
           onPress={() => setLogoutDialogVisible(true)}
@@ -135,7 +137,7 @@ export default function ProfileScreen() {
         </Pressable>
         <Pressable
           style={[styles.navItemInactive, styles.navItemRight]}
-          onPress={() => router.push('/(tabs)/places')}
+          onPress={() => Alert.alert('Abonnement', 'Bientôt disponible')}
         >
           <Ionicons name="star" size={scaledIcon(20)} color={colors.gray[400]} />
         </Pressable>
@@ -244,6 +246,7 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     paddingHorizontal: spacing[6],
     marginBottom: mvs(16, 0.3),
+    gap: mvs(8, 0.3),
   },
   logoutItem: {
     backgroundColor: 'rgba(202, 31, 31, 0.08)',

@@ -21,6 +21,8 @@ interface InputProps extends Omit<TextInputProps, 'style'> {
   iconRight?: React.ReactNode;
   containerStyle?: ViewStyle;
   variant?: 'light' | 'dark';
+  /** Non-editable but keeps normal text color (not grayed out) */
+  readOnly?: boolean;
 }
 
 export function Input({
@@ -32,6 +34,7 @@ export function Input({
   secureTextEntry,
   containerStyle,
   variant = 'dark',
+  readOnly = false,
   ...textInputProps
 }: InputProps) {
   const [isSecure, setIsSecure] = useState(secureTextEntry ?? true);
@@ -53,14 +56,14 @@ export function Input({
           isDark ? styles.inputContainerDark : styles.inputContainerLight,
           hasError && styles.inputError,
           isFocused && !hasError && styles.inputFocused,
-          textInputProps.editable === false && styles.inputDisabled,
+          textInputProps.editable === false && !readOnly && styles.inputDisabled,
         ]}
       >
         <TextInput
           style={[
             styles.input,
             isDark ? styles.inputTextDark : styles.inputTextLight,
-            textInputProps.editable === false && styles.inputTextDisabled,
+            textInputProps.editable === false && !readOnly && styles.inputTextDisabled,
           ]}
           placeholderTextColor={colors.gray[500]}
           secureTextEntry={secureToggle ? isSecure : secureTextEntry}
@@ -136,9 +139,12 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    ...typography.inputText,
+    fontFamily: typography.inputText.fontFamily,
+    fontSize: typography.inputText.fontSize,
+    fontWeight: typography.inputText.fontWeight,
     height: '100%',
-    paddingVertical: scaledSpacing(12),
+    textAlignVertical: 'center',
+    paddingVertical: 0,
     letterSpacing: ms(-0.32, 0.4),
   },
   inputTextDark: {

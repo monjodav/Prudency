@@ -30,6 +30,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Prudency a besoin de ta localisation en arrière-plan pour continuer à surveiller ton trajet.',
       NSLocationAlwaysUsageDescription:
         'Prudency a besoin de ta localisation en arrière-plan pour continuer à surveiller ton trajet.',
+      NSPhotoLibraryUsageDescription:
+        'Prudency a besoin d\'accéder à tes photos pour changer ta photo de profil.',
+      NSCameraUsageDescription:
+        'Prudency a besoin d\'accéder à ta caméra pour prendre une photo de profil.',
+      NSContactsUsageDescription:
+        'Prudency a besoin d\'accéder à tes contacts pour ajouter des contacts de confiance.',
     },
   },
   android: {
@@ -67,6 +73,22 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'Prudency a besoin de ta localisation en arrière-plan pour continuer à surveiller ton trajet.',
         locationWhenInUsePermission:
           'Prudency a besoin de ta localisation pour suivre ton trajet.',
+      },
+    ],
+    [
+      'expo-image-picker',
+      {
+        photosPermission:
+          'Prudency a besoin d\'accéder à tes photos pour changer ta photo de profil.',
+        cameraPermission:
+          'Prudency a besoin d\'accéder à ta caméra pour prendre une photo de profil.',
+      },
+    ],
+    [
+      'expo-contacts',
+      {
+        contactsPermission:
+          'Prudency a besoin d\'accéder à tes contacts pour ajouter des contacts de confiance.',
       },
     ],
   ],

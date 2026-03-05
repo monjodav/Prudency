@@ -17,15 +17,12 @@ import MapView, {
 } from 'react-native-maps';
 import { colors } from '@/src/theme/colors';
 import { getMapStyle } from '@/src/theme/mapStyles';
+import { usePreferencesStore } from '@/src/stores/preferencesStore';
 import { UserLocationDot } from '@/src/components/icons/UserLocationDot';
 import { ms } from '@/src/utils/scaling';
 import type { RouteSegment, RouteStep } from '@/src/services/directionsService';
 
 const USER_DOT_SIZE = ms(32, 0.4);
-
-const mapStyle = getMapStyle();
-const isDarkMap = mapStyle.length > 0;
-const WALKING_COLOR = isDarkMap ? '#FFFFFF' : '#000000';
 
 interface LatLng {
   lat: number;
@@ -77,6 +74,10 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
 ) {
   const mapRef = useRef<MapView>(null);
   const [isReady, setIsReady] = useState(false);
+  const mapTheme = usePreferencesStore((s) => s.mapTheme);
+  const mapStyle = useMemo(() => getMapStyle(mapTheme), [mapTheme]);
+  const isDarkMap = mapStyle.length > 0;
+  const WALKING_COLOR = isDarkMap ? '#FFFFFF' : '#000000';
 
   useImperativeHandle(ref, () => ({
     animateToRegion: (region: Region, duration = 500) => {

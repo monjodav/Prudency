@@ -244,7 +244,7 @@ export default function HomeScreen() {
         </Pressable>
         <Pressable
           style={[styles.navItemInactive, styles.navItemRight]}
-          onPress={() => router.push('/(tabs)/places')}
+          onPress={() => Alert.alert('Abonnement', 'Bientôt disponible')}
         >
           <Ionicons name="star" size={scaledIcon(20)} color={colors.gray[400]} />
         </Pressable>

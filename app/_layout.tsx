@@ -26,6 +26,7 @@ import { Kalam_400Regular } from '@expo-google-fonts/kalam';
 import { useColorScheme } from 'react-native';
 import { queryClient } from '@/src/config/queryClient';
 import { useAuthGate } from '@/src/hooks/useAuthGate';
+import { usePreferencesStore } from '@/src/stores/preferencesStore';
 import { AnimatedSplashScreen } from '@/src/components/splash';
 
 export { ErrorBoundary } from 'expo-router';
@@ -68,6 +69,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
+      usePreferencesStore.getState().loadPreferences();
       // Show splash screen for 2 seconds
       const timer = setTimeout(() => {
         setAppReady(true);

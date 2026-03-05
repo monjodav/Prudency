@@ -3,59 +3,68 @@ import {
   View,
   Text,
   StyleSheet,
-  Switch,
   Pressable,
   Alert,
   Linking,
   Platform,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
+import * as ImagePicker from 'expo-image-picker';
+import * as Contacts from 'expo-contacts';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius } from '@/src/theme/spacing';
-import { Button } from '@/src/components/ui/Button';
-import { Input } from '@/src/components/ui/Input';
-import { Modal } from '@/src/components/ui/Modal';
+import { spacing } from '@/src/theme/spacing';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
-import { ms, scaledIcon } from '@/src/utils/scaling';
-import { useBiometric } from '@/src/hooks/useBiometric';
-import { useAuth } from '@/src/hooks/useAuth';
-import * as authService from '@/src/services/authService';
-import { supabase } from '@/src/services/supabaseClient';
+import { scaledIcon, scaledSpacing } from '@/src/utils/scaling';
 
 type PermissionStatus = 'granted' | 'denied' | 'undetermined';
 
-function mapPermissionStatus(status: string): PermissionStatus {
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+function mapStatus(status: string): PermissionStatus {
   if (status === 'granted') return 'granted';
   if (status === 'denied') return 'denied';
   return 'undetermined';
 }
 
-function usePermissionStatuses() {
+function statusLabel(status: PermissionStatus, grantedLabel = 'Activées'): string {
+  if (status === 'granted') return grantedLabel;
+  return 'Désactivées';
+}
+
+function usePermissions() {
   const [location, setLocation] = useState<PermissionStatus>('undetermined');
+  const [locationBg, setLocationBg] = useState<PermissionStatus>('undetermined');
   const [notifications, setNotifications] = useState<PermissionStatus>('undetermined');
   const [camera, setCamera] = useState<PermissionStatus>('undetermined');
+  const [contacts, setContacts] = useState<PermissionStatus>('undetermined');
 
   const refresh = useCallback(async () => {
-    const [loc, notif] = await Promise.all([
+    const [loc, locBg, notif, cam, ct] = await Promise.all([
       Location.getForegroundPermissionsAsync(),
+      Location.getBackgroundPermissionsAsync(),
       Notifications.getPermissionsAsync(),
+      ImagePicker.getCameraPermissionsAsync(),
+      Contacts.getPermissionsAsync(),
     ]);
-    setLocation(mapPermissionStatus(loc.status));
-    setNotifications(mapPermissionStatus(notif.status));
-    setCamera('undetermined');
+    setLocation(mapStatus(loc.status));
+    setLocationBg(mapStatus(locBg.status));
+    setNotifications(mapStatus(notif.status));
+    setCamera(mapStatus(cam.status));
+    setContacts(mapStatus(ct.status));
   }, []);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  return { location, notifications, camera, refresh };
+  return { location, locationBg, notifications, camera, contacts, refresh };
 }
 
-function openSystemSettings() {
+function openSettings() {
   if (Platform.OS === 'ios') {
     void Linking.openURL('app-settings:');
   } else {
@@ -63,108 +72,45 @@ function openSystemSettings() {
   }
 }
 
-interface SettingRowProps {
-  icon: React.ComponentProps<typeof FontAwesome>['name'];
-  title: string;
-  description?: string;
-  trailing?: React.ReactNode;
+interface RowProps {
+  icon: IoniconsName;
+  label: string;
+  subtitle?: string;
   onPress?: () => void;
 }
 
-function SettingRow({ icon, title, description, trailing, onPress }: SettingRowProps) {
-  const Container = onPress ? Pressable : View;
+function Row({ icon, label, subtitle, onPress }: RowProps) {
   return (
-    <Container style={styles.settingItem} onPress={onPress}>
-      <FontAwesome name={icon} size={scaledIcon(20)} color={colors.gray[400]} style={styles.settingIcon} />
-      <View style={styles.settingContent}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        {description ? <Text style={styles.settingDescription}>{description}</Text> : null}
+    <Pressable style={styles.row} onPress={onPress} disabled={!onPress}>
+      <View style={styles.iconBox}>
+        <Ionicons name={icon} size={scaledIcon(18)} color={colors.primary[300]} />
       </View>
-      {trailing}
-      {onPress && !trailing ? (
-        <FontAwesome name="chevron-right" size={scaledIcon(12)} color={colors.gray[500]} />
-      ) : null}
-    </Container>
+      <View style={styles.rowContent}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
+      </View>
+      {onPress && (
+        <Ionicons name="chevron-forward" size={scaledIcon(16)} color={colors.gray[500]} />
+      )}
+    </Pressable>
   );
 }
 
-function PermissionToggle({
-  label,
-  status,
-  icon,
-}: {
-  label: string;
-  status: PermissionStatus;
-  icon: React.ComponentProps<typeof FontAwesome>['name'];
-}) {
-  const isGranted = status === 'granted';
-  const statusLabel = isGranted ? 'Actif' : 'Désactivé';
-
-  return (
-    <SettingRow
-      icon={icon}
-      title={label}
-      description={statusLabel}
-      onPress={openSystemSettings}
-      trailing={
-        <Switch
-          value={isGranted}
-          onValueChange={openSystemSettings}
-          trackColor={{ false: colors.gray[700], true: colors.primary[400] }}
-          thumbColor={isGranted ? colors.primary[500] : colors.gray[400]}
-        />
-      }
-    />
-  );
+function SectionHeader({ title }: { title: string }) {
+  return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
 export default function SecurityScreen() {
-  const { isAvailable, isEnabled: biometricEnabled, setEnabled: setBiometricEnabled } = useBiometric();
-  const { signOut } = useAuth();
-  const permissions = usePermissionStatuses();
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
+  const perms = usePermissions();
 
-  const handleChangePassword = () => {
-    Alert.alert(
-      'Changer le mot de passe',
-      'Un email te sera envoyé pour réinitialiser ton mot de passe.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Envoyer',
-          onPress: async () => {
-            try {
-              const { data: { user } } = await supabase.auth.getUser();
-              const email = user?.email;
-              if (!email) {
-                Alert.alert('Erreur', 'Impossible de trouver ton adresse email.');
-                return;
-              }
-              await authService.resetPassword(email);
-              Alert.alert('Email envoyé', 'Vérifie ta boîte mail pour réinitialiser ton mot de passe.');
-            } catch {
-              Alert.alert('Erreur', 'Impossible d\'envoyer l\'email. Réessaie plus tard.');
-            }
-          },
-        },
-      ]
-    );
-  };
+  const locationLabel =
+    perms.locationBg === 'granted'
+      ? 'Toujours activée'
+      : perms.location === 'granted'
+        ? "Lorsque l'app est ouverte"
+        : 'Désactivée';
 
-  const handleDeleteAccount = async () => {
-    setIsDeleting(true);
-    try {
-      await authService.deleteAccount();
-      setShowDeleteModal(false);
-      await signOut();
-    } catch {
-      Alert.alert('Erreur', 'La suppression du compte a echoue. Reessaie.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const showComingSoon = () => {
     Alert.alert('Page en construction', 'Cette page sera disponible prochainement.');
@@ -172,162 +118,91 @@ export default function SecurityScreen() {
 
   return (
     <DarkScreen scrollable headerTitle="Sécurité et confidentialité">
-      <Section title="Autorisations systeme">
-        <PermissionToggle label="Localisation" status={permissions.location} icon="map-marker" />
-        <PermissionToggle label="Notifications" status={permissions.notifications} icon="bell" />
-        <PermissionToggle label="Camera" status={permissions.camera} icon="camera" />
-      </Section>
+      {/* Autorisations système */}
+      <SectionHeader title="Autorisations système" />
+      <Row
+        icon="location-outline"
+        label="Service de localisation"
+        subtitle={locationLabel}
+        onPress={openSettings}
+      />
+      <Row
+        icon="notifications-outline"
+        label="Notifications"
+        subtitle={statusLabel(perms.notifications)}
+        onPress={openSettings}
+      />
+      <Row
+        icon="images-outline"
+        label="Photos"
+        subtitle={statusLabel(perms.camera)}
+        onPress={openSettings}
+      />
+      <Row
+        icon="people-outline"
+        label="Contacts"
+        subtitle={statusLabel(perms.contacts, 'Autorisés')}
+        onPress={openSettings}
+      />
 
-      <Section title="Authentification">
-        <SettingRow
-          icon="lock"
-          title="Biometrie"
-          description="Face ID / Touch ID pour confirmer tes trajets"
-          trailing={
-            <Switch
-              value={biometricEnabled}
-              onValueChange={(value) => void setBiometricEnabled(value)}
-              disabled={!isAvailable}
-              trackColor={{ false: colors.gray[700], true: colors.primary[400] }}
-              thumbColor={biometricEnabled ? colors.primary[500] : colors.gray[400]}
-            />
-          }
-        />
-        <SettingRow
-          icon="lock"
-          title="Changer le mot de passe"
-          onPress={handleChangePassword}
-        />
-      </Section>
+      {/* Sécurité du compte */}
+      <SectionHeader title="Sécurité du compte" />
+      <Row
+        icon="lock-closed-outline"
+        label="Changer le mot de passe"
+        onPress={() => router.push('/(profile)/change-password')}
+      />
 
-      <Section title="Informations légales">
-        <SettingRow icon="file-text-o" title="Mentions légales" onPress={showComingSoon} />
-        <SettingRow icon="file-text-o" title="CGU" onPress={showComingSoon} />
-        <SettingRow icon="shield" title="Politique de confidentialité" onPress={showComingSoon} />
-        <SettingRow icon="file-text-o" title="CGV" onPress={showComingSoon} />
-      </Section>
+      {/* Données */}
+      <SectionHeader title="Données" />
+      <Row icon="server-outline" label="Gestion des données" onPress={showComingSoon} />
 
-      <Section title="Zone de danger">
-        <View style={styles.dangerContent}>
-          <Text style={styles.dangerDescription}>
-            La suppression de ton compte est irreversible. Toutes tes donnees, trajets et contacts seront supprimes.
-          </Text>
-          <Button
-            title="Supprimer mon compte"
-            variant="danger"
-            onPress={() => {
-              setDeleteConfirmText('');
-              setShowDeleteModal(true);
-            }}
-            fullWidth
-          />
-        </View>
-      </Section>
+      {/* Informations légales */}
+      <SectionHeader title="Informations légales" />
+      <Row icon="document-text-outline" label="Mentions légales" onPress={() => router.push('/(profile)/legal-notices')} />
+      <Row icon="document-text-outline" label="Conditions Générales d'Utilisation" onPress={() => router.push('/(profile)/terms')} />
+      <Row icon="shield-outline" label="Politique de confidentialité" onPress={() => router.push('/(profile)/privacy')} />
+      <Row icon="document-text-outline" label="Conditions Générales de Vente" onPress={() => router.push('/(profile)/sales-terms')} />
 
-      <Modal
-        visible={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        title="Supprimer mon compte"
-      >
-        <Text style={styles.deleteModalText}>
-          Cette action est definitive. Toutes tes donnees seront supprimees :
-        </Text>
-        <View style={styles.deleteConsequences}>
-          <Text style={styles.deleteConsequenceItem}>- Ton profil et tes informations personnelles</Text>
-          <Text style={styles.deleteConsequenceItem}>- Tous tes trajets et historique</Text>
-          <Text style={styles.deleteConsequenceItem}>- Tes contacts de confiance</Text>
-          <Text style={styles.deleteConsequenceItem}>- Tes notes et alertes</Text>
-        </View>
-        <Text style={styles.deleteModalText}>
-          Pour confirmer, tape SUPPRIMER ci-dessous :
-        </Text>
-        <Input
-          placeholder="SUPPRIMER"
-          value={deleteConfirmText}
-          onChangeText={setDeleteConfirmText}
-          autoCapitalize="characters"
-          variant="light"
-        />
-        <Button
-          title="Supprimer definitivement"
-          variant="danger"
-          onPress={handleDeleteAccount}
-          loading={isDeleting}
-          fullWidth
-          disabled={deleteConfirmText !== 'SUPPRIMER'}
-        />
-      </Modal>
     </DarkScreen>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionContent}>{children}</View>
-    </View>
-  );
-}
+const ICON_BOX = scaledIcon(32);
 
 const styles = StyleSheet.create({
-  section: {
-    marginBottom: spacing[6],
-  },
   sectionTitle: {
-    ...typography.label,
+    ...typography.caption,
     color: colors.gray[400],
-    textTransform: 'uppercase',
-    paddingVertical: spacing[3],
+    marginTop: spacing[6],
+    marginBottom: spacing[2],
   },
-  sectionContent: {
-    backgroundColor: colors.primary[900],
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-  },
-  settingItem: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing[4],
-    paddingHorizontal: spacing[4],
+    paddingVertical: scaledSpacing(14),
     borderBottomWidth: 1,
-    borderBottomColor: colors.primary[950],
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
-  settingIcon: {
-    width: ms(28, 0.5),
+  iconBox: {
+    width: ICON_BOX,
+    height: ICON_BOX,
+    borderRadius: scaledIcon(8),
+    backgroundColor: 'rgba(44, 65, 188, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing[3],
   },
-  settingContent: {
+  rowContent: {
     flex: 1,
-    marginLeft: spacing[3],
   },
-  settingTitle: {
+  rowLabel: {
     ...typography.body,
     color: colors.white,
   },
-  settingDescription: {
+  rowSubtitle: {
     ...typography.caption,
     color: colors.gray[400],
-    marginTop: spacing[1],
-  },
-  dangerContent: {
-    padding: spacing[4],
-  },
-  dangerDescription: {
-    ...typography.bodySmall,
-    color: colors.gray[300],
-    marginBottom: spacing[4],
-  },
-  deleteModalText: {
-    ...typography.body,
-    color: colors.gray[700],
-    marginBottom: spacing[3],
-  },
-  deleteConsequences: {
-    marginBottom: spacing[4],
-  },
-  deleteConsequenceItem: {
-    ...typography.bodySmall,
-    color: colors.gray[600],
-    marginBottom: spacing[1],
+    marginTop: 2,
   },
 });

@@ -4,7 +4,9 @@ import {
   Text,
   StyleSheet,
   Switch,
+  Pressable,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
@@ -12,7 +14,8 @@ import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { Slider } from '@/src/components/ui/Slider';
-import { ms } from '@/src/utils/scaling';
+import { ms, scaledIcon, scaledSpacing } from '@/src/utils/scaling';
+import { usePreferencesStore, type MapTheme } from '@/src/stores/preferencesStore';
 
 function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
@@ -40,6 +43,33 @@ function ToggleRow({
   );
 }
 
+function MapThemeOption({
+  label,
+  subtitle,
+  icon,
+  selected,
+  onPress,
+}: {
+  label: string;
+  subtitle?: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.themeOption} onPress={onPress}>
+      <Ionicons name={icon} size={scaledIcon(20)} color={colors.primary[300]} />
+      <View style={styles.themeOptionContent}>
+        <Text style={styles.themeOptionLabel}>{label}</Text>
+        {subtitle ? <Text style={styles.themeOptionSubtitle}>{subtitle}</Text> : null}
+      </View>
+      <View style={[styles.radio, selected && styles.radioSelected]}>
+        {selected && <View style={styles.radioDot} />}
+      </View>
+    </Pressable>
+  );
+}
+
 export default function PreferencesScreen() {
   const [alertTime, setAlertTime] = useState(15);
   const [delayTolerance, setDelayTolerance] = useState(15);
@@ -53,6 +83,8 @@ export default function PreferencesScreen() {
 
   const [passwordCancelTrip, setPasswordCancelTrip] = useState(false);
   const [passwordEndTrip, setPasswordEndTrip] = useState(false);
+
+  const { mapTheme, setMapTheme } = usePreferencesStore();
 
   return (
     <DarkScreen scrollable avoidKeyboard headerTitle="Préférences">
@@ -143,6 +175,29 @@ export default function PreferencesScreen() {
         />
       </View>
 
+      <SectionHeader title="Thème de la map" />
+      <View style={styles.card}>
+        <MapThemeOption
+          label="Automatique (6h - 18h)"
+          subtitle="Clair le jour, sombre la nuit"
+          icon="time-outline"
+          selected={mapTheme === 'auto'}
+          onPress={() => setMapTheme('auto')}
+        />
+        <MapThemeOption
+          label="Toujours clair"
+          icon="sunny-outline"
+          selected={mapTheme === 'light'}
+          onPress={() => setMapTheme('light')}
+        />
+        <MapThemeOption
+          label="Toujours sombre"
+          icon="moon-outline"
+          selected={mapTheme === 'dark'}
+          onPress={() => setMapTheme('dark')}
+        />
+      </View>
+
       <Button
         title="Enregistrer"
         onPress={() => {}}
@@ -196,6 +251,44 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.white,
     fontWeight: '600',
+  },
+  themeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    gap: spacing[3],
+  },
+  themeOptionContent: {
+    flex: 1,
+  },
+  themeOptionLabel: {
+    ...typography.body,
+    color: colors.white,
+  },
+  themeOptionSubtitle: {
+    ...typography.caption,
+    color: colors.gray[400],
+    marginTop: 2,
+  },
+  radio: {
+    width: scaledSpacing(22),
+    height: scaledSpacing(22),
+    borderRadius: scaledSpacing(11),
+    borderWidth: 2,
+    borderColor: colors.gray[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioSelected: {
+    borderColor: colors.brandPosition[50],
+  },
+  radioDot: {
+    width: scaledSpacing(12),
+    height: scaledSpacing(12),
+    borderRadius: scaledSpacing(6),
+    backgroundColor: colors.brandPosition[50],
   },
   saveButton: {
     marginTop: spacing[6],

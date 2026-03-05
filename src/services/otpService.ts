@@ -22,19 +22,15 @@ async function extractErrorMessage(
 }
 
 export async function sendOtp(phone: string): Promise<void> {
-  console.log('[sendOtp] calling send-otp with phone:', phone);
-  const { data, error } = await supabase.functions.invoke('send-otp', {
+  const { error } = await supabase.functions.invoke('send-otp', {
     body: { phone },
   });
-  console.log('[sendOtp] response data:', JSON.stringify(data));
-  console.log('[sendOtp] response error:', JSON.stringify(error));
 
   if (error) {
     const message = await extractErrorMessage(
       error,
       "Erreur lors de l'envoi du code",
     );
-    console.log('[sendOtp] extracted message:', message);
     throw new Error(message);
   }
 }

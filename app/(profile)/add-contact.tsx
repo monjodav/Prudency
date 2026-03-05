@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   Alert,
+  Linking,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,6 +67,10 @@ export default function AddContactProfileScreen() {
         Alert.alert(
           'Permission requise',
           "Autorise l'accès aux contacts pour importer facilement.",
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Ouvrir les réglages', onPress: () => Linking.openSettings() },
+          ],
         );
         return;
       }

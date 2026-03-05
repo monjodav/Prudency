@@ -10,7 +10,7 @@ import {
   LayoutChangeEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/src/theme/colors';
 import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
@@ -76,6 +76,8 @@ const NUM_SEGMENTS = 4;
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { demo } = useLocalSearchParams<{ demo?: string }>();
+  const isDemo = demo === 'true';
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
   const flatListRef = useRef<FlatList>(null);
@@ -161,7 +163,11 @@ export default function OnboardingScreen() {
   };
 
   const handleComplete = () => {
-    router.replace('/(auth)/add-contact');
+    if (isDemo) {
+      router.back();
+    } else {
+      router.replace('/(auth)/add-contact');
+    }
   };
 
   const handleSkip = () => {

@@ -9,8 +9,11 @@ export function isFranceNight(): boolean {
   return h >= 18 || h < 6;
 }
 
-/** Returns the appropriate map style based on time of day in France. */
-export function getMapStyle(): typeof DARK_MAP_STYLE | [] {
+/** Returns the appropriate map style based on user preference and time of day. */
+export function getMapStyle(theme?: 'auto' | 'light' | 'dark'): typeof DARK_MAP_STYLE | [] {
+  if (theme === 'light') return [];
+  if (theme === 'dark') return DARK_MAP_STYLE;
+  // auto (default): based on time in France
   return isFranceNight() ? DARK_MAP_STYLE : [];
 }
 
