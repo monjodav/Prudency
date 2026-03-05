@@ -39,17 +39,7 @@ export default function TabLayout() {
         name="contacts"
         options={{
           title: 'Contacts',
-          headerShown: true,
-          headerTransparent: true,
-          headerTitle: 'Personnes de confiance',
-          headerTitleStyle: {
-            color: colors.white,
-            fontSize: 17,
-            fontWeight: '600',
-          },
-          headerTitleAlign: 'center',
-          headerLeft: () => <BackButton />,
-          headerStyle: { backgroundColor: 'transparent' },
+          headerShown: false,
         }}
       />
       <Tabs.Screen

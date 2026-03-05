@@ -110,6 +110,7 @@ interface Contact {
   name: string;
   phone: string;
   is_primary: boolean | null;
+  validation_status: 'pending' | 'accepted' | 'refused';
 }
 
 // --- Departure ---
@@ -490,6 +491,25 @@ interface ContactSectionProps {
   onShowAddContact: () => void;
 }
 
+const STATUS_CONFIG = {
+  pending: { label: 'En attente', color: colors.gray[400] },
+  accepted: { label: 'Confirmé', color: colors.success[400] },
+  refused: { label: 'Refusé', color: colors.error[400] },
+} as const;
+
+function ContactAvatar({ name }: { name: string }) {
+  const parts = name.trim().split(/\s+/);
+  const initials = parts.length >= 2
+    ? `${parts[0]![0]}${parts[parts.length - 1]![0]}`
+    : name.slice(0, 2);
+
+  return (
+    <View style={styles.contactAvatar}>
+      <Text style={styles.contactAvatarText}>{initials.toUpperCase()}</Text>
+    </View>
+  );
+}
+
 export function ContactSection({
   contacts,
   contactsLoading,
@@ -533,30 +553,45 @@ export function ContactSection({
           <View style={styles.contactsList}>
             {contacts.map((contact) => {
               const isSelected = selectedContactId === contact.id;
+              const isAccepted = contact.validation_status === 'accepted';
+              const status = STATUS_CONFIG[contact.validation_status];
+
               return (
-                <ListItem
+                <Pressable
                   key={contact.id}
-                  text={contact.name}
-                  variant={isSelected ? 'selected' : 'default'}
-                  iconLeft={
-                    <Ionicons
-                      name="person-circle"
-                      size={scaledIcon(32)}
-                      color={colors.secondary[400]}
-                    />
-                  }
-                  iconRight={
+                  onPress={isAccepted ? () => onSelectContact(contact.id) : undefined}
+                  style={[
+                    styles.contactItem,
+                    isSelected && styles.contactItemSelected,
+                    !isAccepted && styles.contactItemDisabled,
+                  ]}
+                >
+                  {isAccepted && (
                     <Checkbox
                       checked={isSelected}
                       onToggle={() => onSelectContact(contact.id)}
                     />
-                  }
-                  onPress={() => onSelectContact(contact.id)}
-                  style={styles.contactItem}
-                />
+                  )}
+                  <ContactAvatar name={contact.name} />
+                  <View style={styles.contactInfo}>
+                    <Text style={styles.contactName}>{contact.name}</Text>
+                    <Text style={[styles.contactStatus, { color: status.color }]}>
+                      {status.label}
+                    </Text>
+                  </View>
+                </Pressable>
               );
             })}
           </View>
+          <ListItem
+            text="Ajouter un contact"
+            variant="outline"
+            iconRight={
+              <Ionicons name="add" size={scaledIcon(20)} color={colors.primary[300]} />
+            }
+            onPress={onShowAddContact}
+            style={styles.addContactBtn}
+          />
         </>
       )}
     </View>
@@ -821,10 +856,49 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: spacing[3],
+    gap: spacing[3],
+  },
+  contactItemSelected: {
+    borderColor: colors.primary[500],
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  contactItemDisabled: {
+    opacity: 0.6,
+  },
+  contactAvatar: {
+    width: ms(36, 0.4),
+    height: ms(36, 0.4),
+    borderRadius: ms(18, 0.4),
+    backgroundColor: colors.secondary[400],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactAvatarText: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: ms(13, 0.4),
+  },
+  contactInfo: {
+    flex: 1,
+    gap: ms(2, 0.3),
+  },
+  contactName: {
+    ...typography.body,
+    color: colors.white,
+  },
+  contactStatus: {
+    ...typography.caption,
+  },
+  addContactBtn: {
+    marginTop: spacing[2],
   },
   toggleItem: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
@@ -838,7 +912,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.gray[500],
     textAlign: 'center',
-    marginTop: spacing[4],
+    marginTop: spacing[2],
     paddingHorizontal: spacing[4],
   },
 });

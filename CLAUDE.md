@@ -13,7 +13,7 @@
 - Aucun `any` autorisé — utiliser `unknown` + type guards si nécessaire
 - Chaque fichier doit avoir un seul responsable (Single Responsibility Principle)
 - Nommage explicite : pas d'abréviations sauf conventions universelles (id, url, api)
-- Fonctions < 30 lignes, fichiers < 300 lignes (sauf exceptions justifiées)
+- Fonctions < 30 lignes, fichiers < 500 lignes (sauf exceptions justifiées)
 - Pas de code mort, pas de `console.log` en production
 - Commentaires uniquement pour le "pourquoi", jamais pour le "quoi"
 

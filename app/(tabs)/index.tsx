@@ -17,6 +17,7 @@ import { spacing, shadows } from '@/src/theme/spacing';
 import { ms, scaledIcon, scaledRadius } from '@/src/utils/scaling';
 import { UserLocationDot } from '@/src/components/icons/UserLocationDot';
 import { getMapStyle } from '@/src/theme/mapStyles';
+import { usePreferencesStore } from '@/src/stores/preferencesStore';
 import { useTripStore } from '@/src/stores/tripStore';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import { AlertButton } from '@/src/components/alert/AlertButton';
@@ -42,7 +43,8 @@ export default function HomeScreen() {
   const currentRegion = useRef<Region>(DEFAULT_REGION);
   const isFollowingUser = useRef(true);
   const [heading, setHeading] = useState<number | null>(null);
-  const mapStyle = useMemo(() => getMapStyle(), []);
+  const mapTheme = usePreferencesStore((s) => s.mapTheme);
+  const mapStyle = useMemo(() => getMapStyle(mapTheme), [mapTheme]);
 
   // Center map on user at launch, then watch position in real time
   useEffect(() => {

@@ -39,7 +39,7 @@ export function GuardianTab() {
     if (!selectedContact) return;
     try {
       await respondToInvitation({ contactId: selectedContact.id, response: 'accepted' });
-      setSnackbar({ visible: true, title: 'Demande acceptee', variant: 'success' });
+      setSnackbar({ visible: true, title: 'Demande acceptée', variant: 'success' });
       setSelectedContact(null);
     } catch {
       setSnackbar({ visible: true, title: 'Erreur lors de la validation', variant: 'error' });
@@ -50,7 +50,7 @@ export function GuardianTab() {
     if (!selectedContact) return;
     try {
       await respondToInvitation({ contactId: selectedContact.id, response: 'refused' });
-      setSnackbar({ visible: true, title: 'Demande refusee', variant: 'error' });
+      setSnackbar({ visible: true, title: 'Demande refusée', variant: 'error' });
       setSelectedContact(null);
     } catch {
       setSnackbar({ visible: true, title: 'Erreur lors du refus', variant: 'error' });
@@ -75,9 +75,9 @@ export function GuardianTab() {
             color={colors.primary[400]}
           />
         </View>
-        <Text style={styles.emptyTitle}>Aucun protege</Text>
+        <Text style={styles.emptyTitle}>Aucun protégé</Text>
         <Text style={styles.emptyDescription}>
-          Les personnes qui vous ajoutent comme contact de confiance apparaitront ici
+          Les personnes qui vous ajoutent comme contact de confiance apparaîtront ici
         </Text>
       </View>
     );
@@ -115,7 +115,7 @@ export function GuardianTab() {
 
       {activeContacts.length > 0 && (
         <View style={styles.guardianSection}>
-          <Text style={styles.sectionTitle}>Contacts acceptes</Text>
+          <Text style={styles.sectionTitle}>Contacts acceptés</Text>
           {activeContacts.map((contact) => (
             <View key={contact.id} style={styles.guardianCard}>
               <View style={styles.avatar}>

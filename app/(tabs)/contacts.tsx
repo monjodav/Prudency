@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,10 +18,11 @@ import { Snackbar } from '@/src/components/ui/Snackbar';
 import { FAB } from '@/src/components/ui/FAB';
 import { GuardianTab } from '@/src/components/contact/GuardianTab';
 import { ContactListItem } from '@/src/components/contact/ContactListItem';
+import { ScreenBackground } from '@/src/components/ui/ScreenBackground';
 import { useContacts } from '@/src/hooks/useContacts';
 import { APP_CONFIG } from '@/src/utils/constants';
 import type { TrustedContactRow } from '@/src/types/contact';
-import { figmaScale, scaledIcon, ms } from '@/src/utils/scaling';
+import { scaledIcon, ms, mvs } from '@/src/utils/scaling';
 
 const TABS = ['On me protège', 'Je protège'];
 
@@ -116,12 +118,19 @@ export default function ContactsScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.ellipseContainer}>
-        <View style={styles.ellipse} />
+    <View style={[styles.container, { paddingTop: insets.top + mvs(12, 0.3) }]}>
+      <ScreenBackground />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Ionicons name="chevron-back" size={scaledIcon(24)} color={colors.white} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Personnes de confiance</Text>
+        <View style={{ width: scaledIcon(24) }} />
       </View>
 
-      <View style={[styles.segmentContainer, { paddingTop: insets.top + spacing[16] }]}>
+      <View style={styles.segmentContainer}>
         <SegmentedControl
           options={TABS}
           selectedIndex={tabIndex}
@@ -130,7 +139,11 @@ export default function ContactsScreen() {
         />
       </View>
 
-      <Text style={styles.description}>Les personnes qui reçoivent mes alertes</Text>
+      <Text style={styles.description}>
+        {tabIndex === 0
+          ? 'Les personnes qui reçoivent mes alertes'
+          : 'Les personnes que je protège au quotidien'}
+      </Text>
 
       {tabIndex === 0 ? (
         <>
@@ -157,37 +170,37 @@ export default function ContactsScreen() {
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
             >
-              {/* Favoris section */}
-              <Text style={styles.sectionTitle}>Favoris</Text>
-              {favorites.length === 0 ? (
-                <View style={styles.cardBlock}>
-                  <Text style={styles.emptyFavorites}>Aucun favoris pour le moment.</Text>
-                </View>
-              ) : (
-                <View style={styles.cardBlock}>
-                  {favorites.map((contact, index) =>
-                    renderContactCard(contact, index === favorites.length - 1),
-                  )}
-                </View>
-              )}
+              {/* Favoris */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Favoris</Text>
+                {favorites.length === 0 ? (
+                  <View style={styles.card}>
+                    <Text style={styles.emptyFavorites}>Aucun favoris pour le moment.</Text>
+                  </View>
+                ) : (
+                  <View style={styles.card}>
+                    {favorites.map((contact, index) =>
+                      renderContactCard(contact, index === favorites.length - 1),
+                    )}
+                  </View>
+                )}
+              </View>
 
-              {/* Contacts enregistrés section */}
+              {/* Contacts enregistrés */}
               {letterGroups.length > 0 && (
-                <>
-                  <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>
-                    Contacts enregistrés
-                  </Text>
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Contacts enregistrés</Text>
                   {letterGroups.map((group) => (
                     <View key={group.letter} style={styles.letterGroup}>
                       <Text style={styles.letterLabel}>{group.letter}</Text>
-                      <View style={styles.cardBlock}>
+                      <View style={styles.card}>
                         {group.items.map((contact, index) =>
                           renderContactCard(contact, index === group.items.length - 1),
                         )}
                       </View>
                     </View>
                   ))}
-                </>
+                </View>
               )}
             </ScrollView>
           )}
@@ -230,22 +243,23 @@ export default function ContactsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.primary[950] },
-  ellipseContainer: {
-    position: 'absolute',
-    top: figmaScale(-400),
-    left: figmaScale(-500),
-    width: figmaScale(1386),
-    height: figmaScale(1278),
-    overflow: 'hidden',
+  container: {
+    flex: 1,
+    backgroundColor: colors.primary[950],
   },
-  ellipse: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.secondary[400],
-    borderRadius: figmaScale(700),
-    opacity: 0.5,
-    transform: [{ rotate: '3deg' }],
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[6],
+    marginBottom: mvs(20, 0.3),
+  },
+  headerTitle: {
+    ...typography.body,
+    fontFamily: 'Inter_700Bold',
+    fontWeight: '700',
+    color: colors.white,
+    textAlign: 'center',
   },
   segmentContainer: {
     paddingHorizontal: spacing[6],
@@ -253,7 +267,7 @@ const styles = StyleSheet.create({
   },
   description: {
     ...typography.caption,
-    color: colors.primary[200],
+    color: colors.gray[400],
     paddingHorizontal: spacing[6],
     marginBottom: spacing[4],
   },
@@ -266,18 +280,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[6],
     paddingBottom: spacing[24],
   },
+  section: {
+    marginTop: mvs(14, 0.3),
+    gap: mvs(8, 0.3),
+  },
   sectionTitle: {
-    ...typography.caption,
-    fontWeight: 'bold',
-    color: colors.gray[50],
-    marginBottom: spacing[2],
+    ...typography.bodySmall,
+    color: colors.gray[400],
   },
-  sectionTitleSpacing: {
-    marginTop: spacing[5],
-  },
-  cardBlock: {
-    backgroundColor: colors.secondary[900],
-    borderRadius: borderRadius.dialog,
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   emptyFavorites: {
@@ -287,12 +302,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[5],
   },
   letterGroup: {
-    marginTop: spacing[3],
+    gap: mvs(4, 0.3),
   },
   letterLabel: {
     ...typography.caption,
     color: colors.gray[500],
-    marginBottom: spacing[1],
   },
   emptyState: {
     flex: 1,
@@ -315,7 +329,7 @@ const styles = StyleSheet.create({
   },
   emptyDescription: {
     ...typography.body,
-    color: colors.primary[200],
+    color: colors.gray[400],
     textAlign: 'center',
     marginTop: spacing[2],
     marginBottom: spacing[6],

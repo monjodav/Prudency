@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, Text, TextInput, Image, StyleSheet, Linking, Alert } from 'react-native';
+import { View, Text, TextInput, Image, StyleSheet, Linking, Alert, Keyboard, Pressable } from 'react-native';
 import * as Contacts from 'expo-contacts';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
@@ -63,6 +63,7 @@ export function ContactForm({
   const [lastName, setLastName] = useState('');
   const [phoneDisplay, setPhoneDisplay] = useState('');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [focusedField, setFocusedField] = useState<'firstName' | 'lastName' | 'phone' | null>(null);
 
   const updateField = <K extends keyof ContactFormData>(
     key: K,
@@ -117,24 +118,14 @@ export function ContactForm({
     }
 
     const picked = await Contacts.presentContactPickerAsync();
-    if (!picked?.id) return;
+    if (!picked) return;
 
-    const contact = await Contacts.getContactByIdAsync(picked.id, [
-      Contacts.Fields.FirstName,
-      Contacts.Fields.LastName,
-      Contacts.Fields.PhoneNumbers,
-      Contacts.Fields.Image,
-    ]);
-    if (!contact) return;
+    setFirstName(picked.firstName ?? '');
+    setLastName(picked.lastName ?? '');
+    setAvatarUri(picked.image?.uri ?? null);
+    setErrors({});
 
-    if (contact.lastName) setFirstName(contact.lastName);
-    if (contact.firstName) setLastName(contact.firstName);
-
-    if (contact.image?.uri) {
-      setAvatarUri(contact.image.uri);
-    }
-
-    const rawPhone = contact.phoneNumbers?.[0]?.number;
+    const rawPhone = picked.phoneNumbers?.[0]?.number;
     if (rawPhone) {
       const cleaned = rawPhone.replace(/[\s.\-()]/g, '');
       let digits = cleaned;
@@ -144,8 +135,8 @@ export function ContactForm({
         digits = cleaned.slice(1);
       }
       setPhoneDisplay(formatPhoneDisplay(digits));
-      if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
     } else {
+      setPhoneDisplay('');
       Alert.alert(
         'Numéro manquant',
         'Ce contact n\'a pas de numéro de téléphone enregistré.',
@@ -154,76 +145,86 @@ export function ContactForm({
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
-      {avatarUri && (
-        <View style={styles.avatarContainer}>
-          <Image source={{ uri: avatarUri }} style={styles.avatar} />
-        </View>
-      )}
-
-      <Input
-        label="Prénom"
-        placeholder="Prénom"
-        value={firstName}
-        onChangeText={(text) => {
-          setFirstName(text);
-          if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
-        }}
-        error={errors.name}
-        autoCapitalize="words"
-        variant="dark"
-      />
-
-      <Input
-        label="Nom *"
-        placeholder="Nom"
-        value={lastName}
-        onChangeText={setLastName}
-        autoCapitalize="words"
-        variant="dark"
-      />
-
-      <View style={styles.phoneFieldContainer}>
-        <Text style={styles.phoneLabel}>Téléphone *</Text>
-        <View style={[
-          styles.phoneRow,
-          errors.phone ? styles.phoneRowError : undefined,
-        ]}>
-          <View style={styles.phonePrefix}>
-            <Text style={styles.phonePrefixFlag}>🇫🇷</Text>
-            <Text style={styles.phonePrefixCode}>{COUNTRY_PREFIX}</Text>
+    <Pressable style={styles.formContainer} onPress={Keyboard.dismiss}>
+      <View>
+        {focusedField !== 'lastName' && focusedField !== 'phone' && avatarUri && (
+          <View style={styles.avatarContainer}>
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
           </View>
-          <View style={styles.phoneSeparator} />
-          <TextInput
-            style={styles.phoneInput}
-            placeholder="6 12 34 56 78"
-            placeholderTextColor={colors.gray[500]}
-            value={phoneDisplay}
-            onChangeText={(text) => {
-              setPhoneDisplay(formatPhoneDisplay(text));
-              if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
-            }}
-            keyboardType="phone-pad"
-            autoCorrect={false}
-            autoComplete="tel"
-            textContentType="telephoneNumber"
-            maxLength={13}
-          />
-        </View>
-        {errors.phone && <Text style={styles.phoneError}>{errors.phone}</Text>}
-      </View>
+        )}
 
-      <Button
-        title="Importer un contact"
-        variant="outline"
-        onPress={handleImportContact}
-        fullWidth
-        icon={<Ionicons name="download-outline" size={scaledIcon(18)} color={colors.primary[400]} />}
-      />
+        {focusedField !== 'lastName' && focusedField !== 'phone' && (
+          <Input
+            label="Prénom *"
+            placeholder="Prénom"
+            value={firstName}
+            onChangeText={(text) => {
+              setFirstName(text);
+              if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+            }}
+            onFocus={() => setFocusedField('firstName')}
+            onBlur={() => setFocusedField(null)}
+            error={errors.name}
+            autoCapitalize="words"
+            variant="dark"
+          />
+        )}
+
+        {focusedField !== 'phone' && (
+          <Input
+            label="Nom"
+            placeholder="Nom"
+            value={lastName}
+            onChangeText={setLastName}
+            onFocus={() => setFocusedField('lastName')}
+            onBlur={() => setFocusedField(null)}
+            autoCapitalize="words"
+            variant="dark"
+          />
+        )}
+
+        <View style={styles.phoneFieldContainer}>
+          <Text style={styles.phoneLabel}>Téléphone *</Text>
+          <View style={[
+            styles.phoneRow,
+            errors.phone ? styles.phoneRowError : undefined,
+          ]}>
+            <View style={styles.phonePrefix}>
+              <Text style={styles.phonePrefixFlag}>🇫🇷</Text>
+              <Text style={styles.phonePrefixCode}>{COUNTRY_PREFIX}</Text>
+            </View>
+            <View style={styles.phoneSeparator} />
+            <TextInput
+              style={styles.phoneInput}
+              placeholder="6 12 34 56 78"
+              placeholderTextColor={colors.gray[500]}
+              value={phoneDisplay}
+              onChangeText={(text) => {
+                setPhoneDisplay(formatPhoneDisplay(text));
+                if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+              }}
+              onFocus={() => setFocusedField('phone')}
+              onBlur={() => setFocusedField(null)}
+              keyboardType="phone-pad"
+              autoCorrect={false}
+              autoComplete="tel"
+              textContentType="telephoneNumber"
+              maxLength={13}
+            />
+          </View>
+          {errors.phone && <Text style={styles.phoneError}>{errors.phone}</Text>}
+        </View>
+
+        {!focusedField && (
+          <Button
+            title="Importer un contact"
+            variant="outline"
+            onPress={handleImportContact}
+            fullWidth
+            icon={<Ionicons name="download-outline" size={scaledIcon(18)} color={colors.primary[400]} />}
+          />
+        )}
+      </View>
 
       <View style={styles.submitWrapper}>
         <Button
@@ -235,15 +236,11 @@ export function ContactForm({
           fullWidth
         />
       </View>
-    </ScrollView>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingTop: spacing[2],
-    paddingBottom: spacing[8],
-  },
   avatarContainer: {
     alignItems: 'center',
     marginBottom: spacing[4],
@@ -309,7 +306,11 @@ const styles = StyleSheet.create({
     fontSize: scaledFontSize(12),
     color: colors.error[500],
   },
+  formContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
   submitWrapper: {
-    marginTop: mvs(180, 0.5),
+    paddingBottom: spacing[8],
   },
 });

@@ -350,6 +350,10 @@ export function useTripCreation() {
     notifyBySms: boolean;
     notifyByPush: boolean;
   }) => {
+    const existing = contacts.find((c) => c.phone === formData.phone);
+    if (existing && existing.validation_status === 'pending') {
+      throw new Error('Une demande est déjà en attente pour ce contact.');
+    }
     try {
       const newContact = await createContact({
         name: formData.name,
@@ -360,8 +364,9 @@ export function useTripCreation() {
       setShowAddContact(false);
     } catch (err) {
       if (__DEV__) console.warn('Contact creation failed:', err);
+      throw err;
     }
-  }, [createContact]);
+  }, [createContact, contacts]);
 
   return {
     // State

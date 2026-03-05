@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   PanResponder,
   Keyboard,
 } from 'react-native';
+import BottomSheet, { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -124,14 +125,12 @@ function CompactSummary({ steps }: { steps: RouteStep[] }) {
 }
 const DISMISS_THRESHOLD = 120;
 
-type Page = 'trip' | 'addContact';
-
 export default function CreateTripScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const [page, setPage] = useState<Page>('trip');
+  const contactSheetRef = useRef<BottomSheet>(null);
   const scrollRef = useRef<ScrollView>(null);
   const destinationY = useRef(0);
   const timeY = useRef(0);
@@ -317,10 +316,26 @@ export default function CreateTripScreen() {
     }),
   ).current;
 
+  const [contactError, setContactError] = useState<string | null>(null);
+
   const handleAddContactSubmit = async (data: Parameters<typeof handleAddContact>[0]) => {
-    await handleAddContact(data);
-    setPage('trip');
+    try {
+      setContactError(null);
+      await handleAddContact(data);
+      contactSheetRef.current?.close();
+    } catch (err) {
+      setContactError(err instanceof Error ? err.message : 'Erreur lors de l\'ajout du contact.');
+    }
   };
+
+  const contactSnapPoints = useMemo(() => ['70%'], []);
+
+  const renderContactBackdrop = useCallback(
+    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
+      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
+    ),
+    [],
+  );
 
   return (
     <View style={styles.container}>
@@ -417,7 +432,6 @@ export default function CreateTripScreen() {
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          {page === 'trip' ? (
             <ScrollView
               ref={scrollRef}
               contentContainerStyle={styles.scrollContent}
@@ -533,7 +547,7 @@ export default function CreateTripScreen() {
                 contactsLoading={contactsLoading}
                 selectedContactId={selectedContactId}
                 onSelectContact={(id) => setSelectedContactId(selectedContactId === id ? null : id)}
-                onShowAddContact={() => setPage('addContact')}
+                onShowAddContact={() => { setContactError(null); contactSheetRef.current?.snapToIndex(0); }}
               />
 
               <TogglesSection
@@ -558,26 +572,36 @@ export default function CreateTripScreen() {
 
               <FooterWarning />
             </ScrollView>
-          ) : (
-            <View style={styles.addContactContent}>
-              <View style={styles.addContactHeader}>
-                <Pressable onPress={() => setPage('trip')} hitSlop={8}>
-                  <Ionicons name="chevron-back" size={scaledIcon(22)} color={colors.gray[400]} />
-                </Pressable>
-                <Text style={styles.addContactTitle}>Ajouter une personne de confiance</Text>
-                <View style={{ width: scaledIcon(22) }} />
-              </View>
-              <ContactForm
-                onSubmit={handleAddContactSubmit}
-                onCancel={() => setPage('trip')}
-                loading={isCreatingContact}
-                submitLabel="Envoyer une demande"
-              />
-            </View>
-          )}
         </KeyboardAvoidingView>
         )}
       </Animated.View>
+
+      <BottomSheet
+        ref={contactSheetRef}
+        index={-1}
+        snapPoints={contactSnapPoints}
+        enablePanDownToClose
+        backdropComponent={renderContactBackdrop}
+        backgroundStyle={styles.contactSheetBackground}
+        handleIndicatorStyle={styles.contactSheetHandle}
+        enableDynamicSizing={false}
+      >
+        <View style={styles.contactSheetContent}>
+          <Text style={styles.addContactTitle}>Ajouter une personne{'\n'}de confiance</Text>
+          {contactError && (
+            <View style={styles.contactErrorBanner}>
+              <Ionicons name="alert-circle-outline" size={scaledIcon(16)} color={colors.error[400]} />
+              <Text style={styles.contactErrorText}>{contactError}</Text>
+            </View>
+          )}
+          <ContactForm
+            onSubmit={handleAddContactSubmit}
+            onCancel={() => contactSheetRef.current?.close()}
+            loading={isCreatingContact}
+            submitLabel="Envoyer une demande"
+          />
+        </View>
+      </BottomSheet>
     </View>
   );
 }
@@ -617,7 +641,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing[6],
-    paddingBottom: mvs(140, 0.5),
+    paddingBottom: spacing[8],
   },
   headerTitle: {
     ...typography.h2,
@@ -762,20 +786,35 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.inter.bold,
     fontWeight: '700',
   },
-  addContactContent: {
-    flex: 1,
-    paddingHorizontal: spacing[6],
-  },
-  addContactHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing[4],
-  },
   addContactTitle: {
     ...typography.h3,
     color: colors.white,
     textAlign: 'center',
+    marginBottom: spacing[4],
+  },
+  contactSheetBackground: {
+    backgroundColor: 'rgba(15, 15, 15, 0.97)',
+  },
+  contactSheetHandle: {
+    backgroundColor: '#6d6d6d',
+  },
+  contactSheetContent: {
+    flex: 1,
+    paddingHorizontal: spacing[6],
+    paddingTop: spacing[3],
+  },
+  contactErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(202, 31, 31, 0.15)',
+    padding: spacing[3],
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing[3],
+    gap: spacing[2],
+  },
+  contactErrorText: {
+    ...typography.bodySmall,
+    color: colors.error[400],
     flex: 1,
   },
 });
