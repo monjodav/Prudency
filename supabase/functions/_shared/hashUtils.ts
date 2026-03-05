@@ -5,17 +5,16 @@ export async function sha256(input: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-
+export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
   const encoder = new TextEncoder();
   const bufA = encoder.encode(a);
   const bufB = encoder.encode(b);
 
-  let result = 0;
-  for (let i = 0; i < bufA.length; i++) {
-    result |= bufA[i] ^ bufB[i];
+  if (bufA.byteLength !== bufB.byteLength) {
+    // Compare with self to maintain constant time even on length mismatch
+    crypto.subtle.timingSafeEqual(bufA, bufA);
+    return false;
   }
 
-  return result === 0;
+  return crypto.subtle.timingSafeEqual(bufA, bufB);
 }

@@ -13,8 +13,8 @@ export type SendContactInvitationInput = z.infer<
 >;
 
 export interface SendContactInvitationOutput {
-  invitationToken: string;
-  status: string;
+  status: "sent";
+  contactId: string;
 }
 
 export const MAX_INVITATIONS_PER_CONTACT = 3;

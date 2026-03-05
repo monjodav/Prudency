@@ -36,7 +36,6 @@ export function useTripCreation() {
   const [transportMode, setTransportMode] = useState<TransportMode>('walk');
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showAddContact, setShowAddContact] = useState(false);
   const [shareLocation, setShareLocation] = useState(true);
   const [silentNotifications, setSilentNotifications] = useState(false);
   const [departureTime, setDepartureTime] = useState<Date>(new Date());
@@ -361,7 +360,6 @@ export function useTripCreation() {
         isPrimary: formData.isPrimary,
       });
       setSelectedContactId(newContact.id);
-      setShowAddContact(false);
     } catch (err) {
       if (__DEV__) console.warn('Contact creation failed:', err);
       throw err;
@@ -378,8 +376,6 @@ export function useTripCreation() {
     selectedContactId,
     setSelectedContactId,
     error,
-    showAddContact,
-    setShowAddContact,
     shareLocation,
     setShareLocation,
     silentNotifications,

@@ -157,7 +157,6 @@ export default function CreateTripScreen() {
     selectedPlace,
     departureLoc,
     route,
-    duration,
     estimatedArrivalTime,
     routes,
     selectedRouteIndex,
@@ -194,20 +193,49 @@ export default function CreateTripScreen() {
       ? { lat: lastKnownLat, lng: lastKnownLng }
       : null;
 
-  const [heading, setHeading] = useState<number | null>(null);
-  useEffect(() => {
-    let sub: Location.LocationSubscription | null = null;
-    Location.watchHeadingAsync((h) => {
-      if (h.trueHeading >= 0) setHeading(h.trueHeading);
-    }).then((s) => { sub = s; });
-    return () => { sub?.remove(); };
-  }, []);
-
   const canLaunch = !!selectedPlace && !!transportMode && routes.length > 0;
+
+  const memoizedSavedPlaces = useMemo(
+    () => savedPlaces.map((p) => ({
+      name: p.name,
+      onPress: () => handleSelectRecentPlace(p),
+    })),
+    [savedPlaces, handleSelectRecentPlace],
+  );
+
+  const memoizedRecentPlaces = useMemo(
+    () => recentPlaces.map((p) => ({
+      name: p.name,
+      address: p.address,
+      onPress: () => handleSelectRecentPlace(p),
+    })),
+    [recentPlaces, handleSelectRecentPlace],
+  );
 
   // Track the current snap position so PanResponder knows where we are
   const currentSnap = useRef<'full' | 'reduced'>('full');
   const [snapState, setSnapState] = useState<'full' | 'reduced'>('full');
+
+  const [heading, setHeading] = useState<number | null>(null);
+  useEffect(() => {
+    if (snapState !== 'reduced') return;
+
+    let cancelled = false;
+    let sub: Location.LocationSubscription | null = null;
+    Location.watchHeadingAsync((h) => {
+      if (h.trueHeading >= 0) setHeading(h.trueHeading);
+    }).then((s) => {
+      if (cancelled) {
+        s.remove();
+      } else {
+        sub = s;
+      }
+    });
+    return () => {
+      cancelled = true;
+      sub?.remove();
+    };
+  }, [snapState]);
 
   const animateSheet = useCallback(
     (toSnap: 'full' | 'reduced' | 'dismiss') => {
@@ -484,15 +512,8 @@ export default function CreateTripScreen() {
                   searchResults={searchResults}
                   onSelectPlace={handleSelectPlace}
                   onDismissResults={dismissDestinationResults}
-                  savedPlaces={savedPlaces.map((p) => ({
-                    name: p.name,
-                    onPress: () => handleSelectRecentPlace(p),
-                  }))}
-                  recentPlaces={recentPlaces.map((p) => ({
-                    name: p.name,
-                    address: p.address,
-                    onPress: () => handleSelectRecentPlace(p),
-                  }))}
+                  savedPlaces={memoizedSavedPlaces}
+                  recentPlaces={memoizedRecentPlaces}
                   onFocus={() => {
                     setTimeout(() => {
                       scrollRef.current?.scrollTo({ y: destinationY.current, animated: true });

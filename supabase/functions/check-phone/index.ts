@@ -64,6 +64,30 @@ Deno.serve(async (req) => {
     // Use service_role to query across users (RLS blocks cross-user reads)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Rate limit: max 5 check-phone calls per user per minute
+    const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+    const { count: recentCount } = await adminClient
+      .from("rate_limits")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("action", "check-phone")
+      .gte("created_at", oneMinuteAgo);
+
+    if ((recentCount ?? 0) >= 5) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Record this request for rate limiting
+    await adminClient
+      .from("rate_limits")
+      .insert({ user_id: user.id, action: "check-phone" });
+
     const { count, error: queryError } = await adminClient
       .from("profiles")
       .select("*", { count: "exact", head: true })

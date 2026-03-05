@@ -1,7 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SendSmsInputSchema, type SendSmsOutput } from "./types.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { sendSmsViaOvh, isOvhConfigured } from "../_shared/ovhSms.ts";
+import { timingSafeEqual } from "../_shared/hashUtils.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -18,37 +18,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify JWT
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization" }), {
+    // Internal-only: require X-Internal-Secret header
+    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
+    if (!internalSecret) {
+      return new Response(
+        JSON.stringify({ error: "Server misconfigured" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const providedSecret = req.headers.get("X-Internal-Secret") ?? "";
+    const isAuthorized = await timingSafeEqual(internalSecret, providedSecret);
+    if (!isAuthorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-    // Allow both user-level and service-level calls
-    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
-    const isServiceCall = !!(internalSecret && req.headers.get("X-Internal-Secret") === internalSecret);
-
-    if (!isServiceCall) {
-      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-      if (authError || !user) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
     }
 
     // Check OVH config

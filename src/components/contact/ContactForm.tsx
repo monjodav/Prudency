@@ -54,26 +54,12 @@ export function ContactForm({
   loading = false,
   submitLabel = 'Ajouter',
 }: ContactFormProps) {
-  const [form, setForm] = useState<ContactFormData>({
-    ...DEFAULT_VALUES,
-    ...initialValues,
-  });
   const [errors, setErrors] = useState<Partial<Record<keyof ContactFormData, string>>>({});
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneDisplay, setPhoneDisplay] = useState('');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<'firstName' | 'lastName' | 'phone' | null>(null);
-
-  const updateField = <K extends keyof ContactFormData>(
-    key: K,
-    value: ContactFormData[K]
-  ) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    if (errors[key]) {
-      setErrors((prev) => ({ ...prev, [key]: undefined }));
-    }
-  };
 
   const phoneDigits = phoneDisplay.replace(/\D/g, '');
 
@@ -96,7 +82,12 @@ export function ContactForm({
     if (validate()) {
       const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
       const e164Phone = `${COUNTRY_PREFIX}${phoneDigits}`;
-      onSubmit({ ...form, name: fullName, phone: e164Phone });
+      onSubmit({
+        ...DEFAULT_VALUES,
+        ...initialValues,
+        name: fullName,
+        phone: e164Phone,
+      });
     }
   };
 

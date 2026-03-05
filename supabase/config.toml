@@ -78,5 +78,11 @@ verify_jwt = true
 [functions.verify-otp]
 verify_jwt = true
 
+[functions.notify-arrival]
+verify_jwt = true
+
+[functions.check-phone]
+verify_jwt = true
+
 [functions.delete-account]
 verify_jwt = true

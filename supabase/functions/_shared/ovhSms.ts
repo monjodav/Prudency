@@ -94,7 +94,7 @@ export async function sendSmsViaOvh(
   if (!ovhResponse.ok) {
     const errorBody = await ovhResponse.text();
     console.error("OVH SMS API error: status", ovhResponse.status, "body:", errorBody);
-    throw new Error(`Failed to send SMS: ${ovhResponse.status} ${errorBody}`);
+    throw new Error("Failed to send SMS");
   }
 
   const ovhData: OvhSmsResponse = await ovhResponse.json();

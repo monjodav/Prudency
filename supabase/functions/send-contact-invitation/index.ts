@@ -191,8 +191,8 @@ Deno.serve(async (req) => {
     await sendSmsViaOvh(recipientPhone, message);
 
     const output: SendContactInvitationOutput = {
-      invitationToken,
       status: "sent",
+      contactId,
     };
 
     return new Response(JSON.stringify(output), {

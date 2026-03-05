@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { DeleteAccountInputSchema, type DeleteAccountOutput } from "./types.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
@@ -45,6 +46,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Validate confirmation payload
+    const body = await req.json();
+    const parseResult = DeleteAccountInputSchema.safeParse(body);
+    if (!parseResult.success) {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid input",
+          details: parseResult.error.flatten().fieldErrors,
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     // Use service_role to delete the user from auth.users
     // ON DELETE CASCADE handles profiles, trusted_contacts, trips, etc.
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
@@ -63,7 +80,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    const output: DeleteAccountOutput = { success: true };
+    return new Response(JSON.stringify(output), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

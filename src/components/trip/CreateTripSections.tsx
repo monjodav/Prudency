@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
-  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
@@ -498,10 +497,19 @@ const STATUS_CONFIG = {
 } as const;
 
 function ContactAvatar({ name }: { name: string }) {
-  const parts = name.trim().split(/\s+/);
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return (
+      <View style={styles.contactAvatar}>
+        <Text style={styles.contactAvatarText}>?</Text>
+      </View>
+    );
+  }
+
+  const parts = trimmed.split(/\s+/);
   const initials = parts.length >= 2
     ? `${parts[0]![0]}${parts[parts.length - 1]![0]}`
-    : name.slice(0, 2);
+    : trimmed.slice(0, 2);
 
   return (
     <View style={styles.contactAvatar}>
@@ -684,19 +692,6 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginHorizontal: spacing[4],
-  },
-  dismissButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing[1],
-    paddingVertical: spacing[2],
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  dismissText: {
-    ...typography.caption,
-    color: colors.gray[500],
   },
   suggestionsSection: {
     marginBottom: spacing[4],

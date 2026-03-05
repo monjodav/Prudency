@@ -207,9 +207,10 @@ Deno.serve(async (req) => {
             {
               method: "POST",
               headers: {
-                Authorization: authHeader,
                 "Content-Type": "application/json",
-                ...(internalSecret ? { "X-Internal-Secret": internalSecret } : {}),
+                ...(isServiceCall
+                  ? { "X-Internal-Secret": internalSecret! }
+                  : { Authorization: authHeader! }),
               },
               body: JSON.stringify({
                 to: contact.phone,

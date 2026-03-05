@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       error: authError,
     } = await supabase.auth.getUser();
     if (authError || !user) {
-      console.error("send-otp auth failed:", authError?.message ?? "no user", "header:", authHeader?.substring(0, 20));
+      console.error("send-otp auth failed:", authError?.message ?? "no user");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -60,7 +60,6 @@ Deno.serve(async (req) => {
 
     // Check OVH config
     const ovhReady = isOvhConfigured();
-    console.log("OVH configured:", ovhReady);
     if (!ovhReady) {
       console.error("Missing OVH env vars — check project secrets");
       return new Response(

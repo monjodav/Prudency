@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     const { data: trip, error: tripError } = await supabaseAdmin
       .from("trips")
       .select(
-        `id, user_id, status, trusted_contact_id, arrival_address,
+        `id, user_id, status, trusted_contact_id, arrival_address, arrival_notified,
          profiles!trips_user_id_fkey ( first_name, last_name )`
       )
       .eq("id", tripId)
@@ -91,6 +91,17 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Trip is not completed" }),
         {
           status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Rate limit: max 1 arrival notification per trip
+    if (trip.arrival_notified) {
+      return new Response(
+        JSON.stringify({ error: "Arrival notification already sent for this trip" }),
+        {
+          status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
@@ -191,6 +202,12 @@ Deno.serve(async (req) => {
       );
 
     await Promise.all(smsPromises);
+
+    // Mark trip as notified to prevent duplicate notifications
+    await supabaseAdmin
+      .from("trips")
+      .update({ arrival_notified: true })
+      .eq("id", tripId);
 
     return new Response(JSON.stringify(output), {
       status: 200,

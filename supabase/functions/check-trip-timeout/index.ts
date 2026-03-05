@@ -6,6 +6,7 @@ import {
 } from "./types.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { fetchWithRetry } from "../_shared/retry.ts";
+import { timingSafeEqual } from "../_shared/hashUtils.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -29,9 +30,10 @@ Deno.serve(async (req) => {
     const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
 
     // Allow if: 1) X-Internal-Secret header matches, or 2) X-Cron-Secret header matches
-    const cronSecretHeader = req.headers.get("X-Cron-Secret");
-    const isServiceCall = !!(internalSecret && req.headers.get("X-Internal-Secret") === internalSecret);
-    const isCronCall = cronSecret && cronSecretHeader === cronSecret;
+    const internalHeader = req.headers.get("X-Internal-Secret") ?? "";
+    const cronSecretHeader = req.headers.get("X-Cron-Secret") ?? "";
+    const isServiceCall = !!internalSecret && await timingSafeEqual(internalSecret, internalHeader);
+    const isCronCall = !!cronSecret && await timingSafeEqual(cronSecret, cronSecretHeader);
 
     if (!isServiceCall && !isCronCall) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
