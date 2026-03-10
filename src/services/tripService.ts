@@ -54,7 +54,22 @@ export async function createTrip(input: CreateTripInput): Promise<TripRow> {
     throw error;
   }
 
-  return data as TripRow;
+  const trip = data as TripRow;
+
+  // Fire-and-forget: notify contacts that trip started
+  notifyTripStarted(trip.id).catch(() => undefined);
+
+  return trip;
+}
+
+export async function notifyTripStarted(tripId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('notify-trip-started', {
+    body: { tripId },
+  });
+
+  if (error) {
+    if (__DEV__) console.warn('Notify trip started failed:', error);
+  }
 }
 
 export async function getTrips(): Promise<TripRow[]> {
@@ -222,21 +237,7 @@ export async function cancelTrip(id: string): Promise<TripRow> {
 
   const trip = data as TripRow;
 
-  if (trip.trusted_contact_id) {
-    notifyCancelTrip(trip.id).catch(() => undefined);
-  }
-
   return trip;
-}
-
-export async function notifyCancelTrip(tripId: string): Promise<void> {
-  const { error } = await supabase.functions.invoke('notify-trip-cancelled', {
-    body: { tripId },
-  });
-
-  if (error) {
-    if (__DEV__) console.warn('Notify cancel failed:', error);
-  }
 }
 
 export interface EditTripInput {

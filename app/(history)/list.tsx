@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
   Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
+import { Loader } from '@/src/components/ui/Loader';
 import { ms } from '@/src/utils/scaling';
 import { usePastTrips, usePastAlerts } from '@/src/hooks/useHistory';
 import { CardHistoriqueTrajet } from '@/src/components/history/CardHistoriqueTrajet';
@@ -147,7 +147,7 @@ export default function HistoryScreen() {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary[500]} />
+          <Loader size="lg" />
         </View>
       ) : activeTab === 'trips' ? (
         <FlatList

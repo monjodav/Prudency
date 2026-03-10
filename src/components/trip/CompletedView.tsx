@@ -21,7 +21,7 @@ export function CompletedView({ onGoHome }: CompletedViewProps) {
 
         <Text style={styles.completedTitle}>Trajet terminé</Text>
         <Text style={styles.completedSubtitle}>
-          Trajet fini avec succès. Tes contacts ont été prévenus de ton arrivée.
+          Trajet terminé avec succès. Tes contacts ont été prévenu(e)s de ton arrivée.
         </Text>
 
         <Button

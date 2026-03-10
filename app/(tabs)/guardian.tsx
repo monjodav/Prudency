@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +20,7 @@ import { useProtectedPersons } from '@/src/hooks/useGuardianAlert';
 import { formatPhoneNumber } from '@/src/utils/formatters';
 import type { TrustedContactRow } from '@/src/types/contact';
 import type { ProtectedPerson } from '@/src/services/guardianService';
+import { Loader } from '@/src/components/ui/Loader';
 import { figmaScale, scaledIcon, ms } from '@/src/utils/scaling';
 
 export default function GuardianScreen() {
@@ -185,7 +185,7 @@ export default function GuardianScreen() {
 
       {isLoading || isLoadingPersons ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator size="large" color={colors.primary[300]} />
+          <Loader size="lg" color={colors.primary[300]} />
         </View>
       ) : contacts.length === 0 ? (
         <View style={styles.emptyState}>

@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { ActivityIndicator, StyleSheet, View, ViewStyle, Platform } from 'react-native';
+import { StyleSheet, View, ViewStyle, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, {
   Marker,
@@ -15,6 +15,7 @@ import MapView, {
   PROVIDER_GOOGLE,
   Region,
 } from 'react-native-maps';
+import { Loader } from '@/src/components/ui/Loader';
 import { colors } from '@/src/theme/colors';
 import { getMapStyle } from '@/src/theme/mapStyles';
 import { usePreferencesStore } from '@/src/stores/preferencesStore';
@@ -54,7 +55,7 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.05,
 };
 
-const EDGE_PADDING = { top: 60, right: 60, bottom: 60, left: 60 };
+const EDGE_PADDING = { top: 100, right: 80, bottom: 80, left: 80 };
 
 export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
   {
@@ -89,7 +90,6 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
     const points: { latitude: number; longitude: number }[] = [];
     if (departure) points.push({ latitude: departure.lat, longitude: departure.lng });
     if (arrival) points.push({ latitude: arrival.lat, longitude: arrival.lng });
-    if (userLocation) points.push({ latitude: userLocation.lat, longitude: userLocation.lng });
     if (routeSegments && routeSegments.length > 0) {
       for (const seg of routeSegments) points.push(...seg.coordinates);
     } else if (routeCoordinates) {
@@ -112,7 +112,7 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
         );
       }
     }
-  }, [departure, arrival, userLocation, routeCoordinates, routeSegments, bottomPadding]);
+  }, [departure, arrival, routeCoordinates, routeSegments, bottomPadding]);
 
   const handleMapReady = useCallback(() => {
     setIsReady(true);
@@ -156,7 +156,7 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
     <View style={[styles.container, style]}>
       {!isReady && (
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color={colors.primary[500]} />
+          <Loader size="lg" />
         </View>
       )}
       <MapView
@@ -189,6 +189,15 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
             <View style={[styles.stopDot, { borderColor: stop.color }]} />
           </Marker>
         ))}
+        {departure && (
+          <Marker
+            coordinate={{ latitude: departure.lat, longitude: departure.lng }}
+            anchor={{ x: 0.5, y: 0.95 }}
+            tracksViewChanges={false}
+          >
+            <Ionicons name="location-sharp" size={ms(32, 0.4)} color={colors.success[500]} />
+          </Marker>
+        )}
         {arrival && (
           <Marker
             coordinate={{ latitude: arrival.lat, longitude: arrival.lng }}

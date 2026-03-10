@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
+import { Loader } from '@/src/components/ui/Loader';
 import { colors } from '@/src/theme/colors';
 import { Input } from '@/src/components/ui/Input';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
@@ -71,7 +72,7 @@ export default function EditNameScreen() {
       headerRight={
         <Pressable onPress={handleSave} hitSlop={12} disabled={isSaving} style={styles.headerButton}>
           {isSaving ? (
-            <ActivityIndicator size="small" color={colors.brandPosition[50]} />
+            <Loader size="sm" color={colors.brandPosition[50]} />
           ) : (
             <Ionicons name="checkmark" size={scaledIcon(24)} color={colors.brandPosition[50]} />
           )}

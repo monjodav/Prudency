@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   Pressable,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
+import { Loader } from '@/src/components/ui/Loader';
 import { scaledIcon, ms } from '@/src/utils/scaling';
 import { usePastAlertDetail } from '@/src/hooks/useHistory';
 import { TagAlerte } from '@/src/components/alert/TagAlerte';
@@ -79,7 +79,7 @@ export default function AlertDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <Loader size="lg" />
       </View>
     );
   }

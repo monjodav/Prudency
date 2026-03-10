@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
+import { Loader } from '@/src/components/ui/Loader';
 import { ms, scaledIcon } from '@/src/utils/scaling';
 import { usePastTripDetail } from '@/src/hooks/useHistory';
 import { TripMap } from '@/src/components/map/TripMap';
@@ -88,7 +88,7 @@ export default function TripDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <Loader size="lg" />
       </View>
     );
   }

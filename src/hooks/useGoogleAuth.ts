@@ -1,11 +1,14 @@
-import { useState, useCallback } from 'react';
-import * as QueryParams from 'expo-auth-session/build/QueryParams';
-import * as WebBrowser from 'expo-web-browser';
+import { useState, useCallback, useEffect } from 'react';
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import { supabase } from '@/src/services/supabaseClient';
 
-WebBrowser.maybeCompleteAuthSession();
-
-const REDIRECT_URI = 'prudency://google-auth';
+const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+const IOS_CLIENT_ID =
+  '796381017761-kd9frcgmvmjeef78h7101qheuh9svig6.apps.googleusercontent.com';
 
 interface GoogleAuthState {
   isLoading: boolean;
@@ -18,52 +21,40 @@ export function useGoogleAuth() {
     error: null,
   });
 
+  useEffect(() => {
+    GoogleSignin.configure({
+      iosClientId: IOS_CLIENT_ID,
+      webClientId: WEB_CLIENT_ID,
+    });
+  }, []);
+
   const signInWithGoogle = useCallback(async () => {
     setState({ isLoading: true, error: null });
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: REDIRECT_URI,
-          queryParams: { prompt: 'consent' },
-        },
-      });
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
 
-      if (error || !data.url) {
-        throw error ?? new Error('Impossible de lancer la connexion Google');
+      if (!response.data?.idToken) {
+        throw new Error('Aucun token reçu de Google');
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(
-        data.url,
-        REDIRECT_URI,
-      );
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: response.data.idToken,
+      });
 
-      if (result.type !== 'success' || !result.url) {
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    } catch (err: unknown) {
+      if (isErrorWithCode(err) && err.code === statusCodes.SIGN_IN_CANCELLED) {
         setState({ isLoading: false, error: null });
         return null;
       }
 
-      const params = QueryParams.getQueryParams(result.url);
-      const accessToken = params.params['access_token'];
-      const refreshToken = params.params['refresh_token'];
-
-      if (!accessToken || !refreshToken) {
-        throw new Error("Aucun token reçu de Google");
-      }
-
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-
-      if (sessionError) {
-        throw sessionError;
-      }
-
-      return sessionData;
-    } catch (err: unknown) {
       const error =
         err instanceof Error ? err : new Error('Erreur lors de la connexion Google');
       setState({ isLoading: false, error });

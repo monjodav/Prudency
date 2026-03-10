@@ -40,6 +40,7 @@ export const createContactSchema = z.object({
   name: z.string().min(1, 'Le nom est requis').max(100),
   phone: phoneSchema,
   isPrimary: z.boolean().default(false),
+  avatarUri: z.string().max(500).optional(),
 });
 
 export const sendAlertSchema = z.object({

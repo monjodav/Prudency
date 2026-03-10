@@ -9,6 +9,85 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          title: string | null
+          body: string | null
+          data: Record<string, unknown>
+          read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          title?: string | null
+          body?: string | null
+          data?: Record<string, unknown>
+          read?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: string
+          title?: string | null
+          body?: string | null
+          data?: Record<string, unknown>
+          read?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notifications_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      push_tokens: {
+        Row: {
+          id: string
+          user_id: string
+          token: string
+          platform: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          token: string
+          platform: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          token?: string
+          platform?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'push_tokens_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       alerts: {
         Row: {
           acknowledged_at: string | null
@@ -389,6 +468,7 @@ export type Database = {
       }
       trusted_contacts: {
         Row: {
+          avatar_uri: string | null
           created_at: string | null
           email: string | null
           id: string
@@ -407,6 +487,7 @@ export type Database = {
           validation_status: 'pending' | 'accepted' | 'refused'
         }
         Insert: {
+          avatar_uri?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
@@ -425,6 +506,7 @@ export type Database = {
           validation_status?: 'pending' | 'accepted' | 'refused'
         }
         Update: {
+          avatar_uri?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
@@ -491,6 +573,8 @@ export type TripLocation = Tables<'trip_locations'>
 export type TripNote = Tables<'trip_notes'>
 export type Alert = Tables<'alerts'>
 export type PhoneVerification = Tables<'phone_verifications'>
+export type Notification = Tables<'notifications'>
+export type PushToken = Tables<'push_tokens'>
 
 export type ProfileInsert = TablesInsert<'profiles'>
 export type TrustedContactInsert = TablesInsert<'trusted_contacts'>
@@ -500,6 +584,8 @@ export type TripLocationInsert = TablesInsert<'trip_locations'>
 export type TripNoteInsert = TablesInsert<'trip_notes'>
 export type AlertInsert = TablesInsert<'alerts'>
 export type PhoneVerificationInsert = TablesInsert<'phone_verifications'>
+export type NotificationInsert = TablesInsert<'notifications'>
+export type PushTokenInsert = TablesInsert<'push_tokens'>
 
 export type ProfileUpdate = TablesUpdate<'profiles'>
 export type TrustedContactUpdate = TablesUpdate<'trusted_contacts'>
@@ -509,3 +595,5 @@ export type TripLocationUpdate = TablesUpdate<'trip_locations'>
 export type TripNoteUpdate = TablesUpdate<'trip_notes'>
 export type AlertUpdate = TablesUpdate<'alerts'>
 export type PhoneVerificationUpdate = TablesUpdate<'phone_verifications'>
+export type NotificationUpdate = TablesUpdate<'notifications'>
+export type PushTokenUpdate = TablesUpdate<'push_tokens'>

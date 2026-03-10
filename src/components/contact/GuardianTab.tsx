@@ -1,71 +1,37 @@
-import React, { useMemo, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
-import { useContacts } from '@/src/hooks/useContacts';
-import { Snackbar } from '@/src/components/ui/Snackbar';
-import { AcceptContactDialog } from '@/src/components/contact/AcceptContactDialog';
+import { useGuardianContacts } from '@/src/hooks/useGuardianContacts';
 import { formatPhoneNumber, getInitials } from '@/src/utils/formatters';
+import { Loader } from '@/src/components/ui/Loader';
 import { scaledIcon, ms } from '@/src/utils/scaling';
-import type { TrustedContactRow } from '@/src/types/contact';
+import type { GuardianContact } from '@/src/types/contact';
 
 export function GuardianTab() {
-  const { contacts, isLoading, respondToInvitation, isRespondingToInvitation } = useContacts();
-
-  const [selectedContact, setSelectedContact] = useState<TrustedContactRow | null>(null);
-  const [snackbar, setSnackbar] = useState<{
-    visible: boolean;
-    title: string;
-    variant: 'success' | 'error';
-  }>({ visible: false, title: '', variant: 'success' });
+  const { guardianContacts, isLoading } = useGuardianContacts();
 
   const pendingContacts = useMemo(
-    () => contacts.filter((c) => c.validation_status === 'pending'),
-    [contacts],
+    () => guardianContacts.filter((c) => c.validationStatus === 'pending'),
+    [guardianContacts],
   );
 
   const activeContacts = useMemo(
-    () => contacts.filter((c) => c.validation_status === 'accepted'),
-    [contacts],
+    () => guardianContacts.filter((c) => c.validationStatus === 'accepted'),
+    [guardianContacts],
   );
-
-  const handleValidatePress = useCallback((contact: TrustedContactRow) => {
-    setSelectedContact(contact);
-  }, []);
-
-  const handleAccept = useCallback(async () => {
-    if (!selectedContact?.invitation_token) return;
-    try {
-      await respondToInvitation({ token: selectedContact.invitation_token, response: 'accepted' });
-      setSnackbar({ visible: true, title: 'Demande acceptée', variant: 'success' });
-      setSelectedContact(null);
-    } catch {
-      setSnackbar({ visible: true, title: 'Erreur lors de la validation', variant: 'error' });
-    }
-  }, [selectedContact, respondToInvitation]);
-
-  const handleRefuse = useCallback(async () => {
-    if (!selectedContact?.invitation_token) return;
-    try {
-      await respondToInvitation({ token: selectedContact.invitation_token, response: 'refused' });
-      setSnackbar({ visible: true, title: 'Demande refusée', variant: 'error' });
-      setSelectedContact(null);
-    } catch {
-      setSnackbar({ visible: true, title: 'Erreur lors du refus', variant: 'error' });
-    }
-  }, [selectedContact, respondToInvitation]);
 
   if (isLoading) {
     return (
       <View style={styles.loadingState}>
-        <ActivityIndicator size="large" color={colors.primary[300]} />
+        <Loader size="lg" color={colors.primary[300]} />
       </View>
     );
   }
 
-  if (contacts.length === 0) {
+  if (guardianContacts.length === 0) {
     return (
       <View style={styles.emptyState}>
         <View style={styles.emptyIconContainer}>
@@ -75,7 +41,7 @@ export function GuardianTab() {
             color={colors.primary[400]}
           />
         </View>
-        <Text style={styles.emptyTitle}>Aucun protégé</Text>
+        <Text style={styles.emptyTitle}>Aucun(e) protégé(e)</Text>
         <Text style={styles.emptyDescription}>
           Les personnes qui vous ajoutent comme contact de confiance apparaîtront ici
         </Text>
@@ -83,51 +49,59 @@ export function GuardianTab() {
     );
   }
 
+  const getDisplayName = (contact: GuardianContact) =>
+    [contact.ownerFirstName, contact.ownerLastName].filter(Boolean).join(' ') || 'Utilisateur Prudency';
+
+  const getInitialsFromGuardian = (contact: GuardianContact) => {
+    const name = getDisplayName(contact);
+    return getInitials(name);
+  };
+
   return (
     <View style={styles.guardianContainer}>
       {pendingContacts.length > 0 && (
         <View style={styles.guardianSection}>
-          <Text style={styles.sectionTitle}>Contacts en attente de validation</Text>
+          <Text style={styles.sectionTitle}>En attente</Text>
           {pendingContacts.map((contact) => (
-            <Pressable
-              key={contact.id}
-              style={styles.pendingCard}
-              onPress={() => handleValidatePress(contact)}
-            >
+            <View key={contact.id} style={styles.pendingCard}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
-                  {getInitials(contact.name)}
+                  {getInitialsFromGuardian(contact)}
                 </Text>
               </View>
               <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>{contact.name}</Text>
-                <Text style={styles.contactPhone}>
-                  {formatPhoneNumber(contact.phone)}
-                </Text>
+                <Text style={styles.contactName}>{getDisplayName(contact)}</Text>
+                {contact.ownerPhone && (
+                  <Text style={styles.contactPhone}>
+                    {formatPhoneNumber(contact.ownerPhone)}
+                  </Text>
+                )}
               </View>
               <View style={styles.pendingBadge}>
-                <Text style={styles.pendingBadgeText}>Valider</Text>
+                <Text style={styles.pendingBadgeText}>En attente</Text>
               </View>
-            </Pressable>
+            </View>
           ))}
         </View>
       )}
 
       {activeContacts.length > 0 && (
         <View style={styles.guardianSection}>
-          <Text style={styles.sectionTitle}>Contacts acceptés</Text>
+          <Text style={styles.sectionTitle}>Personnes que je protège</Text>
           {activeContacts.map((contact) => (
             <View key={contact.id} style={styles.guardianCard}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
-                  {getInitials(contact.name)}
+                  {getInitialsFromGuardian(contact)}
                 </Text>
               </View>
               <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>{contact.name}</Text>
-                <Text style={styles.contactPhone}>
-                  {formatPhoneNumber(contact.phone)}
-                </Text>
+                <Text style={styles.contactName}>{getDisplayName(contact)}</Text>
+                {contact.ownerPhone && (
+                  <Text style={styles.contactPhone}>
+                    {formatPhoneNumber(contact.ownerPhone)}
+                  </Text>
+                )}
               </View>
               <Ionicons
                 name="checkmark-circle"
@@ -138,22 +112,6 @@ export function GuardianTab() {
           ))}
         </View>
       )}
-
-      <AcceptContactDialog
-        visible={selectedContact !== null}
-        onClose={() => setSelectedContact(null)}
-        onAccept={handleAccept}
-        onRefuse={handleRefuse}
-        contactName={selectedContact?.name ?? ''}
-        isProcessing={isRespondingToInvitation}
-      />
-
-      <Snackbar
-        visible={snackbar.visible}
-        title={snackbar.title}
-        variant={snackbar.variant}
-        onHide={() => setSnackbar((prev) => ({ ...prev, visible: false }))}
-      />
     </View>
   );
 }

@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ActivityIndicator,
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +21,7 @@ import { useAuthStore } from '@/src/stores/authStore';
 import { useActiveTrip } from '@/src/hooks/useActiveTrip';
 import { useTripNotes } from '@/src/hooks/useTripNotes';
 import { TripNote } from '@/src/types/database';
+import { Loader } from '@/src/components/ui/Loader';
 import { scaledIcon, ms } from '@/src/utils/scaling';
 
 const AVATAR_SIZE = ms(36, 0.5);
@@ -111,7 +111,7 @@ export default function TripNotesScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <Loader size="lg" />
       </View>
     );
   }

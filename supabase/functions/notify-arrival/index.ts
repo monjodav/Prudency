@@ -5,6 +5,10 @@ import {
 } from "./types.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { fetchWithRetry } from "../_shared/retry.ts";
+import {
+  getActiveTokensForUsers,
+  sendPushNotifications,
+} from "../_shared/pushNotification.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -128,7 +132,7 @@ Deno.serve(async (req) => {
 
     const { data: contacts, error: contactsError } = await supabaseAdmin
       .from("trusted_contacts")
-      .select("id, name, phone, notify_by_sms")
+      .select("id, name, phone, notify_by_sms, notify_by_push")
       .eq("user_id", user.id);
 
     if (contactsError) {
@@ -220,6 +224,40 @@ Deno.serve(async (req) => {
       );
 
     await Promise.all(smsPromises);
+
+    // Push notifications to contacts who are Prudency users
+    const pushContacts = contacts.filter(
+      (c: { notify_by_push: boolean | null; phone: string | null }) =>
+        c.notify_by_push && c.phone,
+    );
+
+    if (pushContacts.length > 0) {
+      const contactPhones = pushContacts.map((c: { phone: string }) => c.phone);
+      const { data: matchedProfiles } = await supabaseAdmin
+        .from("profiles")
+        .select("id, phone")
+        .in("phone", contactPhones);
+
+      if (matchedProfiles && matchedProfiles.length > 0) {
+        const matchedUserIds = matchedProfiles.map((p: { id: string }) => p.id);
+        const tokenMap = await getActiveTokensForUsers(supabaseAdmin, matchedUserIds);
+        const allTokens = Array.from(tokenMap.values()).flat();
+
+        if (allTokens.length > 0 && internalSecret) {
+          const pushResult = await sendPushNotifications({
+            supabaseUrl,
+            internalSecret,
+            tokens: allTokens,
+            title: "Arrivée confirmé(e)",
+            body: message,
+            data: { type: "contact_arrival", tripId },
+            sound: "default",
+          });
+
+          output.notifiedCount += pushResult.sent;
+        }
+      }
+    }
 
     return new Response(JSON.stringify(output), {
       status: 200,

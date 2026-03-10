@@ -35,6 +35,7 @@ export default function AddContactProfileScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [avatarUri, setAvatarUri] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -86,6 +87,9 @@ export default function AddContactProfileScreen() {
             setPhone(firstPhone.number);
           }
         }
+        if (contact.image?.uri) {
+          setAvatarUri(contact.image.uri);
+        }
       }
     } catch {
       Alert.alert(
@@ -106,6 +110,7 @@ export default function AddContactProfileScreen() {
         name: fullName,
         phone: cleanPhone,
         isPrimary: false,
+        avatarUri,
       });
 
       router.back();

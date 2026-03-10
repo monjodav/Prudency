@@ -36,6 +36,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Prudency a besoin d\'accéder à ta caméra pour prendre une photo de profil.',
       NSContactsUsageDescription:
         'Prudency a besoin d\'accéder à tes contacts pour ajouter des contacts de confiance.',
+      UIBackgroundModes: ['remote-notification'],
     },
   },
   android: {
@@ -54,6 +55,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'ACCESS_FINE_LOCATION',
       'ACCESS_COARSE_LOCATION',
       'ACCESS_BACKGROUND_LOCATION',
+      'POST_NOTIFICATIONS',
     ],
   },
   web: {
@@ -89,6 +91,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         contactsPermission:
           'Prudency a besoin d\'accéder à tes contacts pour ajouter des contacts de confiance.',
+      },
+    ],
+    [
+      'expo-notifications',
+      {
+        color: '#040924',
+        enableBackgroundRemoteNotifications: true,
+      },
+    ],
+    [
+      '@react-native-google-signin/google-signin',
+      {
+        iosUrlScheme: 'com.googleusercontent.apps.796381017761-kd9frcgmvmjeef78h7101qheuh9svig6',
       },
     ],
   ],

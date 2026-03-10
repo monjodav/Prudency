@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius, shadows } from '@/src/theme/spacing';
+import { spacing, borderRadius } from '@/src/theme/spacing';
 import { scaledIcon, ms } from '@/src/utils/scaling';
 
 interface ContextMenuItem {
@@ -17,6 +17,7 @@ interface ContextMenuItem {
   icon?: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   destructive?: boolean;
+  highlighted?: boolean;
   disabled?: boolean;
 }
 
@@ -27,15 +28,6 @@ interface ContextMenuProps {
 
 export function ContextMenu({ items, children }: ContextMenuProps) {
   const [visible, setVisible] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const triggerRef = useRef<View>(null);
-
-  const handleOpen = () => {
-    triggerRef.current?.measureInWindow((x, y, _width, height) => {
-      setMenuPosition({ x: x - ms(160, 0.5), y: y + height + spacing[1] });
-      setVisible(true);
-    });
-  };
 
   const handleItemPress = (item: ContextMenuItem) => {
     if (item.disabled) return;
@@ -45,7 +37,7 @@ export function ContextMenu({ items, children }: ContextMenuProps) {
 
   return (
     <>
-      <Pressable ref={triggerRef} onPress={handleOpen} hitSlop={8}>
+      <Pressable onPress={() => setVisible(true)} hitSlop={8}>
         {children ?? (
           <View style={styles.defaultTrigger}>
             <Ionicons
@@ -67,46 +59,42 @@ export function ContextMenu({ items, children }: ContextMenuProps) {
           style={styles.backdrop}
           onPress={() => setVisible(false)}
         >
-          <View
-            style={[
-              styles.menu,
-              { top: menuPosition.y, left: menuPosition.x },
-            ]}
-          >
+          <View style={styles.sheet}>
             {items.map((item, index) => (
               <Pressable
                 key={index}
                 style={({ pressed }) => [
-                  styles.menuItem,
-                  item.destructive && styles.menuItemDestructive,
-                  index < items.length - 1 && styles.menuItemBorder,
-                  item.disabled && styles.menuItemDisabled,
-                  pressed && (item.destructive ? styles.menuItemDestructivePressed : styles.menuItemPressed),
+                  styles.pill,
+                  item.highlighted && styles.pillHighlighted,
+                  item.destructive && styles.pillDestructive,
+                  item.disabled && styles.pillDisabled,
+                  pressed && !item.disabled && styles.pillPressed,
                 ]}
                 onPress={() => handleItemPress(item)}
                 disabled={item.disabled}
               >
                 <Text
                   style={[
-                    styles.menuItemText,
-                    item.destructive && styles.menuItemTextDestructive,
-                    item.disabled && styles.menuItemTextDisabled,
+                    styles.pillText,
+                    item.highlighted && styles.pillTextHighlighted,
+                    item.destructive && styles.pillTextDestructive,
+                    item.disabled && styles.pillTextDisabled,
                   ]}
+                  numberOfLines={1}
                 >
                   {item.label}
                 </Text>
                 {item.icon && (
                   <Ionicons
                     name={item.icon}
-                    size={scaledIcon(18)}
+                    size={scaledIcon(16)}
                     color={
                       item.disabled
-                        ? colors.gray[400]
-                        : item.destructive
+                        ? colors.gray[500]
+                        : item.destructive || item.highlighted
                           ? colors.white
-                          : colors.white
+                          : colors.gray[300]
                     }
-                    style={styles.menuItemIcon}
                   />
                 )}
               </Pressable>
@@ -124,51 +112,58 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  menu: {
-    position: 'absolute',
-    minWidth: ms(180, 0.5),
-    backgroundColor: colors.primary[500],
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    ...shadows.xl,
+  sheet: {
+    width: ms(260, 0.4),
+    backgroundColor: colors.primary[950],
+    borderRadius: borderRadius.xl,
+    padding: spacing[4],
+    gap: spacing[3],
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  menuItem: {
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing[3],
-    paddingHorizontal: spacing[4],
+    paddingVertical: ms(14, 0.4),
+    paddingHorizontal: spacing[5],
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     gap: spacing[2],
   },
-  menuItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary[400],
+  pillHighlighted: {
+    backgroundColor: colors.primary[500],
+    borderColor: colors.primary[500],
   },
-  menuItemDestructive: {
-    backgroundColor: colors.error[400],
+  pillDestructive: {
+    backgroundColor: colors.error[600],
+    borderColor: colors.error[600],
   },
-  menuItemPressed: {
-    backgroundColor: colors.primary[600],
+  pillPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  menuItemDestructivePressed: {
-    backgroundColor: colors.error[500],
+  pillDisabled: {
+    opacity: 0.4,
   },
-  menuItemDisabled: {
-    opacity: 0.5,
-  },
-  menuItemIcon: {
-    marginLeft: spacing[1],
-  },
-  menuItemText: {
-    ...typography.body,
-    color: colors.white,
+  pillText: {
+    ...typography.bodySmall,
+    color: colors.gray[300],
     fontWeight: '500',
   },
-  menuItemTextDestructive: {
+  pillTextHighlighted: {
     color: colors.white,
+    fontWeight: '600',
   },
-  menuItemTextDisabled: {
-    color: colors.gray[300],
+  pillTextDestructive: {
+    color: colors.white,
+    fontWeight: '600',
+  },
+  pillTextDisabled: {
+    color: colors.gray[500],
   },
 });

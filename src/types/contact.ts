@@ -10,6 +10,7 @@ export interface ContactCreateInput {
   name: string;
   phone: string;
   isPrimary?: boolean;
+  avatarUri?: string;
 }
 
 export interface ContactUpdateInput {
@@ -17,5 +18,15 @@ export interface ContactUpdateInput {
   phone?: string;
   isPrimary?: boolean;
   isFavorite?: boolean;
+}
+
+export interface GuardianContact {
+  id: string;
+  ownerUserId: string;
+  ownerFirstName: string | null;
+  ownerLastName: string | null;
+  ownerPhone: string | null;
+  validationStatus: ValidationStatus;
+  createdAt: string;
 }
 

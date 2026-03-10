@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
@@ -15,6 +14,7 @@ import { Input } from '@/src/components/ui/Input';
 import { ListItem } from '@/src/components/ui/ListItem';
 import { BottomSheet } from '@/src/components/ui/BottomSheet';
 import { TripMap } from '@/src/components/map/TripMap';
+import { Loader } from '@/src/components/ui/Loader';
 import { mvs, scaledIcon } from '@/src/utils/scaling';
 import { searchPlaces, getPlaceDetails } from '@/src/services/placesService';
 import { fetchDirections } from '@/src/services/directionsService';
@@ -160,7 +160,7 @@ export function EditTripSheet({
         />
 
         {isSearching && (
-          <ActivityIndicator size="small" color={colors.primary[400]} style={styles.spinner} />
+          <Loader size="sm" style={styles.spinner} />
         )}
 
         {searchResults.length > 0 && (

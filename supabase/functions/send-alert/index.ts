@@ -6,6 +6,10 @@ import {
 } from "./types.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { fetchWithRetry } from "../_shared/retry.ts";
+import {
+  getActiveTokensForUsers,
+  sendPushNotifications,
+} from "../_shared/pushNotification.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -161,11 +165,44 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Insert in-app notification record
+    const { error: notifInsertError } = await supabaseAdmin
+      .from("notifications")
+      .insert({
+        user_id: user.id,
+        type: "alert_triggered",
+        title: "Alerte envoyée",
+        body: "Ton alerte a été envoyée à tes contacts de confiance.",
+        data: { alertId: alert.id, tripId: tripId ?? null },
+      });
+
+    if (notifInsertError) {
+      console.error("Insert notification error:", notifInsertError.message);
+    }
+
+    // Push notification to the alert sender (confirmation)
+    const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET") ?? "";
+    if (internalSecret) {
+      const tokenMap = await getActiveTokensForUsers(supabaseAdmin, [user.id]);
+      const userTokens = tokenMap.get(user.id) ?? [];
+      if (userTokens.length > 0) {
+        await sendPushNotifications({
+          supabaseUrl,
+          internalSecret,
+          tokens: userTokens,
+          title: "Alerte envoyée",
+          body: "Ton alerte a été envoyée à tes contacts de confiance.",
+          data: { type: "alert_triggered", alertId: alert.id, tripId: tripId ?? null },
+          sound: "critical",
+          priority: "high",
+        });
+      }
+    }
+
     // Notify contacts via notify-contacts function
     const notifiedContacts: NotifiedContact[] = [];
 
     try {
-      const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET") ?? "";
       const notifyResponse = await fetchWithRetry(
         `${supabaseUrl}/functions/v1/notify-contacts`,
         {

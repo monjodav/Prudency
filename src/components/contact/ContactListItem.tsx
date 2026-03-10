@@ -76,6 +76,7 @@ export function ContactListItem({
               label: contact.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
               icon: contact.is_favorite ? 'star' : 'star-outline',
               onPress: () => onToggleFavorite(contact),
+              highlighted: !contact.is_favorite,
             },
             {
               label: 'Supprimer',

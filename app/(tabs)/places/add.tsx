@@ -7,7 +7,6 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +20,7 @@ import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import { TripMap } from '@/src/components/map/TripMap';
+import { Loader } from '@/src/components/ui/Loader';
 import { figmaScale, scaledIcon, scaledRadius, ms } from '@/src/utils/scaling';
 
 type PlaceType = 'home' | 'work' | 'favorite' | 'other';
@@ -205,7 +205,7 @@ export default function AddPlaceScreen() {
               disabled={isGeocoding || !address.trim()}
             >
               {isGeocoding ? (
-                <ActivityIndicator size="small" color={colors.white} />
+                <Loader size="sm" color={colors.white} />
               ) : (
                 <Ionicons name="search" size={scaledIcon(20)} color={colors.white} />
               )}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { colors } from '@/src/theme/colors';
@@ -7,6 +7,7 @@ import { Button } from '@/src/components/ui/Button';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
 import { PermissionGlow } from '@/src/components/ui/PermissionGlow';
 import { scaledSpacing, scaledFontSize, scaledLineHeight } from '@/src/utils/scaling';
+import { openSettings } from '@/src/utils/systemUtils';
 
 /**
  * Autorisation Localisation 1 - Location permission request
@@ -32,14 +33,6 @@ export default function PermissionsLocationScreen() {
       setPermissionDenied(true);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const openSettings = () => {
-    if (Platform.OS === 'ios') {
-      Linking.openURL('app-settings:');
-    } else {
-      Linking.openSettings();
     }
   };
 

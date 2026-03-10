@@ -5,11 +5,11 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { Loader } from '@/src/components/ui/Loader';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
@@ -18,6 +18,7 @@ import { getProfile } from '@/src/services/authService';
 import { checkPhoneAvailability } from '@/src/services/phoneService';
 import { sendOtp } from '@/src/services/otpService';
 import { toE164 } from '@/src/utils/phoneUtils';
+import { formatPhoneDisplay } from '@/src/utils/formatters';
 import {
   scaledIcon,
   scaledSpacing,
@@ -25,18 +26,6 @@ import {
   scaledRadius,
   ms,
 } from '@/src/utils/scaling';
-
-function formatPhoneDisplay(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 9);
-  if (!digits) return '';
-  const parts: string[] = [];
-  if (digits.length > 0) parts.push(digits.slice(0, 1));
-  if (digits.length > 1) parts.push(digits.slice(1, 3));
-  if (digits.length > 3) parts.push(digits.slice(3, 5));
-  if (digits.length > 5) parts.push(digits.slice(5, 7));
-  if (digits.length > 7) parts.push(digits.slice(7, 9));
-  return parts.join(' ');
-}
 
 function rawDigits(formatted: string): string {
   return formatted.replace(/\D/g, '');
@@ -128,7 +117,7 @@ export default function EditPhoneScreen() {
           style={styles.headerButton}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color={colors.brandPosition[50]} />
+            <Loader size="sm" color={colors.brandPosition[50]} />
           ) : (
             <Ionicons name="checkmark" size={scaledIcon(24)} color={colors.brandPosition[50]} />
           )}

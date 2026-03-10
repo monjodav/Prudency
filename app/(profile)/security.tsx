@@ -5,8 +5,6 @@ import {
   StyleSheet,
   Pressable,
   Alert,
-  Linking,
-  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +17,7 @@ import { typography } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { scaledIcon, scaledSpacing } from '@/src/utils/scaling';
+import { openSettings } from '@/src/utils/systemUtils';
 
 type PermissionStatus = 'granted' | 'denied' | 'undetermined';
 
@@ -62,14 +61,6 @@ function usePermissions() {
   }, [refresh]);
 
   return { location, locationBg, notifications, camera, contacts, refresh };
-}
-
-function openSettings() {
-  if (Platform.OS === 'ios') {
-    void Linking.openURL('app-settings:');
-  } else {
-    void Linking.openSettings();
-  }
 }
 
 interface RowProps {

@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { Button } from '@/src/components/ui/Button';
-import { getProfile, resetPassword } from '@/src/services/authService';
+import { resetPassword } from '@/src/services/authService';
 import { supabase } from '@/src/services/supabaseClient';
+import { useAuthStore } from '@/src/stores/authStore';
 import { scaledIcon, scaledLineHeight, scaledSpacing } from '@/src/utils/scaling';
 
 type Provider = 'apple' | 'google' | 'email';
 
-function detectProvider(authProvider: string | null | undefined): Provider {
-  if (authProvider === 'apple') return 'apple';
-  if (authProvider === 'google') return 'google';
+function detectProvider(session: { user: { app_metadata?: Record<string, unknown> } } | null): Provider {
+  const provider = session?.user?.app_metadata?.provider;
+  if (provider === 'apple') return 'apple';
+  if (provider === 'google') return 'google';
   return 'email';
 }
 
@@ -53,11 +54,11 @@ const PROVIDER_CONFIG: Record<Provider, {
 };
 
 export default function ChangePasswordScreen() {
-  const { data: profile } = useQuery({ queryKey: ['profile'], queryFn: getProfile });
+  const session = useAuthStore((s) => s.session);
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
-  const provider = detectProvider(profile?.auth_provider);
+  const provider = detectProvider(session);
   const config = PROVIDER_CONFIG[provider];
 
   const handlePress = async () => {

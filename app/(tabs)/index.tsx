@@ -1,19 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing, shadows } from '@/src/theme/spacing';
+import { spacing, borderRadius } from '@/src/theme/spacing';
 import { ms, scaledIcon, scaledRadius } from '@/src/utils/scaling';
 import { UserLocationDot } from '@/src/components/icons/UserLocationDot';
 import { getMapStyle } from '@/src/theme/mapStyles';
@@ -21,7 +20,12 @@ import { usePreferencesStore } from '@/src/stores/preferencesStore';
 import { useTripStore } from '@/src/stores/tripStore';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import { AlertButton } from '@/src/components/alert/AlertButton';
-import { formatDuration } from '@/src/utils/formatters';
+import { useNotificationsQuery } from '@/src/hooks/useNotificationsQuery';
+import { Text } from 'react-native';
+
+function isInFrance(lat: number, lng: number): boolean {
+  return lat >= 41.3 && lat <= 51.1 && lng >= -5.2 && lng <= 9.6;
+}
 
 const DEFAULT_REGION: Region = {
   latitude: 48.8566,
@@ -36,8 +40,9 @@ const DOT_SIZE = ms(32, 0.4);
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { activeTripId, lastKnownLat, lastKnownLng, arrivalAddress, estimatedDurationMinutes, updateLocation } = useTripStore();
+  const { lastKnownLat, lastKnownLng, updateLocation } = useTripStore();
   const { places } = usePlaces();
+  const { unreadCount } = useNotificationsQuery();
   const mapRef = useRef<MapView>(null);
 
   const currentRegion = useRef<Region>(DEFAULT_REGION);
@@ -112,6 +117,11 @@ export default function HomeScreen() {
       ? { latitude: lastKnownLat, longitude: lastKnownLng }
       : null;
 
+  const pathname = usePathname();
+  const outsideFrance = userLocation && pathname === '/'
+    ? !isInFrance(userLocation.latitude, userLocation.longitude)
+    : false;
+
   const initialRegion = userLocation
     ? { ...userLocation, latitudeDelta: 0.01, longitudeDelta: 0.01 }
     : DEFAULT_REGION;
@@ -137,7 +147,7 @@ export default function HomeScreen() {
   const FOOTER_HEIGHT = ms(56, 0.4);
   const gap = spacing[3];
   const footerBottom = insets.bottom + gap;
-  const fabBottom = insets.bottom + FOOTER_HEIGHT + gap + gap;
+  const fabBottom = insets.bottom + FOOTER_HEIGHT + gap * 3;
 
   return (
     <View style={styles.container}>
@@ -179,13 +189,30 @@ export default function HomeScreen() {
         <AlertButton onTrigger={handleAlert} size={ms(56, 0.4)} />
       </View>
 
+      {/* Outside France banner */}
+      {outsideFrance && (
+        <View style={[styles.outsideFranceBanner, { top: insets.top + ms(72, 0.4) }]}>
+          <Ionicons name="information-circle-outline" size={scaledIcon(16)} color={colors.warning[400]} />
+          <Text style={styles.outsideFranceText}>
+            Prudency n'est disponible qu'en France métropolitaine
+          </Text>
+        </View>
+      )}
+
       {/* Right-side floating action buttons — bottom right */}
       <View style={[styles.fabColumn, { bottom: fabBottom }]}>
         <Pressable
           style={styles.fab}
-          onPress={() => Alert.alert('Notifications', 'Bientot disponible')}
+          onPress={() => router.push('/notifications')}
         >
           <Ionicons name="notifications-outline" size={scaledIcon(22)} color={colors.white} />
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Text>
+            </View>
+          )}
         </Pressable>
         <Pressable
           style={styles.fab}
@@ -209,29 +236,6 @@ export default function HomeScreen() {
           <Ionicons name="locate" size={scaledIcon(22)} color={colors.white} />
         </Pressable>
       </View>
-
-      {/* Active trip card — bottom */}
-      {activeTripId && (
-        <Pressable
-          style={[styles.activeTripCard, { bottom: fabBottom }]}
-          onPress={() => router.push('/(trip)/active')}
-        >
-          <View style={styles.activeTripLeft}>
-            <Ionicons name="navigate" size={scaledIcon(20)} color={colors.primary[300]} />
-            <View style={styles.activeTripInfo}>
-              <Text style={styles.activeTripDestination} numberOfLines={1}>
-                {arrivalAddress ?? 'Trajet en cours'}
-              </Text>
-              {estimatedDurationMinutes != null && (
-                <Text style={styles.activeTripTime}>
-                  {formatDuration(estimatedDurationMinutes)} restantes
-                </Text>
-              )}
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={scaledIcon(18)} color={colors.primary[300]} />
-        </Pressable>
-      )}
 
       {/* Navigation footer */}
       <View style={[styles.navFooter, { bottom: footerBottom }]}>
@@ -303,38 +307,6 @@ const styles = StyleSheet.create({
     shadowRadius: ms(25, 0.4),
     elevation: 8,
   },
-  activeTripCard: {
-    position: 'absolute',
-    left: spacing[4],
-    right: spacing[4],
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    backgroundColor: 'rgba(44, 65, 188, 0.9)',
-    borderRadius: scaledRadius(16),
-    ...shadows.lg,
-  },
-  activeTripLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-    flex: 1,
-  },
-  activeTripInfo: {
-    flex: 1,
-  },
-  activeTripDestination: {
-    ...typography.body,
-    color: colors.white,
-    fontWeight: '600',
-  },
-  activeTripTime: {
-    ...typography.caption,
-    color: colors.primary[200],
-    marginTop: spacing[1],
-  },
   navFooter: {
     position: 'absolute',
     left: spacing[4],
@@ -375,5 +347,40 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brandPosition[50],
     borderWidth: 2,
     borderColor: 'rgba(204, 99, 249, 0.4)',
+  },
+  badge: {
+    position: 'absolute',
+    top: -ms(2, 0.4),
+    right: -ms(2, 0.4),
+    minWidth: ms(18, 0.4),
+    height: ms(18, 0.4),
+    borderRadius: ms(9, 0.4),
+    backgroundColor: colors.brandPosition[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: ms(4, 0.4),
+  },
+  badgeText: {
+    color: colors.white,
+    fontSize: ms(10, 0.4),
+    fontFamily: 'Inter_700Bold',
+    textAlign: 'center',
+  },
+  outsideFranceBanner: {
+    position: 'absolute',
+    left: spacing[4],
+    right: spacing[4],
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 15, 15, 0.85)',
+    padding: spacing[3],
+    borderRadius: borderRadius.lg,
+    gap: spacing[2],
+    zIndex: 10,
+  },
+  outsideFranceText: {
+    ...typography.caption,
+    color: colors.warning[400],
+    flex: 1,
   },
 });

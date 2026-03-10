@@ -18,18 +18,7 @@ import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { useQuery } from '@tanstack/react-query';
 import { getProfile } from '@/src/services/authService';
 import { ms, scaledFontSize, scaledIcon, scaledSpacing, scaledRadius } from '@/src/utils/scaling';
-
-function formatPhoneDisplay(raw: string): string {
-  const digits = raw.replace(/^\+33/, '').replace(/\D/g, '').slice(0, 9);
-  if (!digits) return '';
-  const parts: string[] = [];
-  if (digits.length > 0) parts.push(digits.slice(0, 1));
-  if (digits.length > 1) parts.push(digits.slice(1, 3));
-  if (digits.length > 3) parts.push(digits.slice(3, 5));
-  if (digits.length > 5) parts.push(digits.slice(5, 7));
-  if (digits.length > 7) parts.push(digits.slice(7, 9));
-  return parts.join(' ');
-}
+import { formatPhoneDisplay } from '@/src/utils/formatters';
 
 interface FieldRowProps {
   label: string;
@@ -160,7 +149,7 @@ export default function PersonalInfoScreen() {
               <Text style={styles.fieldValue}>+33</Text>
               <Text style={styles.phoneSeparator}>|</Text>
               <Text style={styles.fieldValue}>
-                {formatPhoneDisplay(phone)}
+                {formatPhoneDisplay(phone.replace(/^\+33/, ''))}
               </Text>
             </View>
           </View>

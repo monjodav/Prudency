@@ -9,59 +9,136 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
-import { spacing, borderRadius } from '@/src/theme/spacing';
+import { spacing } from '@/src/theme/spacing';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
 import { DarkScreen } from '@/src/components/ui/DarkScreen';
 import { Slider } from '@/src/components/ui/Slider';
-import { ms, scaledIcon, scaledSpacing } from '@/src/utils/scaling';
-import { usePreferencesStore, type MapTheme } from '@/src/stores/preferencesStore';
+import { scaledIcon, scaledSpacing } from '@/src/utils/scaling';
+import { usePreferencesStore } from '@/src/stores/preferencesStore';
+
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
+interface RowProps {
+  icon: IoniconsName;
+  label: string;
+  subtitle?: string;
+  right?: React.ReactNode;
+}
+
+function Row({ icon, label, subtitle, right }: RowProps) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.iconBox}>
+        <Ionicons name={icon} size={scaledIcon(18)} color={colors.primary[300]} />
+      </View>
+      <View style={styles.rowContent}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
+      </View>
+      {right}
+    </View>
+  );
+}
+
 function ToggleRow({
+  icon,
   label,
+  subtitle,
   value,
   onValueChange,
 }: {
+  icon: IoniconsName;
   label: string;
+  subtitle?: string;
   value: boolean;
   onValueChange: (v: boolean) => void;
 }) {
   return (
-    <View style={styles.toggleRow}>
-      <Text style={styles.toggleLabel}>{label}</Text>
-      <Switch
+    <Row
+      icon={icon}
+      label={label}
+      subtitle={subtitle}
+      right={
+        <Switch
+          value={value}
+          onValueChange={onValueChange}
+          trackColor={{ false: colors.gray[700], true: colors.primary[400] }}
+          thumbColor={value ? colors.primary[500] : colors.gray[400]}
+        />
+      }
+    />
+  );
+}
+
+function SliderRow({
+  icon,
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit,
+  onChange,
+  disabled,
+}: {
+  icon: IoniconsName;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  unit: string;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={[styles.sliderRow, disabled && styles.sliderRowDisabled]}>
+      <View style={styles.sliderRowHeader}>
+        <View style={styles.iconBox}>
+          <Ionicons name={icon} size={scaledIcon(18)} color={colors.primary[300]} />
+        </View>
+        <Text style={styles.rowLabel}>{label}</Text>
+      </View>
+      <Slider
+        label=""
         value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: colors.gray[700], true: colors.primary[400] }}
-        thumbColor={value ? colors.primary[500] : colors.gray[400]}
+        min={min}
+        max={max}
+        step={step}
+        unit={unit}
+        onChange={onChange}
+        disabled={disabled}
       />
     </View>
   );
 }
 
-function MapThemeOption({
+function RadioRow({
+  icon,
   label,
   subtitle,
-  icon,
   selected,
   onPress,
 }: {
+  icon: IoniconsName;
   label: string;
   subtitle?: string;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
   selected: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={styles.themeOption} onPress={onPress}>
-      <Ionicons name={icon} size={scaledIcon(20)} color={colors.primary[300]} />
-      <View style={styles.themeOptionContent}>
-        <Text style={styles.themeOptionLabel}>{label}</Text>
-        {subtitle ? <Text style={styles.themeOptionSubtitle}>{subtitle}</Text> : null}
+    <Pressable style={styles.row} onPress={onPress}>
+      <View style={styles.iconBox}>
+        <Ionicons name={icon} size={scaledIcon(18)} color={colors.primary[300]} />
+      </View>
+      <View style={styles.rowContent}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
       </View>
       <View style={[styles.radio, selected && styles.radioSelected]}>
         {selected && <View style={styles.radioDot} />}
@@ -88,65 +165,70 @@ export default function PreferencesScreen() {
 
   return (
     <DarkScreen scrollable avoidKeyboard headerTitle="Préférences">
+      {/* Alertes automatiques */}
       <SectionHeader title="Alertes automatiques" />
-      <View style={styles.card}>
-        <Slider
-          label="Temps avant envoi d'alerte"
-          value={alertTime}
-          min={5}
-          max={30}
-          step={5}
-          unit=" min"
-          onChange={setAlertTime}
-        />
-        <Slider
-          label="Retard acceptable"
-          value={delayTolerance}
-          min={5}
-          max={30}
-          step={5}
-          unit=" min"
-          onChange={setDelayTolerance}
-        />
-
-        <View style={styles.warningBanner}>
-          <Text style={styles.warningText}>Fonctionnalité à venir</Text>
-        </View>
-        <Slider
-          label="Distance avant envoi d'alerte"
-          value={alertDistance}
-          min={0.5}
-          max={5}
-          step={0.5}
-          unit=" km"
-          onChange={setAlertDistance}
-          disabled
-        />
-
-        <Slider
-          label="Temps d'arret"
-          value={stopTime}
-          min={5}
-          max={30}
-          step={5}
-          unit=" min"
-          onChange={setStopTime}
-        />
+      <SliderRow
+        icon="time-outline"
+        label="Temps avant envoi d'alerte"
+        value={alertTime}
+        min={5}
+        max={30}
+        step={5}
+        unit=" min"
+        onChange={setAlertTime}
+      />
+      <SliderRow
+        icon="hourglass-outline"
+        label="Retard acceptable"
+        value={delayTolerance}
+        min={5}
+        max={30}
+        step={5}
+        unit=" min"
+        onChange={setDelayTolerance}
+      />
+      <View style={styles.warningBanner}>
+        <Text style={styles.warningText}>Fonctionnalité à venir</Text>
       </View>
+      <SliderRow
+        icon="navigate-outline"
+        label="Distance avant envoi d'alerte"
+        value={alertDistance}
+        min={0.5}
+        max={5}
+        step={0.5}
+        unit=" km"
+        onChange={setAlertDistance}
+        disabled
+      />
+      <SliderRow
+        icon="stop-circle-outline"
+        label="Temps d'arret"
+        value={stopTime}
+        min={5}
+        max={30}
+        step={5}
+        unit=" min"
+        onChange={setStopTime}
+      />
 
+      {/* Confirmations intelligentes */}
       <SectionHeader title="Confirmations intelligentes" />
-      <View style={styles.card}>
-        <Text style={styles.sublabel}>Question de sécurité à double sens</Text>
-        <ToggleRow
-          label="Annuler le trajet"
-          value={questionCancelTrip}
-          onValueChange={setQuestionCancelTrip}
-        />
-        <ToggleRow
-          label="Terminer le trajet"
-          value={questionEndTrip}
-          onValueChange={setQuestionEndTrip}
-        />
+      <ToggleRow
+        icon="close-circle-outline"
+        label="Annuler le trajet"
+        subtitle="Question de sécurité"
+        value={questionCancelTrip}
+        onValueChange={setQuestionCancelTrip}
+      />
+      <ToggleRow
+        icon="checkmark-circle-outline"
+        label="Terminer le trajet"
+        subtitle="Question de sécurité"
+        value={questionEndTrip}
+        onValueChange={setQuestionEndTrip}
+      />
+      <View style={styles.inputSection}>
         <Input
           label="Question actuelle"
           value={securityQuestion}
@@ -161,42 +243,44 @@ export default function PreferencesScreen() {
         />
       </View>
 
+      {/* Mot de passe */}
       <SectionHeader title="Mot de passe" />
-      <View style={styles.card}>
-        <ToggleRow
-          label="Annuler le trajet"
-          value={passwordCancelTrip}
-          onValueChange={setPasswordCancelTrip}
-        />
-        <ToggleRow
-          label="Terminer le trajet"
-          value={passwordEndTrip}
-          onValueChange={setPasswordEndTrip}
-        />
-      </View>
+      <ToggleRow
+        icon="close-circle-outline"
+        label="Annuler le trajet"
+        subtitle="Requiert le mot de passe"
+        value={passwordCancelTrip}
+        onValueChange={setPasswordCancelTrip}
+      />
+      <ToggleRow
+        icon="checkmark-circle-outline"
+        label="Terminer le trajet"
+        subtitle="Requiert le mot de passe"
+        value={passwordEndTrip}
+        onValueChange={setPasswordEndTrip}
+      />
 
+      {/* Thème de la map */}
       <SectionHeader title="Thème de la map" />
-      <View style={styles.card}>
-        <MapThemeOption
-          label="Automatique (6h - 18h)"
-          subtitle="Clair le jour, sombre la nuit"
-          icon="time-outline"
-          selected={mapTheme === 'auto'}
-          onPress={() => setMapTheme('auto')}
-        />
-        <MapThemeOption
-          label="Toujours clair"
-          icon="sunny-outline"
-          selected={mapTheme === 'light'}
-          onPress={() => setMapTheme('light')}
-        />
-        <MapThemeOption
-          label="Toujours sombre"
-          icon="moon-outline"
-          selected={mapTheme === 'dark'}
-          onPress={() => setMapTheme('dark')}
-        />
-      </View>
+      <RadioRow
+        icon="time-outline"
+        label="Automatique (6h - 18h)"
+        subtitle="Clair le jour, sombre la nuit"
+        selected={mapTheme === 'auto'}
+        onPress={() => setMapTheme('auto')}
+      />
+      <RadioRow
+        icon="sunny-outline"
+        label="Toujours clair"
+        selected={mapTheme === 'light'}
+        onPress={() => setMapTheme('light')}
+      />
+      <RadioRow
+        icon="moon-outline"
+        label="Toujours sombre"
+        selected={mapTheme === 'dark'}
+        onPress={() => setMapTheme('dark')}
+      />
 
       <Button
         title="Enregistrer"
@@ -208,69 +292,75 @@ export default function PreferencesScreen() {
   );
 }
 
+const ICON_BOX = scaledIcon(32);
+
 const styles = StyleSheet.create({
   sectionTitle: {
-    ...typography.label,
+    ...typography.caption,
     color: colors.gray[400],
-    textTransform: 'uppercase',
-    marginTop: spacing[4],
-    marginBottom: spacing[3],
-  },
-  card: {
-    backgroundColor: colors.primary[900],
-    borderRadius: borderRadius.lg,
-    padding: spacing[4],
+    marginTop: spacing[6],
     marginBottom: spacing[2],
   },
-  sublabel: {
-    ...typography.bodySmall,
-    color: colors.gray[300],
-    marginBottom: spacing[3],
-  },
-  toggleRow: {
+  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing[3],
+    paddingVertical: scaledSpacing(14),
     borderBottomWidth: 1,
-    borderBottomColor: colors.primary[950],
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
-  toggleLabel: {
+  iconBox: {
+    width: ICON_BOX,
+    height: ICON_BOX,
+    borderRadius: scaledIcon(8),
+    backgroundColor: 'rgba(44, 65, 188, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing[3],
+  },
+  rowContent: {
+    flex: 1,
+  },
+  rowLabel: {
     ...typography.body,
     color: colors.white,
   },
+  rowSubtitle: {
+    ...typography.caption,
+    color: colors.gray[400],
+    marginTop: 2,
+  },
+  sliderRow: {
+    paddingVertical: scaledSpacing(14),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  sliderRowDisabled: {
+    opacity: 0.5,
+  },
+  sliderRowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing[2],
+  },
   warningBanner: {
     backgroundColor: colors.warning[600],
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing[2],
+    borderRadius: scaledIcon(8),
+    paddingVertical: spacing[1],
     paddingHorizontal: spacing[3],
     alignSelf: 'flex-start',
-    marginBottom: spacing[3],
+    marginTop: spacing[2],
   },
   warningText: {
     ...typography.caption,
     color: colors.white,
     fontWeight: '600',
   },
-  themeOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing[3],
+  inputSection: {
+    paddingTop: spacing[3],
+    gap: spacing[3],
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-    gap: spacing[3],
-  },
-  themeOptionContent: {
-    flex: 1,
-  },
-  themeOptionLabel: {
-    ...typography.body,
-    color: colors.white,
-  },
-  themeOptionSubtitle: {
-    ...typography.caption,
-    color: colors.gray[400],
-    marginTop: 2,
+    paddingBottom: scaledSpacing(14),
   },
   radio: {
     width: scaledSpacing(22),

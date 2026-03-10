@@ -1,5 +1,6 @@
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { RouteCard } from '@/src/components/trip/RouteCard';
+import { Loader } from '@/src/components/ui/Loader';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
@@ -29,7 +30,7 @@ export function RouteSuggestions({
     <View style={styles.section}>
       {isLoading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color={colors.primary[400]} />
+          <Loader size="sm" />
           <Text style={styles.loadingText}>Recherche d'itinéraires...</Text>
         </View>
       ) : (

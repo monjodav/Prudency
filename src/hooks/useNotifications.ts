@@ -54,6 +54,12 @@ export function useNotifications() {
       }
       notificationListener.current =
         Notifications.addNotificationReceivedListener(handler);
+      return () => {
+        if (notificationListener.current) {
+          notificationListener.current.remove();
+          notificationListener.current = null;
+        }
+      };
     },
     []
   );
@@ -65,6 +71,12 @@ export function useNotifications() {
       }
       responseListener.current =
         Notifications.addNotificationResponseReceivedListener(handler);
+      return () => {
+        if (responseListener.current) {
+          responseListener.current.remove();
+          responseListener.current = null;
+        }
+      };
     },
     []
   );

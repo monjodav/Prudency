@@ -6,7 +6,6 @@ import {
   Vibration,
   Linking,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -16,6 +15,7 @@ import { spacing, borderRadius } from '@/src/theme/spacing';
 import { Button } from '@/src/components/ui/Button';
 import { useGuardianAlertDetail, useAcknowledgeAlert } from '@/src/hooks/useGuardianAlert';
 import { useRealtimeLocation } from '@/src/hooks/useRealtimeLocation';
+import { Loader } from '@/src/components/ui/Loader';
 import { ms, scaledSpacing, scaledIcon } from '@/src/utils/scaling';
 
 export default function AlertReceivedScreen() {
@@ -90,7 +90,7 @@ export default function AlertReceivedScreen() {
   if (isLoading) {
     return (
       <View style={[styles.container, styles.centeredContent]}>
-        <ActivityIndicator size="large" color={colors.white} />
+        <Loader size="lg" color={colors.white} />
       </View>
     );
   }

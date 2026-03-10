@@ -62,7 +62,7 @@ export function ArrivalConfirmationView({
           </View>
 
           <Text style={styles.arrivalTitle}>
-            Es-tu bien arrivée à destination ?
+            Es-tu bien arrivé(e) à destination ?
           </Text>
 
           {alertSent ? (

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -18,6 +17,7 @@ import { ContextMenu } from '@/src/components/ui/ContextMenu';
 import { Snackbar } from '@/src/components/ui/Snackbar';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import type { SavedPlace } from '@/src/types/database';
+import { Loader } from '@/src/components/ui/Loader';
 import { figmaScale, scaledIcon, scaledShadow, ms } from '@/src/utils/scaling';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
@@ -114,7 +114,7 @@ export default function PlacesListScreen() {
 
       {isLoading ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator size="large" color={colors.primary[300]} />
+          <Loader size="lg" color={colors.primary[300]} />
         </View>
       ) : places.length === 0 ? (
         <View style={styles.emptyState}>
@@ -123,7 +123,7 @@ export default function PlacesListScreen() {
           </View>
           <Text style={styles.emptyTitle}>Aucun lieu</Text>
           <Text style={styles.emptyDescription}>
-            Enregistrez vos lieux frequents pour demarrer un trajet plus rapidement
+            Enregistre tes lieux fréquents pour démarrer un trajet plus rapidement
           </Text>
           <Button
             title="Ajouter un lieu"

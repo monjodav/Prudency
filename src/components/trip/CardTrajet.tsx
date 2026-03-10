@@ -37,11 +37,11 @@ interface CardTrajetProps {
 }
 
 const VARIANT_CONFIG: Record<CardTrajetVariant, { icon: string; title: string; subtitle: string }> = {
-  active: { icon: 'walk', title: 'Trajet en cours', subtitle: 'Ton trajet a démarré' },
+  active: { icon: 'walk', title: 'Trajet en cours', subtitle: 'Ton trajet est en cours' },
   rendezvous: { icon: 'briefcase', title: 'Rendez-vous en cours', subtitle: 'Ton rendez-vous a débuté' },
-  scheduled: { icon: 'walk', title: 'Recap', subtitle: 'Ton trajet a démarré' },
+  scheduled: { icon: 'walk', title: 'Recap', subtitle: 'Ton trajet est en cours' },
   finishing: { icon: 'walk', title: 'Trajet fini', subtitle: 'Ton trajet est terminé' },
-  closed: { icon: 'walk', title: 'Trajet en cours', subtitle: 'Ton trajet a démarré' },
+  closed: { icon: 'walk', title: 'Trajet en cours', subtitle: 'Ton trajet est en cours' },
 };
 
 export function CardTrajet({

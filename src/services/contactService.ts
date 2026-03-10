@@ -5,6 +5,7 @@ import {
   TrustedContactUpdate,
   ContactCreateInput,
   ContactUpdateInput,
+  GuardianContact,
 } from '@/src/types/contact';
 import { createContactSchema } from '@/src/utils/validators';
 
@@ -67,6 +68,7 @@ export async function createContact(
     phone: validated.phone,
     is_primary: validated.isPrimary,
     validation_status: 'pending',
+    avatar_uri: validated.avatarUri ?? null,
   };
 
   const { data, error } = await supabase
@@ -79,7 +81,25 @@ export async function createContact(
     throw error;
   }
 
-  return data as TrustedContactRow;
+  const contact = data as TrustedContactRow;
+
+  sendContactInvitation(contact).catch(() => undefined);
+
+  return contact;
+}
+
+async function sendContactInvitation(contact: TrustedContactRow): Promise<void> {
+  const { error } = await supabase.functions.invoke('send-contact-invitation', {
+    body: {
+      contactId: contact.id,
+      recipientPhone: contact.phone,
+      recipientName: contact.name,
+    },
+  });
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function updateContact(
@@ -130,6 +150,35 @@ export async function respondToContactInvitation(
   const result = data as { success?: boolean; contactName?: string; error?: string };
   if (result.error) throw new Error(result.error);
   return result;
+}
+
+export async function getPeopleIProtect(): Promise<GuardianContact[]> {
+  const { data, error } = await supabase.rpc('get_people_i_protect');
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data as unknown[]) ?? []).map((row: unknown) => {
+    const r = row as {
+      id: string;
+      owner_user_id: string;
+      owner_first_name: string | null;
+      owner_last_name: string | null;
+      owner_phone: string | null;
+      validation_status: string;
+      created_at: string;
+    };
+    return {
+      id: r.id,
+      ownerUserId: r.owner_user_id,
+      ownerFirstName: r.owner_first_name,
+      ownerLastName: r.owner_last_name,
+      ownerPhone: r.owner_phone,
+      validationStatus: r.validation_status as GuardianContact['validationStatus'],
+      createdAt: r.created_at,
+    };
+  });
 }
 
 export async function deleteContact(id: string): Promise<void> {

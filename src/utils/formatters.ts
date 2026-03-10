@@ -70,6 +70,19 @@ export function formatBattery(level: number): string {
   return `${level}%`;
 }
 
+/** Format 9 digits as "X XX XX XX XX" for phone input display */
+export function formatPhoneDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 9);
+  if (!digits) return '';
+  const parts: string[] = [];
+  if (digits.length > 0) parts.push(digits.slice(0, 1));
+  if (digits.length > 1) parts.push(digits.slice(1, 3));
+  if (digits.length > 3) parts.push(digits.slice(3, 5));
+  if (digits.length > 5) parts.push(digits.slice(5, 7));
+  if (digits.length > 7) parts.push(digits.slice(7, 9));
+  return parts.join(' ');
+}
+
 // MVP: French phone formatting only (0x xx xx xx xx / +33x xx xx xx xx).
 // Non-French numbers fall through and are returned as-is (E.164 or raw input).
 export function formatPhoneNumber(phone: string): string {

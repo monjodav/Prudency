@@ -8,6 +8,7 @@ import { useLocation } from '@/src/hooks/useLocation';
 import { usePastTrips } from '@/src/hooks/useHistory';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import { useTripStore } from '@/src/stores/tripStore';
+import { useRecentPlacesStore } from '@/src/stores/recentPlacesStore';
 import { searchPlaces, getPlaceDetails, reverseGeocode } from '@/src/services/placesService';
 import { fetchDirectionsMultiple, buildRouteSegments } from '@/src/services/directionsService';
 import type { PlaceAutocompleteResult } from '@/src/services/placesService';
@@ -22,6 +23,23 @@ const TRANSPORT_MAP: Record<TransportMode, 'driving' | 'walking' | 'bicycling' |
   transit: 'transit',
 };
 
+// Metropolitan France bounding box (including Corsica)
+const FRANCE_BOUNDS = {
+  minLat: 41.3,
+  maxLat: 51.1,
+  minLng: -5.2,
+  maxLng: 9.6,
+};
+
+function isInFrance(coord: { lat: number; lng: number }): boolean {
+  return (
+    coord.lat >= FRANCE_BOUNDS.minLat &&
+    coord.lat <= FRANCE_BOUNDS.maxLat &&
+    coord.lng >= FRANCE_BOUNDS.minLng &&
+    coord.lng <= FRANCE_BOUNDS.maxLng
+  );
+}
+
 export function useTripCreation() {
   const router = useRouter();
   const { createTrip, isCreating } = useTrip();
@@ -30,10 +48,12 @@ export function useTripCreation() {
   const { trips: pastTrips } = usePastTrips();
   const { places: savedPlacesData } = usePlaces();
   const { setActiveTrip, setTripDetails } = useTripStore();
+  const addRecentPlace = useRecentPlacesStore((s) => s.addPlace);
+  const localRecentPlaces = useRecentPlacesStore((s) => s.places);
 
   const [destinationAddress, setDestinationAddress] = useState('');
   const [departureAddress, setDepartureAddress] = useState('');
-  const [transportMode, setTransportMode] = useState<TransportMode>('walk');
+  const [transportMode, setTransportMode] = useState<TransportMode | null>(null);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [shareLocation, setShareLocation] = useState(true);
@@ -55,10 +75,21 @@ export function useTripCreation() {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const departureSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resolvingLockRef = useRef(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  const hasSetInitialDeparture = useRef(false);
 
   useEffect(() => {
+    if (hasSetInitialDeparture.current) return;
     getCurrentLocation(Accuracy.Balanced)
-      .then((loc) => setDepartureLoc({ lat: loc.lat, lng: loc.lng }))
+      .then((loc) => {
+        const coords = { lat: loc.lat, lng: loc.lng };
+        if (!hasSetInitialDeparture.current) {
+          hasSetInitialDeparture.current = true;
+          setDepartureLoc(coords);
+        }
+        setUserLocation(coords);
+      })
       .catch((err) => {
         if (__DEV__) console.warn('Get initial location failed:', err);
       });
@@ -102,17 +133,41 @@ export function useTripCreation() {
 
     departureSearchTimeoutRef.current = setTimeout(async () => {
       setIsDepartureSearching(true);
-      const results = await searchPlaces(text, departureLoc ?? undefined);
+      const results = await searchPlaces(text, userLocation ?? undefined);
       setDepartureSearchResults(results);
       setIsDepartureSearching(false);
     }, 400);
-  }, [departureLoc]);
+  }, [userLocation]);
+
+  const [outsideFrance, setOutsideFrance] = useState(false);
+
+  useEffect(() => {
+    const depOutside = departureLoc && !isInFrance(departureLoc);
+    const arrOutside = selectedPlace && !isInFrance(selectedPlace);
+    const isOutside = !!(depOutside || arrOutside);
+
+    if (!isOutside) {
+      setOutsideFrance(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setOutsideFrance(true), 100);
+    return () => clearTimeout(timer);
+  }, [departureLoc, selectedPlace]);
 
   const fetchRoute = useCallback(async (
     departure: { lat: number; lng: number },
     arrival: { lat: number; lng: number },
     mode: TransportMode,
   ) => {
+    if (!isInFrance(departure) || !isInFrance(arrival)) {
+      setRoutes([]);
+      setSelectedRouteIndex(0);
+      setRoute(null);
+      setDuration(null);
+      setRouteSegments([]);
+      return;
+    }
     setIsLoadingRoutes(true);
     try {
       const allRoutes = await fetchDirectionsMultiple(departure, arrival, TRANSPORT_MAP[mode]);
@@ -144,7 +199,7 @@ export function useTripCreation() {
       const departure = { lat: details.lat, lng: details.lng };
       setDepartureLoc(departure);
 
-      if (selectedPlace) {
+      if (selectedPlace && transportMode) {
         await fetchRoute(departure, selectedPlace, transportMode);
       }
     } finally {
@@ -179,11 +234,11 @@ export function useTripCreation() {
 
     searchTimeoutRef.current = setTimeout(async () => {
       setIsSearching(true);
-      const results = await searchPlaces(text, departureLoc ?? undefined);
+      const results = await searchPlaces(text, departureLoc ?? userLocation ?? undefined);
       setSearchResults(results);
       setIsSearching(false);
     }, 400);
-  }, [departureLoc]);
+  }, [departureLoc, userLocation]);
 
   const handleSelectPlace = useCallback(async (result: PlaceAutocompleteResult) => {
     if (resolvingLockRef.current) return;
@@ -200,14 +255,15 @@ export function useTripCreation() {
 
       const arrival = { lat: details.lat, lng: details.lng };
       setSelectedPlace(arrival);
+      addRecentPlace({ name: result.description, ...arrival });
 
-      if (departureLoc) {
+      if (departureLoc && transportMode) {
         await fetchRoute(departureLoc, arrival, transportMode);
       }
     } finally {
       resolvingLockRef.current = false;
     }
-  }, [departureLoc, transportMode, fetchRoute]);
+  }, [departureLoc, transportMode, fetchRoute, addRecentPlace]);
 
   const estimatedArrivalTime = duration != null
     ? new Date(departureTime.getTime() + duration * 60_000)
@@ -216,25 +272,14 @@ export function useTripCreation() {
   const handleCreateTrip = useCallback(async () => {
     setError(null);
     try {
-      let departureLat: number | undefined;
-      let departureLng: number | undefined;
-
-      try {
-        const location = await getCurrentLocation();
-        departureLat = location.lat;
-        departureLng = location.lng;
-      } catch (err) {
-        if (__DEV__) console.warn('Get current location failed:', err);
-      }
-
       const trip = await createTrip({
         estimatedDurationMinutes: duration ?? 30,
         arrivalAddress: destinationAddress || undefined,
         arrivalLat: selectedPlace?.lat,
         arrivalLng: selectedPlace?.lng,
         departureAddress: departureAddress || undefined,
-        departureLat,
-        departureLng,
+        departureLat: departureLoc?.lat,
+        departureLng: departureLoc?.lng,
       });
 
       setActiveTrip(trip.id);
@@ -254,7 +299,7 @@ export function useTripCreation() {
       const message = err instanceof Error ? err.message : 'Erreur lors de la creation du trajet';
       setError(message);
     }
-  }, [duration, destinationAddress, departureAddress, selectedPlace, createTrip, getCurrentLocation, startTracking, setActiveTrip, setTripDetails, router]);
+  }, [duration, destinationAddress, departureAddress, selectedPlace, departureLoc, createTrip, startTracking, setActiveTrip, setTripDetails, router]);
 
   const swapAddresses = useCallback(async () => {
     const prevDeparture = departureAddress;
@@ -269,7 +314,7 @@ export function useTripCreation() {
     setSearchResults([]);
     setDepartureSearchResults([]);
 
-    if (prevDestinationLoc && prevDepartureLoc) {
+    if (prevDestinationLoc && prevDepartureLoc && transportMode) {
       await fetchRoute(prevDestinationLoc, prevDepartureLoc, transportMode);
     } else {
       setRoute(null);
@@ -312,22 +357,27 @@ export function useTripCreation() {
 
   const recentPlaces = useMemo(() => {
     const seen = new Set<string>();
-    return pastTrips
-      .filter((t) => t.arrival_address && t.arrival_lat != null && t.arrival_lng != null)
-      .filter((t) => {
-        const key = `${t.arrival_lat},${t.arrival_lng}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 5)
-      .map((t) => ({
-        name: t.arrival_address!,
-        address: t.departure_address ?? '',
-        lat: t.arrival_lat!,
-        lng: t.arrival_lng!,
-      }));
-  }, [pastTrips]);
+    const results: { name: string; address: string; lat: number; lng: number }[] = [];
+
+    // Local recent places first (most recent selections)
+    for (const p of localRecentPlaces) {
+      const key = `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({ name: p.name, address: p.name, lat: p.lat, lng: p.lng });
+    }
+
+    // Then past trips from DB
+    for (const t of pastTrips) {
+      if (!t.arrival_address || t.arrival_lat == null || t.arrival_lng == null) continue;
+      const key = `${t.arrival_lat.toFixed(5)},${t.arrival_lng.toFixed(5)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({ name: t.arrival_address, address: t.arrival_address, lat: t.arrival_lat, lng: t.arrival_lng });
+    }
+
+    return results.slice(0, 5);
+  }, [localRecentPlaces, pastTrips]);
 
   const handleSelectRecentPlace = useCallback(async (place: { name: string; lat: number; lng: number }) => {
     setDestinationAddress(place.name);
@@ -336,7 +386,7 @@ export function useTripCreation() {
     const arrival = { lat: place.lat, lng: place.lng };
     setSelectedPlace(arrival);
 
-    if (departureLoc) {
+    if (departureLoc && transportMode) {
       await fetchRoute(departureLoc, arrival, transportMode);
     }
   }, [departureLoc, transportMode, fetchRoute]);
@@ -397,6 +447,7 @@ export function useTripCreation() {
     isGeocodingDeparture,
     isResolvingDeparture,
     routeSegments,
+    outsideFrance,
 
     // Data from hooks
     contacts,

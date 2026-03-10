@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ActivityIndicator,
   Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -16,6 +15,7 @@ import { Button } from '@/src/components/ui/Button';
 import { TripMap } from '@/src/components/map/TripMap';
 import { useGuardianTripDetail } from '@/src/hooks/useGuardianAlert';
 import { useRealtimeLocation } from '@/src/hooks/useRealtimeLocation';
+import { Loader } from '@/src/components/ui/Loader';
 import { ms, scaledIcon, scaledShadow } from '@/src/utils/scaling';
 
 export default function TrackScreen() {
@@ -64,7 +64,7 @@ export default function TrackScreen() {
   if (isLoading) {
     return (
       <View style={[styles.container, styles.centeredContent]}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <Loader size="lg" />
       </View>
     );
   }

@@ -9,6 +9,10 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
 import { fetchWithRetry } from "../_shared/retry.ts";
 import { timingSafeEqual } from "../_shared/hashUtils.ts";
+import {
+  getActiveTokensForUsers,
+  sendPushNotifications,
+} from "../_shared/pushNotification.ts";
 
 const NOTIFY_RATE_LIMIT_MS = 60_000; // 1 notification batch per 60 seconds per alert
 
@@ -214,6 +218,41 @@ Deno.serve(async (req) => {
       });
 
     await Promise.all(smsPromises);
+
+    // Push notifications to contacts who are Prudency users
+    const pushContacts = (contacts as TrustedContact[]).filter(
+      (c) => c.notify_by_push && c.phone,
+    );
+
+    if (pushContacts.length > 0) {
+      // Find Prudency users by matching contact phones to profiles
+      const contactPhones = pushContacts.map((c) => c.phone);
+      const { data: matchedProfiles } = await supabaseAdmin
+        .from("profiles")
+        .select("id, phone")
+        .in("phone", contactPhones);
+
+      if (matchedProfiles && matchedProfiles.length > 0) {
+        const matchedUserIds = matchedProfiles.map((p: { id: string }) => p.id);
+        const tokenMap = await getActiveTokensForUsers(supabaseAdmin, matchedUserIds);
+        const allTokens = Array.from(tokenMap.values()).flat();
+
+        if (allTokens.length > 0) {
+          const pushResult = await sendPushNotifications({
+            supabaseUrl,
+            internalSecret,
+            tokens: allTokens,
+            title: "Alerte Prudency",
+            body: message,
+            data: { type: "contact_alert", alertId },
+            sound: "critical",
+            priority: "high",
+          });
+
+          output.notifiedCount += pushResult.sent;
+        }
+      }
+    }
 
     return new Response(JSON.stringify(output), {
       status: 200,

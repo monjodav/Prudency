@@ -28,8 +28,8 @@ interface LogoutDialogProps {
 const CONSEQUENCES = [
   'La déconnexion entraîne la désactivation de ton compte.',
   "Tu n'auras plus accès aux trajets, alertes ni personnes de confiance.",
-  'Tes personnes de confiance seront informées que ton compte est inactif.',
-  'Tes données seront conservées 30 jours. Passé ce délai, elles seront supprimées définitivement.',
+  'Tes personnes de confiance seront informé(e)s que ton compte est inactif.',
+  'Tes données seront conservées 30 jours. Passé ce délai, elles seront supprimé(e)s définitivement.',
 ] as const;
 
 export function LogoutDialog({

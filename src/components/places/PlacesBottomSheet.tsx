@@ -5,6 +5,7 @@ import type { PlaceAutocompleteResult } from '@/src/services/placesService';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 import type { SavedPlace } from '@/src/types/database';
+import { Loader } from '@/src/components/ui/Loader';
 import { ms, scaledFontSize, scaledIcon, scaledRadius } from '@/src/utils/scaling';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, {
@@ -15,7 +16,7 @@ import BottomSheet, {
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { BlurView } from 'expo-blur';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type SheetPage = 'list' | 'addPlace';
 
@@ -367,7 +368,7 @@ export function PlacesBottomSheet({
               returnKeyType="search"
             />
             {isSearching ? (
-              <ActivityIndicator size="small" color={colors.primary[300]} style={styles.inputIcon} />
+              <Loader size="sm" color={colors.primary[300]} style={styles.inputIcon} />
             ) : selectedPlace ? (
               <Pressable onPress={() => handleSearch('')} style={styles.inputIcon} hitSlop={8}>
                 <Ionicons name="close-circle" size={scaledIcon(24)} color={colors.gray[50]} />

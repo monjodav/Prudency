@@ -29,6 +29,10 @@ const PLACE_DETAILS_URL =
 const GEOCODE_URL =
   'https://maps.googleapis.com/maps/api/geocode/json';
 
+function stripCountrySuffix(text: string): string {
+  return text.replace(/,\s*France\s*$/, '');
+}
+
 export async function searchPlaces(
   query: string,
   location?: LatLng,
@@ -57,9 +61,9 @@ export async function searchPlaces(
 
   return data.predictions.map((prediction) => ({
     placeId: prediction.place_id,
-    description: prediction.description,
+    description: stripCountrySuffix(prediction.description),
     mainText: prediction.structured_formatting.main_text,
-    secondaryText: prediction.structured_formatting.secondary_text,
+    secondaryText: stripCountrySuffix(prediction.structured_formatting.secondary_text),
     types: prediction.types ?? [],
   }));
 }

@@ -7,6 +7,10 @@ import {
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { fetchWithRetry } from "../_shared/retry.ts";
 import { timingSafeEqual } from "../_shared/hashUtils.ts";
+import {
+  getActiveTokensForUsers,
+  sendPushNotifications,
+} from "../_shared/pushNotification.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -164,6 +168,33 @@ Deno.serve(async (req) => {
 
     if (updateError) {
       console.error("Update trip status error:", updateError);
+    }
+
+    // Insert in-app notification for the user
+    await supabase
+      .from("notifications")
+      .insert({
+        user_id: trip.user_id,
+        type: "overtime",
+        title: "Temps dépassé",
+        body: "Tu n'as pas confirmé(e) ton arrivée. Tes contacts ont été prévenu(e)s.",
+        data: { tripId, alertId: alert.id },
+      });
+
+    // Push notification to the user herself
+    const tokenMap = await getActiveTokensForUsers(supabase, [trip.user_id]);
+    const userTokens = tokenMap.get(trip.user_id) ?? [];
+    if (userTokens.length > 0 && internalSecret) {
+      await sendPushNotifications({
+        supabaseUrl,
+        internalSecret,
+        tokens: userTokens,
+        title: "Temps dépassé",
+        body: "Tu n'as pas confirmé(e) ton arrivée. Tes contacts ont été prévenu(e)s.",
+        data: { type: "overtime", tripId, alertId: alert.id },
+        sound: "critical",
+        priority: "high",
+      });
     }
 
     // Notify contacts via internal call (using X-Internal-Secret for auth)

@@ -4,9 +4,10 @@ import * as Contacts from 'expo-contacts';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
-import { ms, mvs, scaledIcon, scaledFontSize, scaledSpacing, scaledRadius } from '@/src/utils/scaling';
+import { ms, scaledIcon, scaledFontSize, scaledSpacing, scaledRadius } from '@/src/utils/scaling';
 import { Input } from '@/src/components/ui/Input';
 import { Button } from '@/src/components/ui/Button';
+import { formatPhoneDisplay } from '@/src/utils/formatters';
 
 interface ContactFormData {
   name: string;
@@ -35,17 +36,6 @@ const DEFAULT_VALUES: ContactFormData = {
 };
 
 const COUNTRY_PREFIX = '+33';
-
-function formatPhoneDisplay(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 9);
-  const parts: string[] = [];
-  if (digits.length > 0) parts.push(digits.slice(0, 1));
-  if (digits.length > 1) parts.push(digits.slice(1, 3));
-  if (digits.length > 3) parts.push(digits.slice(3, 5));
-  if (digits.length > 5) parts.push(digits.slice(5, 7));
-  if (digits.length > 7) parts.push(digits.slice(7, 9));
-  return parts.join(' ');
-}
 
 export function ContactForm({
   initialValues,

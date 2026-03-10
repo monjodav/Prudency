@@ -21,20 +21,9 @@ import { getProfile } from '@/src/services/authService';
 import { sendOtp } from '@/src/services/otpService';
 import { PrudencyLogo } from '@/src/components/ui/PrudencyLogo';
 import { scaledSpacing, scaledFontSize, scaledRadius, scaledIcon, ms } from '@/src/utils/scaling';
+import { formatPhoneDisplay } from '@/src/utils/formatters';
 
 const COUNTRY_PREFIX = '+33';
-
-/** Format digits as "X XX XX XX XX" for display */
-function formatPhoneDisplay(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 9);
-  const parts: string[] = [];
-  if (digits.length > 0) parts.push(digits.slice(0, 1));
-  if (digits.length > 1) parts.push(digits.slice(1, 3));
-  if (digits.length > 3) parts.push(digits.slice(3, 5));
-  if (digits.length > 5) parts.push(digits.slice(5, 7));
-  if (digits.length > 7) parts.push(digits.slice(7, 9));
-  return parts.join(' ');
-}
 
 export default function PersonalInfoScreen() {
   const router = useRouter();

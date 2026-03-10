@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import {
   BottomSheetModal,
   BottomSheetTextInput,
@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing } from '@/src/theme/spacing';
+import { Loader } from '@/src/components/ui/Loader';
 import { ms, scaledIcon, scaledRadius, scaledFontSize } from '@/src/utils/scaling';
 import { Button } from '@/src/components/ui/Button';
 import { useAddPlace } from '@/src/hooks/useAddPlace';
@@ -118,7 +119,7 @@ export const AddPlaceBottomSheet = forwardRef<BottomSheetModal, AddPlaceBottomSh
               returnKeyType="search"
             />
             {isSearching ? (
-              <ActivityIndicator size="small" color={colors.primary[300]} style={styles.inputIcon} />
+              <Loader size="sm" color={colors.primary[300]} style={styles.inputIcon} />
             ) : (
               <Ionicons name="search" size={scaledIcon(18)} color={colors.gray[400]} style={styles.inputIcon} />
             )}

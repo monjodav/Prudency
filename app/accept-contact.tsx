@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   Linking,
   Platform,
 } from 'react-native';
@@ -11,8 +10,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { Button } from '@/src/components/ui/Button';
+import { Loader } from '@/src/components/ui/Loader';
 import { OnboardingBackground } from '@/src/components/ui/OnboardingBackground';
 import { supabase } from '@/src/services/supabaseClient';
+import { respondToContactInvitation } from '@/src/services/contactService';
 import {
   scaledSpacing,
   scaledFontSize,
@@ -118,20 +119,10 @@ export default function AcceptContactScreen() {
   }
 
   const handleAccept = async () => {
-    if (!inviter) return;
+    if (!inviter || !token) return;
     setProcessing(true);
-
     try {
-      const { error } = await supabase
-        .from('trusted_contacts')
-        .update({
-          validation_status: 'accepted',
-          notify_by_push: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', inviter.contactId);
-
-      if (error) throw error;
+      await respondToContactInvitation(token, 'accepted');
       setState('accepted');
     } catch {
       setErrorMessage('Une erreur est survenue. Veuillez reessayer.');
@@ -142,19 +133,10 @@ export default function AcceptContactScreen() {
   };
 
   const handleRefuse = async () => {
-    if (!inviter) return;
+    if (!inviter || !token) return;
     setProcessing(true);
-
     try {
-      const { error } = await supabase
-        .from('trusted_contacts')
-        .update({
-          validation_status: 'refused',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', inviter.contactId);
-
-      if (error) throw error;
+      await respondToContactInvitation(token, 'refused');
       setState('refused');
     } catch {
       setErrorMessage('Une erreur est survenue. Veuillez reessayer.');
@@ -178,7 +160,7 @@ export default function AcceptContactScreen() {
       <View style={styles.content}>
         {state === 'loading' && (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.primary[50]} />
+            <Loader size="lg" color={colors.primary[50]} />
             <Text style={styles.loadingText}>Chargement de l'invitation...</Text>
           </View>
         )}

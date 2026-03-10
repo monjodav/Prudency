@@ -7,7 +7,6 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -21,6 +20,7 @@ import { Button } from '@/src/components/ui/Button';
 import { Snackbar } from '@/src/components/ui/Snackbar';
 import { usePlaces } from '@/src/hooks/usePlaces';
 import { TripMap } from '@/src/components/map/TripMap';
+import { Loader } from '@/src/components/ui/Loader';
 import { figmaScale, scaledIcon, scaledRadius, ms } from '@/src/utils/scaling';
 
 type PlaceType = 'home' | 'work' | 'favorite' | 'other';
@@ -159,7 +159,7 @@ export default function EditPlaceScreen() {
     return (
       <View style={styles.container}>
         <View style={[styles.loadingContainer, { paddingTop: insets.top + spacing[8] }]}>
-          <ActivityIndicator size="large" color={colors.primary[300]} />
+          <Loader size="lg" color={colors.primary[300]} />
           <Text style={styles.loadingText}>Chargement...</Text>
         </View>
       </View>
@@ -255,7 +255,7 @@ export default function EditPlaceScreen() {
               disabled={isGeocoding || !address.trim()}
             >
               {isGeocoding ? (
-                <ActivityIndicator size="small" color={colors.white} />
+                <Loader size="sm" color={colors.white} />
               ) : (
                 <Ionicons name="search" size={scaledIcon(20)} color={colors.white} />
               )}

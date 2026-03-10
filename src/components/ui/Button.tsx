@@ -3,7 +3,6 @@ import {
   Pressable,
   Text,
   StyleSheet,
-  ActivityIndicator,
   ViewStyle,
   TextStyle,
   PressableProps,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { Loader } from '@/src/components/ui/Loader';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { ms, scaledSpacing, scaledFontSize } from '@/src/utils/scaling';
@@ -182,8 +182,8 @@ export function Button({
         <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
       )}
       {loading ? (
-        <ActivityIndicator
-          size="small"
+        <Loader
+          size="sm"
           color={String(variantStyle.text.color ?? colors.white)}
         />
       ) : (

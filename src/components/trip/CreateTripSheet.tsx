@@ -65,6 +65,7 @@ export function CreateTripSheet({ visible, onClose }: CreateTripSheetProps) {
     selectedRouteIndex,
     isLoadingRoutes,
     estimatedArrivalTime,
+    outsideFrance,
     handleUseCurrentLocation,
     handleDepartureSearch,
     handleSelectDeparturePlace,
@@ -138,6 +139,15 @@ export function CreateTripSheet({ visible, onClose }: CreateTripSheetProps) {
             onDismissResults={dismissDepartureResults}
           />
 
+          {outsideFrance && (
+            <View style={styles.outsideFranceBanner}>
+              <Ionicons name="information-circle-outline" size={scaledIcon(18)} color={colors.warning[400]} />
+              <Text style={styles.outsideFranceText}>
+                Prudency n'est disponible qu'en France métropolitaine pour le moment.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.swapRow}>
             <View style={styles.swapLine} />
             <Pressable
@@ -210,7 +220,7 @@ export function CreateTripSheet({ visible, onClose }: CreateTripSheetProps) {
             selectedIndex={selectedRouteIndex}
             onSelectRoute={selectRoute}
             isLoading={isLoadingRoutes}
-            transportMode={transportMode}
+            transportMode={transportMode ?? 'walk'}
             departureTime={departureTime}
           />
 
@@ -302,5 +312,19 @@ const styles = StyleSheet.create({
   actions: {
     gap: spacing[3],
     marginTop: spacing[4],
+  },
+  outsideFranceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(234, 179, 8, 0.12)',
+    padding: spacing[3],
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing[4],
+    gap: spacing[2],
+  },
+  outsideFranceText: {
+    ...typography.bodySmall,
+    color: colors.warning[400],
+    flex: 1,
   },
 });

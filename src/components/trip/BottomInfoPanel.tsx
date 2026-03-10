@@ -9,7 +9,7 @@ import { useTripTiming } from '@/src/hooks/useTripTiming';
 import { scaledIcon, ms } from '@/src/utils/scaling';
 import type { useActiveTrip } from '@/src/hooks/useActiveTrip';
 
-interface BottomInfoPanelProps {
+export interface TripInfoContentProps {
   trip: ReturnType<typeof useActiveTrip>['trip'];
   contactCount: number;
   isOvertime: boolean;
@@ -21,7 +21,7 @@ interface BottomInfoPanelProps {
   isCancelling: boolean;
 }
 
-export function BottomInfoPanel({
+export function TripInfoContent({
   trip,
   contactCount,
   isOvertime,
@@ -31,13 +31,11 @@ export function BottomInfoPanel({
   onEditTrip,
   onCancelTrip,
   isCancelling,
-}: BottomInfoPanelProps) {
+}: TripInfoContentProps) {
   const { elapsed, remaining, progress } = useTripTiming(trip);
 
   return (
-    <View style={styles.bottomPanel}>
-      <View style={styles.bottomHandle} />
-
+    <View>
       <View style={styles.infoSection}>
         <InfoRow
           icon="location"
@@ -126,6 +124,15 @@ export function BottomInfoPanel({
           </Text>
         </Pressable>
       </View>
+    </View>
+  );
+}
+
+export function BottomInfoPanel(props: TripInfoContentProps) {
+  return (
+    <View style={styles.bottomPanel}>
+      <View style={styles.bottomHandle} />
+      <TripInfoContent {...props} />
     </View>
   );
 }

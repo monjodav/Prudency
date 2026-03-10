@@ -21,18 +21,15 @@ import * as Location from 'expo-location';
 import { colors } from '@/src/theme/colors';
 import { typography, fontFamilies } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
-import { ms, mvs, scaledIcon, scaledRadius } from '@/src/utils/scaling';
+import { ms, scaledIcon, scaledRadius } from '@/src/utils/scaling';
 import { Button } from '@/src/components/ui/Button';
 import { ContactForm } from '@/src/components/contact/ContactForm';
 import { TripMap } from '@/src/components/map/TripMap';
 import { RouteSuggestions } from '@/src/components/trip/RouteSuggestions';
 import { useTripCreation } from '@/src/hooks/useTripCreation';
 import { useTripStore } from '@/src/stores/tripStore';
-import { TransitLineIcon, getTransitMode } from '@/src/components/transit/TransitLineBadge';
-import { MetroIcon } from '@/src/components/transit/MetroIcon';
-import { TramIcon } from '@/src/components/transit/TramIcon';
-import { BusIcon } from '@/src/components/transit/BusIcon';
-import type { RouteStep } from '@/src/services/directionsService';
+import { CompactSummary } from '@/src/components/trip/sections/CompactSummary';
+import { formatDistance } from '@/src/utils/formatters';
 import {
   DepartureSection,
   DestinationSection,
@@ -58,7 +55,7 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDuration(seconds: number): string {
+function formatDurationSeconds(seconds: number): string {
   const totalMin = Math.round(seconds / 60);
   if (totalMin < 60) return `${totalMin} min`;
   const h = Math.floor(totalMin / 60);
@@ -66,63 +63,6 @@ function formatDuration(seconds: number): string {
   return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
 }
 
-function formatDistance(meters: number): string {
-  if (meters < 1000) return `${meters} m`;
-  const km = meters / 1000;
-  return km % 1 === 0 ? `${km} km` : `${km.toFixed(1)} km`;
-}
-
-function CompactWalkChip({ durationSeconds }: { durationSeconds: number }) {
-  return (
-    <View style={styles.compactWalk}>
-      <Ionicons name="walk" size={scaledIcon(12)} color={colors.gray[200]} />
-      <Text style={styles.compactWalkText}>
-        {Math.max(1, Math.ceil(durationSeconds / 60))}
-      </Text>
-    </View>
-  );
-}
-
-function CompactSummary({ steps }: { steps: RouteStep[] }) {
-  const items: React.ReactNode[] = [];
-  const chevronSize = scaledIcon(8);
-
-  for (let i = 0; i < steps.length; i++) {
-    const step = steps[i]!;
-    if (step.travelMode === 'WALKING') {
-      if (items.length > 0) {
-        items.push(
-          <Ionicons key={`c${i}`} name="chevron-forward" size={chevronSize} color={colors.gray[200]} />,
-        );
-      }
-      items.push(
-        <CompactWalkChip key={`w${i}`} durationSeconds={step.duration.value} />,
-      );
-    } else if (step.travelMode === 'TRANSIT' && step.transitDetails) {
-      if (items.length > 0) {
-        items.push(
-          <Ionicons key={`c${i}`} name="chevron-forward" size={chevronSize} color={colors.gray[200]} />,
-        );
-      }
-      const lineId = step.transitDetails.line.shortName || step.transitDetails.line.name;
-      const mode = getTransitMode(step.transitDetails.line.vehicleType, lineId);
-      const badgeSize = scaledIcon(16);
-      items.push(
-        <View key={`t${i}`} style={styles.compactTransit}>
-          {mode === 'metro' && <MetroIcon size={badgeSize} />}
-          {mode === 'tram' && <TramIcon size={badgeSize} />}
-          {mode === 'bus' && <BusIcon size={badgeSize} />}
-          {(mode === 'rer' || mode === 'generic') && (
-            <Ionicons name={mode === 'rer' ? 'train-outline' : 'bus-outline'} size={badgeSize} color={colors.gray[200]} />
-          )}
-          <TransitLineIcon line={step.transitDetails.line} size={badgeSize} />
-        </View>,
-      );
-    }
-  }
-
-  return <>{items}</>;
-}
 const DISMISS_THRESHOLD = 120;
 
 export default function CreateTripScreen() {
@@ -182,6 +122,7 @@ export default function CreateTripScreen() {
     clearDeparture,
     clearDestination,
     routeSegments,
+    outsideFrance,
     savedPlaces,
     recentPlaces,
     handleSelectRecentPlace,
@@ -376,7 +317,7 @@ export default function CreateTripScreen() {
           routeCoordinates={route?.polyline}
           routeSegments={routeSegments}
           steps={route?.steps}
-          bottomPadding={180}
+          bottomPadding={260}
           userLocation={userLocation}
           userHeading={heading}
           showUserLocation
@@ -410,7 +351,7 @@ export default function CreateTripScreen() {
             {route && (
               <View style={styles.reducedInfo}>
                 <Ionicons
-                  name={TRANSPORT_ICONS[transportMode] ?? 'walk'}
+                  name={transportMode ? TRANSPORT_ICONS[transportMode] : 'walk'}
                   size={scaledIcon(20)}
                   color={colors.white}
                 />
@@ -422,7 +363,7 @@ export default function CreateTripScreen() {
                           {formatTime(departureTime)} - {estimatedArrivalTime ? formatTime(estimatedArrivalTime) : ''}
                         </Text>
                         <Text style={styles.reducedSeparator}>|</Text>
-                        <Text style={styles.reducedDuration}>{formatDuration(route.duration.value)}</Text>
+                        <Text style={styles.reducedDuration}>{formatDurationSeconds(route.duration.value)}</Text>
                       </View>
                       <View style={styles.reducedSequence}>
                         <CompactSummary steps={route.steps} />
@@ -436,7 +377,7 @@ export default function CreateTripScreen() {
                         </Text>
                       )}
                       <Text style={styles.reducedSubInfo}>
-                        {formatDuration(route.duration.value)} | {formatDistance(route.distance.value)}
+                        {formatDurationSeconds(route.duration.value)} | {formatDistance(route.distance.value)}
                       </Text>
                     </>
                   )}
@@ -445,10 +386,26 @@ export default function CreateTripScreen() {
             )}
 
             <View style={styles.reducedActions}>
-              <Pressable onPress={() => animateSheet('full')} style={styles.reducedChangeBtn}>
+              <Pressable
+                onPress={() => {
+                  animateSheet('full');
+                  setTimeout(() => {
+                    scrollRef.current?.scrollTo({ y: transportY.current, animated: true });
+                  }, 350);
+                }}
+                style={styles.reducedChangeBtn}
+              >
                 <Text style={styles.reducedChangeText}>Changer</Text>
               </Pressable>
-              <Pressable onPress={() => animateSheet('full')} style={styles.reducedSelectBtn}>
+              <Pressable
+                onPress={() => {
+                  animateSheet('full');
+                  setTimeout(() => {
+                    scrollRef.current?.scrollTo({ y: transportY.current, animated: true });
+                  }, 350);
+                }}
+                style={styles.reducedSelectBtn}
+              >
                 <Text style={styles.reducedSelectText}>Sélectionner ce trajet</Text>
               </Pressable>
             </View>
@@ -490,6 +447,15 @@ export default function CreateTripScreen() {
                 onSelectPlace={handleSelectDeparturePlace}
                 onDismissResults={dismissDepartureResults}
               />
+
+              {outsideFrance && (
+                <View style={styles.outsideFranceBanner}>
+                  <Ionicons name="information-circle-outline" size={scaledIcon(18)} color={colors.warning[400]} />
+                  <Text style={styles.outsideFranceText}>
+                    Prudency n'est disponible qu'en France métropolitaine pour le moment.
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.swapRow}>
                 <View style={styles.swapLine} />
@@ -559,7 +525,7 @@ export default function CreateTripScreen() {
                   animateSheet('reduced');
                 }}
                 isLoading={isLoadingRoutes}
-                transportMode={transportMode}
+                transportMode={transportMode ?? 'walk'}
                 departureTime={departureTime}
               />
 
@@ -760,21 +726,6 @@ const styles = StyleSheet.create({
     color: colors.gray[400],
     marginTop: ms(2, 0.3),
   },
-  compactWalk: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(1, 0.3),
-  },
-  compactWalkText: {
-    ...typography.caption,
-    fontSize: ms(10, 0.4),
-    color: colors.gray[200],
-  },
-  compactTransit: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(2, 0.3),
-  },
   reducedActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -836,6 +787,20 @@ const styles = StyleSheet.create({
   contactErrorText: {
     ...typography.bodySmall,
     color: colors.error[400],
+    flex: 1,
+  },
+  outsideFranceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(234, 179, 8, 0.12)',
+    padding: spacing[3],
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing[4],
+    gap: spacing[2],
+  },
+  outsideFranceText: {
+    ...typography.bodySmall,
+    color: colors.warning[400],
     flex: 1,
   },
 });

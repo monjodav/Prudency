@@ -26,7 +26,9 @@ import { Kalam_400Regular } from '@expo-google-fonts/kalam';
 import { useColorScheme } from 'react-native';
 import { queryClient } from '@/src/config/queryClient';
 import { useAuthGate } from '@/src/hooks/useAuthGate';
+import { useNotificationSetup } from '@/src/hooks/useNotificationSetup';
 import { usePreferencesStore } from '@/src/stores/preferencesStore';
+import { useRecentPlacesStore } from '@/src/stores/recentPlacesStore';
 import { AnimatedSplashScreen } from '@/src/components/splash';
 
 export { ErrorBoundary } from 'expo-router';
@@ -39,6 +41,7 @@ SplashScreen.preventAutoHideAsync();
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   useAuthGate();
+  useNotificationSetup();
   return <>{children}</>;
 }
 
@@ -70,6 +73,7 @@ export default function RootLayout() {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
       usePreferencesStore.getState().loadPreferences();
+      useRecentPlacesStore.getState().loadPlaces();
       // Show splash screen for 2 seconds
       const timer = setTimeout(() => {
         setAppReady(true);
@@ -97,6 +101,13 @@ export default function RootLayout() {
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="(profile)" />
+                <Stack.Screen
+                  name="notifications"
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                  }}
+                />
                 <Stack.Screen
                   name="(trip)"
                   options={{

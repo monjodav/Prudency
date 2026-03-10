@@ -23,8 +23,7 @@ export default function TripLayout() {
       <Stack.Screen
         name="active"
         options={{
-          title: 'Trajet en cours',
-          headerBackVisible: false,
+          headerShown: false,
           gestureEnabled: false,
         }}
       />

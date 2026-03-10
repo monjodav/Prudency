@@ -63,9 +63,6 @@ verify_jwt = false
 [functions.check-trip-timeout]
 verify_jwt = false
 
-[functions.update-location]
-verify_jwt = true
-
 [functions.notify-contacts]
 verify_jwt = false
 
