@@ -40,7 +40,7 @@ const DOT_SIZE = ms(32, 0.4);
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { lastKnownLat, lastKnownLng, updateLocation } = useTripStore();
+  const { lastKnownLat, lastKnownLng, updateLocation, activeTripId } = useTripStore();
   const { places } = usePlaces();
   const { unreadCount } = useNotificationsQuery();
   const mapRef = useRef<MapView>(null);
@@ -50,6 +50,13 @@ export default function HomeScreen() {
   const [heading, setHeading] = useState<number | null>(null);
   const mapTheme = usePreferencesStore((s) => s.mapTheme);
   const mapStyle = useMemo(() => getMapStyle(mapTheme), [mapTheme]);
+
+  // Auto-redirect to active trip screen if a trip is in progress
+  useEffect(() => {
+    if (activeTripId) {
+      router.replace('/(trip)/active');
+    }
+  }, [activeTripId, router]);
 
   // Center map on user at launch, then watch position in real time
   useEffect(() => {
@@ -118,9 +125,11 @@ export default function HomeScreen() {
       : null;
 
   const pathname = usePathname();
-  const outsideFrance = userLocation && pathname === '/'
-    ? !isInFrance(userLocation.latitude, userLocation.longitude)
-    : false;
+  // TODO: Re-enable when app is France-only
+  // const outsideFrance = userLocation && pathname === '/'
+  //   ? !isInFrance(userLocation.latitude, userLocation.longitude)
+  //   : false;
+  const outsideFrance = false;
 
   const initialRegion = userLocation
     ? { ...userLocation, latitudeDelta: 0.01, longitudeDelta: 0.01 }

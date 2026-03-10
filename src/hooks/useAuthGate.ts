@@ -4,6 +4,7 @@ import { supabase } from '@/src/services/supabaseClient';
 import { useAuthStore } from '@/src/stores/authStore';
 import { queryClient } from '@/src/config/queryClient';
 import { getProfile } from '@/src/services/authService';
+import { getActiveTrip } from '@/src/services/tripService';
 
 const ONBOARDING_SCREENS = [
   'permissions-location',
@@ -85,7 +86,12 @@ export function useAuthGate() {
             router.replace('/(auth)/permissions-location');
           }
         } else if (inAuthGroup) {
-          router.replace('/(tabs)');
+          const activeTrip = await getActiveTrip();
+          if (activeTrip) {
+            router.replace('/(trip)/active');
+          } else {
+            router.replace('/(tabs)');
+          }
         }
       } catch {
         const inAuthGroup = segmentsRef.current[0] === '(auth)';

@@ -47,7 +47,7 @@ export function useTripCreation() {
   const { getCurrentLocation, startTracking } = useLocation();
   const { trips: pastTrips } = usePastTrips();
   const { places: savedPlacesData } = usePlaces();
-  const { setActiveTrip, setTripDetails } = useTripStore();
+  const { setActiveTrip, setTripDetails, setRouteData, setTransportMode: storeSetTransportMode, setDepartureLoc: storeSetDepartureLoc } = useTripStore();
   const addRecentPlace = useRecentPlacesStore((s) => s.addPlace);
   const localRecentPlaces = useRecentPlacesStore((s) => s.places);
 
@@ -141,33 +141,26 @@ export function useTripCreation() {
 
   const [outsideFrance, setOutsideFrance] = useState(false);
 
-  useEffect(() => {
-    const depOutside = departureLoc && !isInFrance(departureLoc);
-    const arrOutside = selectedPlace && !isInFrance(selectedPlace);
-    const isOutside = !!(depOutside || arrOutside);
-
-    if (!isOutside) {
-      setOutsideFrance(false);
-      return;
-    }
-
-    const timer = setTimeout(() => setOutsideFrance(true), 100);
-    return () => clearTimeout(timer);
-  }, [departureLoc, selectedPlace]);
+  // TODO: Re-enable when app is France-only
+  // useEffect(() => {
+  //   const depOutside = departureLoc && !isInFrance(departureLoc);
+  //   const arrOutside = selectedPlace && !isInFrance(selectedPlace);
+  //   const isOutside = !!(depOutside || arrOutside);
+  //   if (!isOutside) { setOutsideFrance(false); return; }
+  //   const timer = setTimeout(() => setOutsideFrance(true), 100);
+  //   return () => clearTimeout(timer);
+  // }, [departureLoc, selectedPlace]);
 
   const fetchRoute = useCallback(async (
     departure: { lat: number; lng: number },
     arrival: { lat: number; lng: number },
     mode: TransportMode,
   ) => {
-    if (!isInFrance(departure) || !isInFrance(arrival)) {
-      setRoutes([]);
-      setSelectedRouteIndex(0);
-      setRoute(null);
-      setDuration(null);
-      setRouteSegments([]);
-      return;
-    }
+    // TODO: Re-enable when app is France-only
+    // if (!isInFrance(departure) || !isInFrance(arrival)) {
+    //   setRoutes([]); setSelectedRouteIndex(0); setRoute(null);
+    //   setDuration(null); setRouteSegments([]); return;
+    // }
     setIsLoadingRoutes(true);
     try {
       const allRoutes = await fetchDirectionsMultiple(departure, arrival, TRANSPORT_MAP[mode]);
@@ -280,6 +273,7 @@ export function useTripCreation() {
         departureAddress: departureAddress || undefined,
         departureLat: departureLoc?.lat,
         departureLng: departureLoc?.lng,
+        transportMode: transportMode ?? undefined,
       });
 
       setActiveTrip(trip.id);
@@ -287,6 +281,16 @@ export function useTripCreation() {
         arrivalAddress: destinationAddress || undefined,
         estimatedDurationMinutes: duration ?? undefined,
       });
+
+      if (route && routeSegments.length > 0) {
+        setRouteData(route, routeSegments);
+      }
+      if (transportMode) {
+        storeSetTransportMode(transportMode);
+      }
+      if (departureLoc) {
+        storeSetDepartureLoc(departureLoc);
+      }
 
       try {
         await startTracking();
@@ -299,7 +303,7 @@ export function useTripCreation() {
       const message = err instanceof Error ? err.message : 'Erreur lors de la creation du trajet';
       setError(message);
     }
-  }, [duration, destinationAddress, departureAddress, selectedPlace, departureLoc, createTrip, startTracking, setActiveTrip, setTripDetails, router]);
+  }, [duration, destinationAddress, departureAddress, selectedPlace, departureLoc, transportMode, route, routeSegments, createTrip, startTracking, setActiveTrip, setTripDetails, setRouteData, storeSetTransportMode, storeSetDepartureLoc, router]);
 
   const swapAddresses = useCallback(async () => {
     const prevDeparture = departureAddress;

@@ -209,6 +209,36 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Persist in-app notification for the trip owner
+    await supabaseAdmin.from("notifications").insert({
+      user_id: user.id,
+      type: "trip_started",
+      title: "Trajet en cours",
+      body: `Ton trajet vers ${destination} a bien démarré. Tes contacts ont été prévenus.`,
+      data: { tripId },
+    });
+
+    // Persist in-app notification for each contact who is a Prudency user
+    if (pushContacts.length > 0) {
+      const contactPhones2 = pushContacts.map((c: { phone: string }) => c.phone);
+      const { data: contactProfiles } = await supabaseAdmin
+        .from("profiles")
+        .select("id, phone")
+        .in("phone", contactPhones2);
+
+      if (contactProfiles && contactProfiles.length > 0) {
+        await supabaseAdmin.from("notifications").insert(
+          contactProfiles.map((p: { id: string }) => ({
+            user_id: p.id,
+            type: "contact_trip_started",
+            title: "Trajet démarré",
+            body: `${userName} a démarré un trajet vers ${destination}.`,
+            data: { tripId },
+          })),
+        );
+      }
+    }
+
     return new Response(JSON.stringify(output), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

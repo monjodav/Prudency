@@ -42,6 +42,7 @@ type StepTravelMode = 'DRIVING' | 'WALKING' | 'BICYCLING' | 'TRANSIT';
 
 interface RouteStep {
   instruction: string;
+  maneuver?: string;
   distance: { text: string; value: number };
   duration: { text: string; value: number };
   startLocation: LatLng;
@@ -147,6 +148,7 @@ function decodeStep(raw: DirectionsApiStep): RouteStep {
 
   const step: RouteStep = {
     instruction: raw.html_instructions.replace(/<[^>]*>/g, ''),
+    maneuver: raw.maneuver,
     distance: raw.distance,
     duration: raw.duration,
     startLocation: {
@@ -296,6 +298,7 @@ interface DirectionsApiTransitDetails {
 
 interface DirectionsApiStep {
   html_instructions: string;
+  maneuver?: string;
   distance: { text: string; value: number };
   duration: { text: string; value: number };
   start_location: { lat: number; lng: number };

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Pressable, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 import { colors } from '@/src/theme/colors';
 import { typography } from '@/src/theme/typography';
 import { spacing, borderRadius } from '@/src/theme/spacing';
@@ -15,6 +16,8 @@ import { TopStatusCard } from '@/src/components/trip/TopStatusCard';
 import { ExtendModal } from '@/src/components/trip/ExtendModal';
 import { CancelTripDialog } from '@/src/components/trip/CancelTripDialog';
 import { EditTripSheet } from '@/src/components/trip/EditTripSheet';
+import { TripMap } from '@/src/components/map/TripMap';
+import { DirectionsBottomSheet } from '@/src/components/trip/DirectionsBottomSheet';
 import { useTripStore } from '@/src/stores/tripStore';
 import { useActiveTrip } from '@/src/hooks/useActiveTrip';
 import { useTrip } from '@/src/hooks/useTrip';
@@ -25,15 +28,40 @@ import { useContacts } from '@/src/hooks/useContacts';
 import { useAnomalyDetection } from '@/src/hooks/useAnomalyDetection';
 import { useArrivalDetection } from '@/src/hooks/useArrivalDetection';
 import { useTripNotifications } from '@/src/hooks/useTripNotifications';
-import { fetchDirections } from '@/src/services/directionsService';
-import { ms, scaledIcon, scaledRadius } from '@/src/utils/scaling';
-import type { DecodedRoute } from '@/src/services/directionsService';
+import { useNotificationsQuery } from '@/src/hooks/useNotificationsQuery';
+import { useCurrentStep } from '@/src/hooks/useCurrentStep';
+import { fetchDirections, buildRouteSegments } from '@/src/services/directionsService';
+import { ms, scaledIcon } from '@/src/utils/scaling';
+import type { TripMapRef } from '@/src/components/map/TripMap';
+import type { DecodedRoute, RouteSegment, TravelMode } from '@/src/services/directionsService';
 import type { EditTripInput } from '@/src/services/tripService';
+
+const TRANSPORT_TO_TRAVEL: Record<string, TravelMode> = {
+  car: 'driving',
+  walk: 'walking',
+  bike: 'bicycling',
+  transit: 'transit',
+};
+
+const FAB_SIZE = ms(48, 0.4);
 
 export default function ActiveTripScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { lastKnownLat, lastKnownLng, batteryLevel, reset: resetTripStore } = useTripStore();
+  const mapRef = useRef<TripMapRef>(null);
+
+  const {
+    lastKnownLat,
+    lastKnownLng,
+    batteryLevel,
+    routeData: storeRouteData,
+    routeSegments: storeRouteSegments,
+    routeSteps: storeRouteSteps,
+    transportMode: storeTransportMode,
+    departureLoc: storeDepartureLoc,
+    reset: resetTripStore,
+  } = useTripStore();
+
   const { trip, isOvertime } = useActiveTrip();
   const { cancelTrip, isCancelling, extendTrip, isExtending, editTrip, isEditing } = useTrip();
   const { triggerAlert, isTriggering } = useAlert();
@@ -46,8 +74,42 @@ export default function ActiveTripScreen() {
     tripStartedAt: trip?.started_at ?? null,
   });
   const { contacts } = useContacts();
+  const { unreadCount } = useNotificationsQuery();
   useTripNotifications(trip);
-  const [route, setRoute] = useState<DecodedRoute | null>(null);
+
+  // Route state: prefer store data, fall back to local fetch
+  const [localRoute, setLocalRoute] = useState<DecodedRoute | null>(null);
+  const [localSegments, setLocalSegments] = useState<RouteSegment[] | null>(null);
+
+  const route = storeRouteData ?? localRoute;
+  const routeSegments = storeRouteSegments ?? localSegments;
+  const routeSteps = storeRouteSteps ?? localRoute?.steps ?? null;
+
+  // Heading state for user dot
+  const [heading, setHeading] = useState<number | null>(null);
+
+  // Heading subscription
+  useEffect(() => {
+    let cancelled = false;
+    let headingSub: Location.LocationSubscription | null = null;
+
+    async function startHeading() {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== 'granted' || cancelled) return;
+
+      headingSub = await Location.watchHeadingAsync((h) => {
+        if (!cancelled && h.trueHeading >= 0) {
+          setHeading(h.trueHeading);
+        }
+      });
+    }
+
+    startHeading();
+    return () => {
+      cancelled = true;
+      headingSub?.remove();
+    };
+  }, []);
 
   const {
     showAnomalyDialog,
@@ -79,38 +141,57 @@ export default function ActiveTripScreen() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showEditSheet, setShowEditSheet] = useState(false);
   const [isInfoExpanded, setIsInfoExpanded] = useState(false);
+  const [isSheetExpanded, setIsSheetExpanded] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowLaunchToast(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
-  const departure = trip?.departure_lat != null && trip?.departure_lng != null
-    ? { lat: trip.departure_lat, lng: trip.departure_lng }
-    : null;
+  // Departure: prefer store (user's actual departure), fall back to trip DB coords
+  const departure = storeDepartureLoc
+    ?? (trip?.departure_lat != null && trip?.departure_lng != null
+      ? { lat: trip.departure_lat, lng: trip.departure_lng }
+      : null);
 
   const arrival = trip?.arrival_lat != null && trip?.arrival_lng != null
     ? { lat: trip.arrival_lat, lng: trip.arrival_lng }
     : null;
 
+  // Fallback route fetch: only if store has no route (cold restart)
   useEffect(() => {
-    if (!departure || !arrival || route) return;
+    if (storeRouteData || localRoute) return;
+    if (!departure || !arrival) return;
+
+    const dbMode = trip?.transport_mode ?? null;
+    const travelMode: TravelMode = (dbMode && TRANSPORT_TO_TRAVEL[dbMode]) ?? 'driving';
 
     let cancelled = false;
-    fetchDirections(departure, arrival)
+    fetchDirections(departure, arrival, travelMode)
       .then((r) => {
-        if (r && !cancelled) setRoute(r);
+        if (r && !cancelled) {
+          setLocalRoute(r);
+          setLocalSegments(buildRouteSegments(r));
+        }
       })
       .catch(() => undefined);
 
     return () => { cancelled = true; };
-  }, [departure?.lat, departure?.lng, arrival?.lat, arrival?.lng, route]);
+  }, [storeRouteData, localRoute, departure?.lat, departure?.lng, arrival?.lat, arrival?.lng, trip?.transport_mode]);
 
   useEffect(() => {
     if (!isTracking) {
       startTracking().catch(() => undefined);
     }
   }, [isTracking, startTracking]);
+
+  // User location for map
+  const userLocation = lastKnownLat != null && lastKnownLng != null
+    ? { lat: lastKnownLat, lng: lastKnownLng }
+    : null;
+
+  // Current step tracking
+  const currentStepIndex = useCurrentStep(routeSteps ?? null, userLocation);
 
   const fireAlert = useCallback(async (type: 'manual' | 'automatic') => {
     if (!trip) return;
@@ -202,8 +283,13 @@ export default function ActiveTripScreen() {
       setShowEditSheet(false);
       if (input.arrivalLat != null && input.arrivalLng != null && departure) {
         const newArrival = { lat: input.arrivalLat, lng: input.arrivalLng };
-        const newRoute = await fetchDirections(departure, newArrival);
-        if (newRoute) setRoute(newRoute);
+        const dbMode = trip?.transport_mode ?? null;
+        const travelMode: TravelMode = (dbMode && TRANSPORT_TO_TRAVEL[dbMode]) ?? 'driving';
+        const newRoute = await fetchDirections(departure, newArrival, travelMode);
+        if (newRoute) {
+          setLocalRoute(newRoute);
+          setLocalSegments(buildRouteSegments(newRoute));
+        }
       }
     } catch (err) {
       if (__DEV__) console.warn('Trip edit failed:', err);
@@ -220,22 +306,41 @@ export default function ActiveTripScreen() {
     }
   };
 
-  const footerBottom = insets.bottom + spacing[3];
+  const handleRecenter = useCallback(() => {
+    if (!userLocation) return;
+    mapRef.current?.animateToRegion({
+      latitude: userLocation.lat,
+      longitude: userLocation.lng,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    }, 500);
+  }, [userLocation]);
+
+  // Bottom sheet collapsed peek height (must match DirectionsBottomSheet)
+  const sheetPeekHeight = ms(80, 0.4) + insets.bottom;
+  const fabBottom = sheetPeekHeight + spacing[3];
 
   return (
     <View style={styles.container}>
-      {/* Alert button — top center */}
-      <View style={[styles.alertContainer, { top: insets.top + spacing[2] }]}>
-        <AlertButton
-          onTrigger={handleAlert}
-          disabled={isPanicTriggering || isTriggering}
-          size={ms(56, 0.4)}
-        />
-      </View>
+      {/* Fullscreen map */}
+      <TripMap
+        ref={mapRef}
+        departure={departure}
+        arrival={arrival}
+        routeSegments={routeSegments ?? undefined}
+        routeCoordinates={route?.polyline}
+        steps={routeSteps ?? undefined}
+        showUserLocation
+        userLocation={userLocation}
+        userHeading={heading}
+        followUser
+        bottomPadding={280}
+        style={StyleSheet.absoluteFillObject}
+      />
 
       {/* Launch toast or TopStatusCard with dropdown */}
       {showLaunchToast ? (
-        <View style={[styles.launchToast, { top: insets.top + ms(56, 0.4) + spacing[2] + spacing[4] }]}>
+        <View style={[styles.launchToast, { top: insets.top + spacing[2] }]}>
           <View style={styles.launchToastContent}>
             <Ionicons name="walk" size={ms(24)} color={colors.white} />
             <View style={styles.launchToastText}>
@@ -248,7 +353,7 @@ export default function ActiveTripScreen() {
           </View>
         </View>
       ) : (
-        <View style={[styles.statusCardContainer, { top: insets.top + ms(56, 0.4) + spacing[2] + spacing[4] }]}>
+        <View style={[styles.statusCardContainer, { top: insets.top + spacing[2] }]}>
           <TopStatusCard
             isExpanded={isInfoExpanded}
             onToggleExpand={() => setIsInfoExpanded((v) => !v)}
@@ -265,24 +370,67 @@ export default function ActiveTripScreen() {
         </View>
       )}
 
-      {/* Navigation footer */}
-      <View style={[styles.navFooter, { bottom: footerBottom }]}>
-        <Pressable
-          style={[styles.navItemInactive, styles.navItemLeft]}
-          onPress={() => router.push('/(tabs)/profile')}
-        >
-          <Ionicons name="person" size={scaledIcon(20)} color={colors.gray[400]} />
-        </Pressable>
-        <Pressable style={styles.navItemActive}>
-          <View style={styles.navDot} />
-        </Pressable>
-        <Pressable
-          style={[styles.navItemInactive, styles.navItemRight]}
-          onPress={() => Alert.alert('Abonnement', 'Bientôt disponible')}
-        >
-          <Ionicons name="star" size={scaledIcon(20)} color={colors.gray[400]} />
-        </Pressable>
-      </View>
+      {/* FAB column — right side (hidden when sheet expanded) */}
+      {!isSheetExpanded && (
+        <View style={[styles.fabColumn, { bottom: fabBottom }]}>
+          <Pressable
+            style={styles.fab}
+            onPress={() => router.push('/(trip)/notes')}
+          >
+            <Ionicons name="pencil-outline" size={scaledIcon(22)} color={colors.white} />
+          </Pressable>
+          <Pressable
+            style={styles.fab}
+            onPress={() => router.push('/notifications')}
+          >
+            <Ionicons name="notifications-outline" size={scaledIcon(22)} color={colors.white} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable
+            style={styles.fab}
+            onPress={() => router.push('/(tabs)/contacts')}
+          >
+            <Ionicons name="people-outline" size={scaledIcon(22)} color={colors.white} />
+          </Pressable>
+        </View>
+      )}
+
+      {/* Alert button — bottom left, above recenter (hidden when sheet expanded) */}
+      {!isSheetExpanded && (
+        <View style={[styles.alertButtonContainer, { bottom: fabBottom + FAB_SIZE + spacing[4] }]}>
+          <AlertButton
+            onTrigger={handleAlert}
+            disabled={isPanicTriggering || isTriggering}
+            size={FAB_SIZE}
+          />
+        </View>
+      )}
+
+      {/* Recenter button — bottom left (hidden when sheet expanded) */}
+      {!isSheetExpanded && (
+        <View style={[styles.recenterContainer, { bottom: fabBottom }]}>
+          <Pressable style={styles.fab} onPress={handleRecenter}>
+            <Ionicons name="locate" size={scaledIcon(22)} color={colors.white} />
+          </Pressable>
+        </View>
+      )}
+
+      {/* Directions bottom sheet */}
+      {routeSteps && routeSteps.length > 0 && (
+        <DirectionsBottomSheet
+          steps={routeSteps}
+          currentStepIndex={currentStepIndex}
+          bottomInset={0}
+          destinationName={trip?.arrival_address}
+          onExpandChange={setIsSheetExpanded}
+        />
+      )}
 
       <Modal
         visible={showAlertConfirmation}
@@ -340,11 +488,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.secondary[900],
   },
-  alertContainer: {
-    position: 'absolute',
-    alignSelf: 'center',
-    zIndex: 10,
-  },
   statusCardContainer: {
     position: 'absolute',
     left: spacing[4],
@@ -383,45 +526,52 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.white,
   },
-  navFooter: {
+  fabColumn: {
+    position: 'absolute',
+    right: spacing[4],
+    gap: spacing[4],
+    alignItems: 'center',
+    zIndex: 7,
+  },
+  fab: {
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
+    backgroundColor: colors.gray[900],
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'rgba(100, 100, 100, 0.4)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: ms(25, 0.4),
+    elevation: 8,
+  },
+  badge: {
+    position: 'absolute',
+    top: -ms(2, 0.4),
+    right: -ms(2, 0.4),
+    minWidth: ms(18, 0.4),
+    height: ms(18, 0.4),
+    borderRadius: ms(9, 0.4),
+    backgroundColor: colors.brandPosition[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: ms(4, 0.4),
+  },
+  badgeText: {
+    color: colors.white,
+    fontSize: ms(10, 0.4),
+    fontFamily: 'Inter_700Bold',
+    textAlign: 'center',
+  },
+  alertButtonContainer: {
     position: 'absolute',
     left: spacing[4],
-    right: spacing[4],
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    backgroundColor: 'rgba(10, 10, 20, 0.9)',
-    borderRadius: scaledRadius(28),
-    overflow: 'hidden',
-    zIndex: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    zIndex: 7,
   },
-  navItemInactive: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing[3] + spacing[2],
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  navItemLeft: {
-    borderRightWidth: 1,
-  },
-  navItemRight: {
-    borderLeftWidth: 1,
-  },
-  navItemActive: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing[3] + spacing[2],
-  },
-  navDot: {
-    width: ms(12, 0.4),
-    height: ms(12, 0.4),
-    borderRadius: ms(6, 0.4),
-    backgroundColor: colors.brandPosition[50],
-    borderWidth: 2,
-    borderColor: 'rgba(204, 99, 249, 0.4)',
+  recenterContainer: {
+    position: 'absolute',
+    left: spacing[4],
+    zIndex: 7,
   },
 });

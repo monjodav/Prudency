@@ -40,6 +40,7 @@ interface TripMapProps {
   showUserLocation?: boolean;
   userLocation?: LatLng | null;
   userHeading?: number | null;
+  followUser?: boolean;
   style?: ViewStyle;
   onMapReady?: () => void;
 }
@@ -68,6 +69,7 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
     showUserLocation = false,
     userLocation,
     userHeading,
+    followUser = false,
     style,
     onMapReady,
   },
@@ -116,19 +118,35 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
 
   const handleMapReady = useCallback(() => {
     setIsReady(true);
-    fitToMarkers();
+    if (!followUser) {
+      fitToMarkers();
+    }
     onMapReady?.();
-  }, [fitToMarkers, onMapReady]);
+  }, [fitToMarkers, onMapReady, followUser]);
 
-  // Re-zoom when route coordinates or segments change after mount
+  // Re-zoom when route coordinates or segments change after mount (overview mode only)
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || followUser) return;
     const hasSegments = routeSegments && routeSegments.length > 0;
     const hasCoords = routeCoordinates && routeCoordinates.length >= 2;
     if (hasSegments || hasCoords) {
       fitToMarkers();
     }
-  }, [isReady, routeCoordinates, routeSegments, fitToMarkers]);
+  }, [isReady, followUser, routeCoordinates, routeSegments, fitToMarkers]);
+
+  // Follow user location when followUser is enabled
+  useEffect(() => {
+    if (!isReady || !followUser || !userLocation) return;
+    mapRef.current?.animateToRegion(
+      {
+        latitude: userLocation.lat,
+        longitude: userLocation.lng,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      },
+      300,
+    );
+  }, [isReady, followUser, userLocation?.lat, userLocation?.lng]);
 
   const transitStops = useMemo(() => {
     if (!steps) return [];
@@ -147,9 +165,12 @@ export const TripMap = forwardRef<TripMapRef, TripMapProps>(function TripMap(
     return result;
   }, [steps]);
 
-  const center = departure ?? userLocation;
+  const center = followUser ? (userLocation ?? departure) : (departure ?? userLocation);
+  const followDelta = 0.005;
+  const overviewDelta = 0.05;
+  const delta = followUser ? followDelta : overviewDelta;
   const initialRegion = center
-    ? { latitude: center.lat, longitude: center.lng, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+    ? { latitude: center.lat, longitude: center.lng, latitudeDelta: delta, longitudeDelta: delta }
     : DEFAULT_REGION;
 
   return (

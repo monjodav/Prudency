@@ -43,12 +43,11 @@ export async function searchPlaces(
     input: query,
     key: env.googleMapsApiKey,
     language: 'fr',
-    components: 'country:fr',
   });
 
   if (location) {
     params.set('location', `${location.lat},${location.lng}`);
-    params.set('radius', '50000');
+    params.set('radius', '15000');
   }
 
   const response = await fetch(`${AUTOCOMPLETE_URL}?${params.toString()}`);

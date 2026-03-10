@@ -118,22 +118,21 @@ export function useNotificationsQuery(limit = 20, offset = 0) {
     },
   });
 
-  // Merge DB + device notifications, deduplicate, sort by date
+  // DB is the source of truth when the user is authenticated.
+  // Device notifications (from the OS notification center) are only shown
+  // as a fallback when DB notifications haven't loaded yet.
   const dbNotifications = notificationsQuery.data ?? [];
   const deviceNotifications = deviceQuery.data ?? [];
 
-  const dbIds = new Set(dbNotifications.map((n) => n.id));
-  const deviceOnly = deviceNotifications.filter((n) => !dbIds.has(n.id));
-  const merged = [
-    ...dbNotifications,
-    ...deviceOnly,
-  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const notifications = dbNotifications.length > 0 || !deviceNotifications.length
+    ? dbNotifications
+    : deviceNotifications;
 
   return {
-    notifications: merged,
-    isLoading: notificationsQuery.isLoading && deviceQuery.isLoading,
+    notifications,
+    isLoading: notificationsQuery.isLoading,
     error: notificationsQuery.error,
-    unreadCount: (unreadCountQuery.data ?? 0) + deviceOnly.length,
+    unreadCount: unreadCountQuery.data ?? 0,
     markAsRead: markAsRead.mutate,
     markAllAsRead: markAllAsRead.mutate,
     refetch: () => {

@@ -11,6 +11,7 @@ export interface CreateTripInput {
   departureLat?: number;
   departureLng?: number;
   estimatedDurationMinutes: number;
+  transportMode?: TripInsert['transport_mode'];
 }
 
 export async function createTrip(input: CreateTripInput): Promise<TripRow> {
@@ -42,6 +43,7 @@ export async function createTrip(input: CreateTripInput): Promise<TripRow> {
     estimated_duration_minutes: input.estimatedDurationMinutes,
     started_at: now.toISOString(),
     estimated_arrival_at: estimatedArrival.toISOString(),
+    transport_mode: input.transportMode ?? null,
   };
 
   const { data, error } = await supabase

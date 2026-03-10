@@ -254,6 +254,30 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Persist in-app notification for each contact who is a Prudency user
+    const allContactPhones = (contacts as TrustedContact[])
+      .filter((c) => c.phone)
+      .map((c) => c.phone);
+
+    if (allContactPhones.length > 0) {
+      const { data: contactProfiles } = await supabaseAdmin
+        .from("profiles")
+        .select("id, phone")
+        .in("phone", allContactPhones);
+
+      if (contactProfiles && contactProfiles.length > 0) {
+        await supabaseAdmin.from("notifications").insert(
+          contactProfiles.map((p: { id: string }) => ({
+            user_id: p.id,
+            type: "contact_alert",
+            title: "Alerte Prudency",
+            body: message,
+            data: { alertId: alertData.id, tripId: alertData.trip_id },
+          })),
+        );
+      }
+    }
+
     return new Response(JSON.stringify(output), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
